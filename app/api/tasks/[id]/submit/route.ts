@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getTask, transition, recordProofHash, recentProofHashes, bumpWorker } from '@/lib/db'
 import { verifyProof } from '@/lib/verify'
+import { settlePayment } from '@/lib/payment'
 import type { ProofPayload } from '@/lib/types'
 
 export async function POST(
@@ -79,10 +80,16 @@ export async function POST(
     resolved_at: new Date().toISOString(),
   })
 
+  // Trigger on-chain settlement if verified
+  if (result.outcome === 'verified' && task.payment_ref) {
+    settlePayment(task.payment_ref).catch(() => {})
+  }
+
   // Bump worker stats
+  const budgetUnits = BigInt(Math.round(parseFloat(task.budget_usdt) * 1_000_000))
   await bumpWorker({
     wallet: workerWallet,
-    earned_units: result.outcome === 'verified' ? BigInt(0) : BigInt(0), // settled separately
+    earned_units: result.outcome === 'verified' ? budgetUnits : BigInt(0),
     outcome: result.outcome === 'verified' ? 'completed' : result.outcome === 'failed' ? 'failed' : 'completed',
   }).catch(() => {})
 

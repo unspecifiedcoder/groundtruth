@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
 interface Task {
@@ -27,13 +27,12 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
   const [formData, setFormData] = useState<Record<string, string>>({})
   const [error, setError] = useState('')
 
-  // Fetch task on mount
-  useState(() => {
+  useEffect(() => {
     fetch(`/api/v1/tasks/${params.id}`)
       .then(r => r.json())
       .then(t => { setTask(t); setPhase('view') })
       .catch(() => setPhase('error'))
-  })
+  }, [params.id])
 
   async function handleClaim() {
     if (!wallet.match(/^0x[0-9a-fA-F]{40}$/)) {
