@@ -167,6 +167,6 @@ const handler = createMcpHandler(
 )
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const h = handler as any
-export const GET = h.GET ?? h
-export const POST = h.POST ?? h
+export const GET = (handler as any).GET
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const POST = (handler as any).POST
