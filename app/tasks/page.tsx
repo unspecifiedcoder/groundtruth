@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { listOpenTasks } from '@/lib/db'
 
+export const dynamic = 'force-dynamic'
+
 async function getOpenTasks() {
   try {
     return await listOpenTasks()
