@@ -42,6 +42,7 @@ check "402 response has x402Version field" 'grep -q "x402Version" /tmp/gt_402.js
 # 4. MCP endpoint responds to tools/list
 MCP_RESP=$(curl -s -X POST "$BASE/api/mcp" \
   -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}')
 check "MCP tools/list returns ground_truth_info" 'echo "$MCP_RESP" | grep -q "ground_truth_info"'
 check "MCP tools/list returns human_do" 'echo "$MCP_RESP" | grep -q "human_do"'
