@@ -166,7 +166,4 @@ const handler = createMcpHandler(
   { redactedTools: [] } as any
 )
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const GET = (handler as any).GET
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const POST = (handler as any).POST
+export { handler as GET, handler as POST }
