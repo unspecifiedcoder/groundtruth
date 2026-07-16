@@ -12,3 +12,8 @@
 /.turbo
 .vercel
 groundtruth_tmp/
+
+# Foundry build artifacts
+contracts/out/
+contracts/cache/
+contracts/lib/
