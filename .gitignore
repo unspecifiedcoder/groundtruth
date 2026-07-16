@@ -1,1 +1,14 @@
 /.treehouse
+/node_modules
+/.pnp
+.pnp.js
+/.next/
+/out/
+.env.local
+.env.*.local
+.DS_Store
+*.pem
+/coverage
+/.turbo
+.vercel
+groundtruth_tmp/
