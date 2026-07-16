@@ -6,10 +6,11 @@ import "../src/GroundTruthPayroll.sol";
 
 contract Deploy is Script {
     function run() external {
-        address feeRecipient = vm.envAddress("FEE_RECIPIENT");
-        address operator = vm.envAddress("OPERATOR_ADDRESS");
-        vm.broadcast();
-        GroundTruthPayroll payroll = new GroundTruthPayroll(feeRecipient, operator);
-        console.log("GroundTruthPayroll deployed at:", address(payroll));
+        uint256 pk = vm.envUint("SETTLEMENT_PRIVATE_KEY");
+        address deployer = vm.addr(pk);
+        vm.startBroadcast(pk);
+        GroundTruthPayroll payroll = new GroundTruthPayroll(deployer, deployer);
+        vm.stopBroadcast();
+        console.log("Deployed to:", address(payroll));
     }
 }
