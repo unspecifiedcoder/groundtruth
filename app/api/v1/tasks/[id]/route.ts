@@ -14,6 +14,7 @@ export async function GET(
       id: task.id,
       intent: task.intent,
       proof_spec: task.proof_spec,
+      budget_usdt: task.budget_usdt,
       status: task.status,
       result: task.result,
       created_at: task.created_at,
