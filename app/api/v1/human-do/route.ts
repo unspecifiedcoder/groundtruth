@@ -7,8 +7,10 @@ import { planTask } from '@/lib/planner'
 export async function POST(req: NextRequest) {
   // Check for x402 payment header
   const paymentHeader = req.headers.get('X-PAYMENT') ?? req.headers.get('x-payment')
+  const demoKey = req.headers.get('X-DEMO-KEY')
+  const isDemoMode = demoKey === (process.env.ADMIN_SECRET ?? 'gt-admin-2026-xlayer')
 
-  if (!paymentHeader) {
+  if (!paymentHeader && !isDemoMode) {
     // No payment — return 402 challenge
     return NextResponse.json(buildChallenge(), { status: 402 })
   }
@@ -31,23 +33,37 @@ export async function POST(req: NextRequest) {
   // Generate task ID early (used as idempotency key in payment ref)
   const taskId = crypto.randomUUID()
 
-  // Verify payment
-  const payment = await verifyPayment(paymentHeader, taskId)
-  if (!payment.success) {
-    return NextResponse.json(buildChallenge(), { status: 402 })
-  }
+  let payment: { paymentRef: string; amountUnits: string; feeUnits: string; payerAddress: string; txHash: string }
 
-  // Replay guard — reject if payment_ref already used
-  const recorded = await recordPaymentRef({
-    payment_ref: payment.paymentRef,
-    task_id: taskId,
-    amount_units: payment.amountUnits,
-    fee_units: payment.feeUnits,
-    payer_address: payment.payerAddress,
-    tx_hash: payment.txHash,
-  })
-  if (!recorded) {
-    return NextResponse.json({ error: 'Payment already used' }, { status: 409 })
+  if (isDemoMode) {
+    // Demo bypass — skip x402 verification, use synthetic payment record
+    payment = {
+      paymentRef: `demo-${taskId}`,
+      amountUnits: '2000000',
+      feeUnits: '240000',
+      payerAddress: '0x0000000000000000000000000000000000000000',
+      txHash: `0xdemo-${taskId}`,
+    }
+  } else {
+    // Verify payment
+    const result = await verifyPayment(paymentHeader!, taskId)
+    if (!result.success) {
+      return NextResponse.json(buildChallenge(), { status: 402 })
+    }
+    payment = result
+
+    // Replay guard — reject if payment_ref already used
+    const recorded = await recordPaymentRef({
+      payment_ref: payment.paymentRef,
+      task_id: taskId,
+      amount_units: payment.amountUnits,
+      fee_units: payment.feeUnits,
+      payer_address: payment.payerAddress,
+      tx_hash: payment.txHash,
+    })
+    if (!recorded) {
+      return NextResponse.json({ error: 'Payment already used' }, { status: 409 })
+    }
   }
 
   // Use planner if no explicit proof_spec provided — or use what was provided
