@@ -72,7 +72,7 @@ const handler = createMcpHandler(
           .default(3600)
           .describe('Task timeout in seconds'),
       },
-      async ({ intent, proof_type, instructions, budget_usdt, timeout_seconds }) => {
+      async ({ intent, proof_type, instructions, budget_usdt, timeout_seconds }: { intent: string; proof_type: 'photo' | 'form'; instructions: string; budget_usdt?: string; timeout_seconds?: number }) => {
         // This tool signals that payment is needed — the actual task creation
         // happens at POST /api/v1/human-do with x402 payment header.
         // The MCP tool returns instructions on how to pay and proceed.
@@ -114,7 +114,7 @@ const handler = createMcpHandler(
       {
         task_id: z.string().uuid().describe('The task ID returned by human_do'),
       },
-      async ({ task_id }) => {
+      async ({ task_id }: { task_id: string }) => {
         try {
           const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
           const res = await fetch(`${appUrl}/api/v1/tasks/${task_id}`, {
