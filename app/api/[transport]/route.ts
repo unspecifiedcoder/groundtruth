@@ -160,13 +160,10 @@ const handler = createMcpHandler(
       }
     )
   },
-  {
-    name: 'GroundTruth',
-    version: '0.1.0',
-  },
-  {
-    redactedTools: [],
-  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  { name: 'GroundTruth', version: '0.1.0' } as any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  { redactedTools: [] } as any
 )
 
 export const { GET, POST } = handler
