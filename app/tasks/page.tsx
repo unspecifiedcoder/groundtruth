@@ -1,11 +1,9 @@
 import Link from 'next/link'
+import { listOpenTasks } from '@/lib/db'
 
 async function getOpenTasks() {
   try {
-    const url = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
-    const res = await fetch(`${url}/api/tasks`, { cache: 'no-store' })
-    if (!res.ok) return []
-    return res.json()
+    return await listOpenTasks()
   } catch {
     return []
   }

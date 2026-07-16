@@ -1,11 +1,10 @@
+import { pulseStats } from '@/lib/db'
+
 export const revalidate = 30
 
 async function getStats() {
   try {
-    const url = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
-    const res = await fetch(`${url}/api/pulse`, { cache: 'no-store' })
-    if (!res.ok) return null
-    return res.json()
+    return await pulseStats()
   } catch {
     return null
   }
