@@ -33,33 +33,36 @@ export async function POST(req: NextRequest) {
   // Generate task ID early (used as idempotency key in payment ref)
   const taskId = crypto.randomUUID()
 
-  let payment: { paymentRef: string; amountUnits: string; feeUnits: string; payerAddress: string; txHash: string }
+  let paymentRef: string
+  let amountUnits: bigint
+  let feeUnits: bigint
+  let payerAddress: string
+  let txHash: string
 
   if (isDemoMode) {
-    // Demo bypass — skip x402 verification, use synthetic payment record
-    payment = {
-      paymentRef: `demo-${taskId}`,
-      amountUnits: '2000000',
-      feeUnits: '240000',
-      payerAddress: '0x0000000000000000000000000000000000000000',
-      txHash: `0xdemo-${taskId}`,
-    }
+    paymentRef = `demo-${taskId}`
+    amountUnits = BigInt(2000000)
+    feeUnits = BigInt(240000)
+    payerAddress = '0x0000000000000000000000000000000000000000'
+    txHash = `0xdemo${taskId.replace(/-/g, '')}`
   } else {
-    // Verify payment
     const result = await verifyPayment(paymentHeader!, taskId)
     if (!result.success) {
       return NextResponse.json(buildChallenge(), { status: 402 })
     }
-    payment = result
+    paymentRef = result.paymentRef
+    amountUnits = result.amountUnits
+    feeUnits = result.feeUnits
+    payerAddress = result.payerAddress
+    txHash = result.txHash ?? ''
 
-    // Replay guard — reject if payment_ref already used
     const recorded = await recordPaymentRef({
-      payment_ref: payment.paymentRef,
+      payment_ref: paymentRef,
       task_id: taskId,
-      amount_units: payment.amountUnits,
-      fee_units: payment.feeUnits,
-      payer_address: payment.payerAddress,
-      tx_hash: payment.txHash,
+      amount_units: amountUnits,
+      fee_units: feeUnits,
+      payer_address: payerAddress,
+      tx_hash: txHash,
     })
     if (!recorded) {
       return NextResponse.json({ error: 'Payment already used' }, { status: 409 })
@@ -76,7 +79,7 @@ export async function POST(req: NextRequest) {
     proof_spec: proofSpec,
     budget_usdt: input.budget_usdt,
     expires_at: expiresAt,
-    payment_ref: payment.paymentRef,
+    payment_ref: paymentRef,
   })
 
   return NextResponse.json(
