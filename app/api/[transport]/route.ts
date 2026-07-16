@@ -1,8 +1,9 @@
 import { createMcpHandler } from 'mcp-handler'
 import { z } from 'zod'
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const handler = createMcpHandler(
-  (server) => {
+  (server: any) => {
     // Tool 1: ground_truth_info — free, describes the ASP
     server.tool(
       'ground_truth_info',

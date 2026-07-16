@@ -151,7 +151,7 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
                 />
                 {files.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-2">
-                    {files.map((f, i) => (
+                    {files.map((f: File, i: number) => (
                       <div key={i} className="text-xs bg-gray-800 px-2 py-1 rounded-lg text-gray-300">
                         {f.name}
                       </div>
@@ -161,13 +161,13 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
               </div>
             ) : (
               <div className="space-y-3">
-                {(task.proof_spec.formFields ?? []).map(field => (
+                {(task.proof_spec.formFields ?? []).map((field: string) => (
                   <div key={field}>
                     <label className="block text-sm text-gray-400 mb-1 capitalize">{field}</label>
                     <input
                       type="text"
                       value={formData[field] ?? ''}
-                      onChange={e => setFormData(prev => ({ ...prev, [field]: e.target.value }))}
+                      onChange={e => setFormData((prev: Record<string, string>) => ({ ...prev, [field]: e.target.value }))}
                       className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-sm"
                       placeholder={`Enter ${field}...`}
                     />
