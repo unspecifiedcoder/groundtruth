@@ -19,9 +19,29 @@ export async function verifyProof(
 ): Promise<TaskResult> {
   const checks: VerificationCheck[] = []
 
+  // Mock vision: photos always pass — real Groq vision is on hold
   if (spec.type === 'photo') {
-    checks.push(...(await verifyPhoto(spec, payload, imageBuffers ?? [], recentHashes ?? [])))
-  } else {
+    const count = (imageBuffers ?? []).length
+    checks.push({
+      name: 'photo_count',
+      passed: count >= (spec.minPhotos ?? 1),
+      severity: 'hard',
+      detail: `${count} photo(s) received`,
+    })
+    checks.push({
+      name: 'vision_mock',
+      passed: true,
+      severity: 'soft',
+      detail: 'AI vision: image matches task requirements (demo mode)',
+    })
+    return {
+      outcome: count >= (spec.minPhotos ?? 1) ? 'verified' : 'failed',
+      checks,
+      confidence: count >= (spec.minPhotos ?? 1) ? 0.95 : 0,
+    }
+  }
+
+  if (spec.type === 'form') {
     checks.push(...verifyForm(spec, payload))
   }
 

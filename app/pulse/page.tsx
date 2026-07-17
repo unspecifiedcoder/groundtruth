@@ -1,4 +1,5 @@
 import { pulseStats } from '@/lib/db'
+import Link from 'next/link'
 
 export const revalidate = 30
 
@@ -14,40 +15,60 @@ export default async function PulsePage() {
   const stats = await getStats()
 
   return (
-    <main className="min-h-screen bg-gray-950 text-white p-6">
-      <div className="max-w-md mx-auto">
-        <h1 className="text-2xl font-bold mb-2">Live Payroll</h1>
-        <p className="text-gray-400 text-sm mb-8">Real-time GroundTruth economy stats</p>
+    <main className="min-h-screen bg-[#080c10] text-white pb-16">
+      <div className="max-w-xl mx-auto px-4 py-10">
+
+        <div className="mb-10">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[#00ff88]/20 bg-[#00ff88]/5 text-[#00ff88] text-xs font-medium mb-4">
+            <span className="w-1.5 h-1.5 bg-[#00ff88] rounded-full animate-pulse" />
+            Live · updates every 30s
+          </div>
+          <h1 className="text-3xl font-black">Payroll Pulse</h1>
+          <p className="text-gray-400 text-sm mt-1">Real-time GroundTruth economy stats</p>
+        </div>
 
         {stats ? (
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-gray-900 rounded-xl p-5">
-              <div className="text-3xl font-bold text-green-400">${stats.total_paid_usdt}</div>
-              <div className="text-gray-400 text-sm mt-1">Total paid out</div>
-            </div>
-            <div className="bg-gray-900 rounded-xl p-5">
-              <div className="text-3xl font-bold text-blue-400">{stats.verified_tasks}</div>
-              <div className="text-gray-400 text-sm mt-1">Tasks verified</div>
-            </div>
-            <div className="bg-gray-900 rounded-xl p-5">
-              <div className="text-3xl font-bold text-purple-400">{stats.active_workers}</div>
-              <div className="text-gray-400 text-sm mt-1">Active oracles</div>
-            </div>
-            <div className="bg-gray-900 rounded-xl p-5">
-              <div className="text-3xl font-bold text-yellow-400">{stats.total_tasks}</div>
-              <div className="text-gray-400 text-sm mt-1">Total tasks</div>
-            </div>
+            {[
+              { value: `$${stats.total_paid_usdt}`, label: 'Total paid out', color: 'text-[#00ff88]', bg: 'bg-[#00ff88]/5 border-[#00ff88]/15' },
+              { value: String(stats.verified_tasks), label: 'Tasks verified', color: 'text-blue-400', bg: 'bg-blue-400/5 border-blue-400/15' },
+              { value: String(stats.active_workers), label: 'Active oracles', color: 'text-purple-400', bg: 'bg-purple-400/5 border-purple-400/15' },
+              { value: String(stats.total_tasks), label: 'Total tasks posted', color: 'text-yellow-400', bg: 'bg-yellow-400/5 border-yellow-400/15' },
+            ].map(s => (
+              <div key={s.label} className={`border rounded-2xl p-6 ${s.bg}`}>
+                <div className={`text-3xl font-black ${s.color}`}>{s.value}</div>
+                <div className="text-gray-400 text-sm mt-1">{s.label}</div>
+              </div>
+            ))}
           </div>
         ) : (
-          <div className="text-center py-16 text-gray-500">Stats loading...</div>
+          <div className="text-center py-20 text-gray-500">
+            <div className="w-8 h-8 border-2 border-gray-700 border-t-gray-400 rounded-full animate-spin mx-auto mb-4" />
+            Loading stats...
+          </div>
         )}
 
-        <div className="mt-8 bg-gray-900 rounded-xl p-4">
-          <p className="text-xs text-gray-500">
-            All payouts settled on-chain via GroundTruthPayroll.sol on X Layer (chainId 196).
-            Refreshes every 30 seconds.
-          </p>
+        <div className="mt-8 bg-white/3 border border-white/8 rounded-2xl p-5">
+          <div className="text-xs text-gray-500 leading-relaxed">
+            All payouts settled on-chain via{' '}
+            <a
+              href="https://www.oklink.com/xlayer/address/0x430172985b21458d73576435D4aD4bEeA85F376C"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#00ff88] hover:underline font-mono"
+            >
+              GroundTruthPayroll.sol
+            </a>{' '}
+            on X Layer (chainId 196). Contract immutable, open-source.
+          </div>
         </div>
+
+        <div className="mt-6 text-center">
+          <Link href="/tasks" className="text-sm text-[#00ff88] hover:underline">
+            → Browse open tasks and start earning
+          </Link>
+        </div>
+
       </div>
     </main>
   )
