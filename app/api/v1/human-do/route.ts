@@ -55,10 +55,26 @@ export async function POST(req: NextRequest) {
     feeUnits = result.feeUnits
     payerAddress = result.payerAddress
     txHash = result.txHash ?? ''
+  }
 
+  // Use planner if no explicit proof_spec provided — or use what was provided
+  const proofSpec = input.proof_spec ?? (await planTask(input.intent)).proof_spec
+
+  // Create task first (payment record has FK to task)
+  const expiresAt = new Date(Date.now() + (input.timeout_seconds ?? 3600) * 1000)
+  const task = await insertTask({
+    intent: input.intent,
+    proof_spec: proofSpec,
+    budget_usdt: input.budget_usdt,
+    expires_at: expiresAt,
+    payment_ref: paymentRef,
+  })
+
+  // Record payment after task exists (avoids FK violation)
+  if (!isDemoMode) {
     const recorded = await recordPaymentRef({
       payment_ref: paymentRef,
-      task_id: taskId,
+      task_id: task.id,
       amount_units: amountUnits,
       fee_units: feeUnits,
       payer_address: payerAddress,
@@ -68,19 +84,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Payment already used' }, { status: 409 })
     }
   }
-
-  // Use planner if no explicit proof_spec provided — or use what was provided
-  const proofSpec = input.proof_spec ?? (await planTask(input.intent)).proof_spec
-
-  // Create task in DB
-  const expiresAt = new Date(Date.now() + (input.timeout_seconds ?? 3600) * 1000)
-  const task = await insertTask({
-    intent: input.intent,
-    proof_spec: proofSpec,
-    budget_usdt: input.budget_usdt,
-    expires_at: expiresAt,
-    payment_ref: paymentRef,
-  })
 
   return NextResponse.json(
     {
