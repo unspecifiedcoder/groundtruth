@@ -1,33 +1,53 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { ethers } from 'ethers'
+import {
+  createPublicClient,
+  createWalletClient,
+  http,
+  isAddress,
+  parseAbi,
+  type Hex,
+} from 'viem'
+import { privateKeyToAccount } from 'viem/accounts'
 
-const MOCK_USDT_ADDRESS = '0x725cCe0916d2E8682438732fD9e79803B4fAB2BD'
-const RPC_URL = 'https://testrpc.xlayer.tech'
+const MOCK_USDT_ADDRESS = '0x725cCe0916d2E8682438732fD9e79803B4fAB2BD' as const
 
-const ABI = [
+const XLAYER_TESTNET = {
+  id: 1952,
+  name: 'X Layer Testnet',
+  network: 'xlayer-testnet',
+  nativeCurrency: { name: 'OKB', symbol: 'OKB', decimals: 18 },
+  rpcUrls: { default: { http: ['https://testrpc.xlayer.tech'] } },
+} as const
+
+const ABI = parseAbi([
   'function drip(address to) external',
   'function balanceOf(address) view returns (uint256)',
   'function lastFaucetTime(address) view returns (uint256)',
-]
+])
 
 export async function POST(req: NextRequest) {
   try {
     const { address } = await req.json()
-    if (!address || !ethers.isAddress(address)) {
+    if (!address || !isAddress(address)) {
       return NextResponse.json({ error: 'Invalid address' }, { status: 400 })
     }
 
-    const pk = process.env.SETTLEMENT_PRIVATE_KEY
+    const pk = process.env.SETTLEMENT_PRIVATE_KEY as Hex | undefined
     if (!pk) return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 })
 
-    const provider = new ethers.JsonRpcProvider(RPC_URL)
-    const signer = new ethers.Wallet(pk, provider)
-    const contract = new ethers.Contract(MOCK_USDT_ADDRESS, ABI, signer)
+    const account = privateKeyToAccount(pk)
+    const publicClient = createPublicClient({ chain: XLAYER_TESTNET, transport: http() })
+    const walletClient = createWalletClient({ account, chain: XLAYER_TESTNET, transport: http() })
 
     // Check cooldown
-    const lastTime: bigint = await contract.lastFaucetTime(address)
+    const lastTime = await publicClient.readContract({
+      address: MOCK_USDT_ADDRESS,
+      abi: ABI,
+      functionName: 'lastFaucetTime',
+      args: [address as `0x${string}`],
+    })
     const now = BigInt(Math.floor(Date.now() / 1000))
-    const cooldown = BigInt(3600) // 1 hour
+    const cooldown = BigInt(3600)
     if (lastTime > 0n && now < lastTime + cooldown) {
       const waitMins = Number((lastTime + cooldown - now) / 60n)
       return NextResponse.json(
@@ -36,12 +56,17 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const tx = await contract.drip(address)
-    await tx.wait()
+    const txHash = await walletClient.writeContract({
+      address: MOCK_USDT_ADDRESS,
+      abi: ABI,
+      functionName: 'drip',
+      args: [address as `0x${string}`],
+    })
+    await publicClient.waitForTransactionReceipt({ hash: txHash })
 
     return NextResponse.json({
       success: true,
-      tx: tx.hash,
+      tx: txHash,
       amount: '10 mUSDT',
       token: MOCK_USDT_ADDRESS,
     })
@@ -54,13 +79,17 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const address = searchParams.get('address')
-  if (!address || !ethers.isAddress(address)) {
+  if (!address || !isAddress(address)) {
     return NextResponse.json({ token: MOCK_USDT_ADDRESS, symbol: 'mUSDT', decimals: 6 })
   }
 
-  const provider = new ethers.JsonRpcProvider(RPC_URL)
-  const contract = new ethers.Contract(MOCK_USDT_ADDRESS, ABI, provider)
-  const balance: bigint = await contract.balanceOf(address)
+  const publicClient = createPublicClient({ chain: XLAYER_TESTNET, transport: http() })
+  const balance = await publicClient.readContract({
+    address: MOCK_USDT_ADDRESS,
+    abi: ABI,
+    functionName: 'balanceOf',
+    args: [address as `0x${string}`],
+  })
 
   return NextResponse.json({
     token: MOCK_USDT_ADDRESS,

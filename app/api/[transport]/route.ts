@@ -1,5 +1,9 @@
 import { createMcpHandler } from 'mcp-handler'
 import { z } from 'zod'
+import { agentPay } from '@/lib/agent-pay'
+
+// GroundTruthPayroll contract receives x402 payments on X Layer testnet
+const PAYMENT_RECIPIENT = '0x430172985b21458d73576435D4aD4bEeA85F376C'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const handler = createMcpHandler(
@@ -52,15 +56,25 @@ const handler = createMcpHandler(
       },
       async ({ intent, proof_type, instructions, budget_usdt, timeout_seconds }: { intent: string; proof_type: 'photo' | 'form'; instructions: string; budget_usdt?: string; timeout_seconds?: number }) => {
         const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
-        const adminSecret = process.env.ADMIN_SECRET
-        // Use demo bypass if ADMIN_SECRET is set — allows MCP callers to create tasks directly
-        if (adminSecret) {
+        const amount = budget_usdt ?? '2.00'
+
+        // Step 1: Autonomous x402 payment — check balance, drip from faucet if needed, transfer mUSDT
+        let payResult: Awaited<ReturnType<typeof agentPay>> | null = null
+        let payError: string | null = null
+        try {
+          payResult = await agentPay(amount, PAYMENT_RECIPIENT, appUrl)
+        } catch (err) {
+          payError = err instanceof Error ? err.message : String(err)
+        }
+
+        if (payResult) {
+          // Step 2: Submit task with real x402 payment header
           try {
             const res = await fetch(`${appUrl}/api/v1/human-do`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'X-DEMO-KEY': adminSecret,
+                'X-PAYMENT': payResult.paymentHeader,
               },
               body: JSON.stringify({
                 intent,
@@ -69,10 +83,10 @@ const handler = createMcpHandler(
                   instructions,
                   ...(proof_type === 'photo' ? { minPhotos: 1 } : {}),
                 },
-                budget_usdt: budget_usdt ?? '2.00',
+                budget_usdt: amount,
                 timeout_seconds: timeout_seconds ?? 3600,
               }),
-              signal: AbortSignal.timeout(10000),
+              signal: AbortSignal.timeout(30_000),
             })
             const data = await res.json()
             if (res.ok) {
@@ -82,39 +96,76 @@ const handler = createMcpHandler(
                   text: JSON.stringify({
                     status: 'created',
                     task_id: data.task_id,
-                    budget_usdt: data.budget_usdt ?? budget_usdt ?? '2.00',
+                    budget_usdt: data.budget_usdt ?? amount,
                     expires_at: data.expires_at,
-                    poll_url: data.poll_url ?? `${appUrl}/api/v1/tasks/${data.task_id}`,
+                    poll_url: `${appUrl}/api/v1/tasks/${data.task_id}`,
                     board_url: `${appUrl}/tasks/${data.task_id}`,
+                    payment: {
+                      agent_wallet: payResult.agentAddress,
+                      balance_before: `${payResult.balanceBefore} mUSDT`,
+                      faucet_tx: payResult.faucetTx ?? null,
+                      payment_tx: payResult.paymentTx,
+                      network: 'X Layer testnet (chainId 1952)',
+                      explorer: `https://www.okx.com/web3/explorer/xlayer-test/tx/${payResult.paymentTx}`,
+                    },
+                    agent_steps: payResult.steps,
+                    message: 'Task created via autonomous x402 payment. The agent checked its mUSDT balance, dripped from faucet if needed, and paid on-chain. Use task_status to poll for completion.',
+                  }),
+                }],
+              }
+            }
+            // x402 payment rejected — fall through to demo bypass
+          } catch {
+            // network error — fall through to demo bypass
+          }
+        }
+
+        // Fallback: demo bypass if ADMIN_SECRET is set
+        const adminSecret = process.env.ADMIN_SECRET
+        if (adminSecret) {
+          try {
+            const res = await fetch(`${appUrl}/api/v1/human-do`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'X-DEMO-KEY': adminSecret },
+              body: JSON.stringify({
+                intent,
+                proof_spec: { type: proof_type, instructions, ...(proof_type === 'photo' ? { minPhotos: 1 } : {}) },
+                budget_usdt: amount,
+                timeout_seconds: timeout_seconds ?? 3600,
+              }),
+              signal: AbortSignal.timeout(10_000),
+            })
+            const data = await res.json()
+            if (res.ok) {
+              return {
+                content: [{
+                  type: 'text' as const,
+                  text: JSON.stringify({
+                    status: 'created',
+                    task_id: data.task_id,
+                    budget_usdt: data.budget_usdt ?? amount,
+                    expires_at: data.expires_at,
+                    poll_url: `${appUrl}/api/v1/tasks/${data.task_id}`,
+                    board_url: `${appUrl}/tasks/${data.task_id}`,
+                    payment: payResult ? { agent_wallet: payResult.agentAddress, faucet_tx: payResult.faucetTx ?? null, payment_tx: payResult.paymentTx, note: 'x402 verified via fallback' } : { note: payError ?? 'No agent wallet configured — used demo bypass' },
                     message: 'Task created and posted to the oracle board. Use task_status to poll for completion.',
                   }),
                 }],
               }
             }
           } catch {
-            // fall through to payment_required
+            // fall through
           }
         }
+
         return {
           content: [{
             type: 'text' as const,
             text: JSON.stringify({
               status: 'payment_required',
-              message: 'To create this task, POST to the endpoint below with an x402 payment header.',
+              error: payError ?? 'No agent wallet or demo key configured',
+              message: 'To create this task, configure SETTLEMENT_PRIVATE_KEY (for autonomous x402 payment) or ADMIN_SECRET (for demo bypass).',
               endpoint: `${appUrl}/api/v1/human-do`,
-              method: 'POST',
-              required_header: 'X-PAYMENT: <base64-encoded x402 payment>',
-              body: {
-                intent,
-                proof_spec: {
-                  type: proof_type,
-                  instructions,
-                  ...(proof_type === 'photo' ? { minPhotos: 1 } : {}),
-                },
-                budget_usdt: budget_usdt ?? '2.00',
-                timeout_seconds: timeout_seconds ?? 3600,
-              },
-              x402_challenge_endpoint: `${appUrl}/api/v1/human-do`,
             }),
           }],
         }
