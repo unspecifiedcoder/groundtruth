@@ -52,6 +52,49 @@ const handler = createMcpHandler(
       },
       async ({ intent, proof_type, instructions, budget_usdt, timeout_seconds }: { intent: string; proof_type: 'photo' | 'form'; instructions: string; budget_usdt?: string; timeout_seconds?: number }) => {
         const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+        const adminSecret = process.env.ADMIN_SECRET
+        // Use demo bypass if ADMIN_SECRET is set — allows MCP callers to create tasks directly
+        if (adminSecret) {
+          try {
+            const res = await fetch(`${appUrl}/api/v1/human-do`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-DEMO-KEY': adminSecret,
+              },
+              body: JSON.stringify({
+                intent,
+                proof_spec: {
+                  type: proof_type,
+                  instructions,
+                  ...(proof_type === 'photo' ? { minPhotos: 1 } : {}),
+                },
+                budget_usdt: budget_usdt ?? '2.00',
+                timeout_seconds: timeout_seconds ?? 3600,
+              }),
+              signal: AbortSignal.timeout(10000),
+            })
+            const data = await res.json()
+            if (res.ok) {
+              return {
+                content: [{
+                  type: 'text' as const,
+                  text: JSON.stringify({
+                    status: 'created',
+                    task_id: data.task_id,
+                    budget_usdt: data.budget_usdt ?? budget_usdt ?? '2.00',
+                    expires_at: data.expires_at,
+                    poll_url: data.poll_url ?? `${appUrl}/api/v1/tasks/${data.task_id}`,
+                    board_url: `${appUrl}/tasks/${data.task_id}`,
+                    message: 'Task created and posted to the oracle board. Use task_status to poll for completion.',
+                  }),
+                }],
+              }
+            }
+          } catch {
+            // fall through to payment_required
+          }
+        }
         return {
           content: [{
             type: 'text' as const,
