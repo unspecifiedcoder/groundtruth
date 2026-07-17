@@ -1,3 +1,72 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@keyframes pulse-ring {
+  0%   { transform: scale(0.9); opacity: 0.7; }
+  100% { transform: scale(2.8); opacity: 0; }
+}
+
+@keyframes blink-cursor {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+@keyframes travel-dot {
+  0%   { left: -6px; opacity: 0; }
+  8%   { opacity: 1; }
+  92%  { opacity: 1; }
+  100% { left: calc(100% + 6px); opacity: 0; }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes status-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.25; }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.animate-pulse-ring {
+  animation: pulse-ring 2.4s ease-out infinite;
+}
+
+.animate-blink {
+  animation: blink-cursor 1s step-end infinite;
+}
+
+.animate-travel {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  animation: travel-dot 3s linear infinite;
+}
+
+.animate-travel-2 {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  animation: travel-dot 3s linear 1.5s infinite;
+}
+
+.animate-status {
+  animation: status-blink 2s ease-in-out infinite;
+}
+
+.fade-up   { animation: fade-up 0.5s ease-out both; }
+.fade-up-1 { animation-delay: 0.05s; }
+.fade-up-2 { animation-delay: 0.15s; }
+.fade-up-3 { animation-delay: 0.28s; }
+.fade-up-4 { animation-delay: 0.42s; }
+.fade-up-5 { animation-delay: 0.58s; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; opacity: 1 !important; }
+}
