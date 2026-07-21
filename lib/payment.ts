@@ -1,4 +1,5 @@
 import { toUnits, splitBudget } from './money'
+import { verifyOnChainPayment } from './onchain-verify'
 
 const FACILITATOR_URL = process.env.OKX_FACILITATOR_URL ?? 'https://www.okx.com/web3/build/ai'
 const PAYMENT_TOKEN = process.env.OKX_PAYMENT_TOKEN ?? ''
@@ -62,7 +63,7 @@ export async function verifyPayment(
   paymentHeader: string,
   taskId: string
 ): Promise<PaymentResult> {
-  // Try OKX facilitator first
+  // Fast path: OKX facilitator explicitly validates the payment.
   try {
     const res = await fetch(`${FACILITATOR_URL}/verify`, {
       method: 'POST',
@@ -91,12 +92,14 @@ export async function verifyPayment(
         }
       }
     }
+    // Facilitator reachable but did not validate (isValid=false, non-ok, etc.).
+    // Do NOT trust the header on that basis — verify the claimed tx on-chain,
+    // which is the real source of truth for our X Layer settlement.
   } catch {
-    // facilitator unreachable — fall through to txhash fallback
+    // Facilitator unreachable — fall through to on-chain verification.
   }
 
-  // Fallback: parse payment header directly (for local dev / facilitator outage)
-  return parseFallback(paymentHeader, taskId)
+  return verifyOnChain(paymentHeader, taskId)
 }
 
 export async function settlePayment(paymentRef: string): Promise<boolean> {
@@ -113,32 +116,56 @@ export async function settlePayment(paymentRef: string): Promise<boolean> {
   }
 }
 
-function parseFallback(paymentHeader: string, taskId: string): PaymentResult {
-  // Header is base64-encoded JSON in x402 spec
+function invalid(taskId: string): PaymentResult {
+  const amountUnits = toUnits(PRICE_USDT)
+  const { feeUnits, payoutUnits } = splitBudget(PRICE_USDT, FEE_BPS)
+  return {
+    success: false,
+    paymentRef: `invalid-${taskId}-${Date.now()}`,
+    payerAddress: '0x0000000000000000000000000000000000000000',
+    amountUnits,
+    feeUnits,
+    payoutUnits,
+  }
+}
+
+// Decode the base64 x402 header, then PROVE the payment on-chain before
+// accepting it. The header's self-declared fields (amount, from) are treated
+// as untrusted hints; only the on-chain Transfer log is authoritative.
+async function verifyOnChain(paymentHeader: string, taskId: string): Promise<PaymentResult> {
+  let decoded: { txHash?: string; from?: string; paymentReference?: string }
   try {
-    const decoded = JSON.parse(Buffer.from(paymentHeader, 'base64').toString('utf-8'))
-    const amountUnits = toUnits(PRICE_USDT)
-    const { feeUnits, payoutUnits } = splitBudget(PRICE_USDT, FEE_BPS)
-    return {
-      success: true,
-      paymentRef: decoded.paymentReference ?? `fallback-${taskId}-${Date.now()}`,
-      payerAddress: decoded.from ?? '0x0000000000000000000000000000000000000000',
-      txHash: decoded.txHash,
-      amountUnits,
-      feeUnits,
-      payoutUnits,
-    }
+    decoded = JSON.parse(Buffer.from(paymentHeader, 'base64').toString('utf-8'))
   } catch {
-    // Cannot parse — payment invalid
-    const amountUnits = toUnits(PRICE_USDT)
-    const { feeUnits, payoutUnits } = splitBudget(PRICE_USDT, FEE_BPS)
-    return {
-      success: false,
-      paymentRef: `invalid-${taskId}-${Date.now()}`,
-      payerAddress: '0x0000000000000000000000000000000000000000',
-      amountUnits,
-      feeUnits,
-      payoutUnits,
-    }
+    return invalid(taskId) // header is not valid base64 JSON
+  }
+
+  const requiredUnits = toUnits(PRICE_USDT)
+  const chk = await verifyOnChainPayment({
+    txHash: decoded.txHash,
+    expectedFrom: decoded.from,
+    requiredUnits,
+  })
+
+  if (!chk.valid) {
+    return invalid(taskId)
+  }
+
+  // Record the amount actually transferred on-chain, not a hardcoded constant.
+  const paidUnits = chk.amountUnits ?? requiredUnits
+  const feeBpsN = BigInt(FEE_BPS)
+  const feeUnits = (paidUnits * feeBpsN) / 10000n
+  const payoutUnits = paidUnits - feeUnits
+
+  return {
+    success: true,
+    // Bind the payment ref to the on-chain tx so replays of the same transfer
+    // collide on the DB unique constraint regardless of a fresh paymentReference.
+    paymentRef: decoded.paymentReference ?? `onchain-${chk.txHash}`,
+    payerAddress: chk.from ?? decoded.from ?? '0x0000000000000000000000000000000000000000',
+    txHash: chk.txHash,
+    amountUnits: paidUnits,
+    feeUnits,
+    payoutUnits,
   }
 }

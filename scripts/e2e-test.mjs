@@ -4,16 +4,24 @@
  * Or: npx tsx scripts/e2e-test.mjs
  */
 
-import { ethers } from 'ethers'
+import { createPublicClient, createWalletClient, http, parseAbi } from 'viem'
+import { privateKeyToAccount } from 'viem/accounts'
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 const RPC_URL = 'https://testrpc.xlayer.tech'
 const MUSDT_ADDRESS = '0x725cCe0916d2E8682438732fD9e79803B4fAB2BD'
 
-const ERC20_ABI = [
+const XLAYER_TESTNET = {
+  id: 1952,
+  name: 'X Layer Testnet',
+  nativeCurrency: { name: 'OKB', symbol: 'OKB', decimals: 18 },
+  rpcUrls: { default: { http: [RPC_URL] } },
+}
+
+const ERC20_ABI = parseAbi([
   'function balanceOf(address) view returns (uint256)',
   'function transfer(address to, uint256 amount) returns (bool)',
-]
+])
 
 function log(label, value) {
   console.log(`\n✅ ${label}`)
@@ -33,8 +41,10 @@ async function main() {
   console.log('\n=== GroundTruth E2E: Autonomous x402 Payment Flow ===\n')
 
   // 1. Derive agent wallet
-  const provider = new ethers.JsonRpcProvider(RPC_URL)
-  const wallet = new ethers.Wallet(pk, provider)
+  const account = privateKeyToAccount(pk.startsWith('0x') ? pk : `0x${pk}`)
+  const publicClient = createPublicClient({ chain: XLAYER_TESTNET, transport: http() })
+  const walletClient = createWalletClient({ account, chain: XLAYER_TESTNET, transport: http() })
+  const wallet = { address: account.address }
   log('Agent wallet', wallet.address)
 
   // 2. Check mUSDT balance via faucet GET
@@ -65,12 +75,17 @@ async function main() {
   }
 
   // 4. Do a real ERC-20 transfer as x402 payment
-  const musdt = new ethers.Contract(MUSDT_ADDRESS, ERC20_ABI, wallet)
   const payTo = '0x430172985b21458d73576435D4aD4bEeA85F376C' // GroundTruthPayroll contract
   const amountUnits = BigInt(2_000_000) // 2 mUSDT
   console.log('\n🔄 Sending 2 mUSDT payment on-chain...')
-  const tx = await musdt.transfer(payTo, amountUnits)
-  await tx.wait()
+  const txHash = await walletClient.writeContract({
+    address: MUSDT_ADDRESS,
+    abi: ERC20_ABI,
+    functionName: 'transfer',
+    args: [payTo, amountUnits],
+  })
+  await publicClient.waitForTransactionReceipt({ hash: txHash, timeout: 60_000 })
+  const tx = { hash: txHash }
   log('Payment tx', tx.hash)
   log('Explorer', `https://www.okx.com/web3/explorer/xlayer-test/tx/${tx.hash}`)
 

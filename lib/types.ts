@@ -71,12 +71,15 @@ export interface Task {
 
 export const HumanDoInputSchema = z.object({
   intent: z.string().min(1).max(500),
-  proof_spec: z.object({
-    type: z.enum(['photo', 'form']),
-    instructions: z.string().min(1).max(1000),
-    minPhotos: z.number().int().min(1).max(5).optional(),
-    formFields: z.array(z.string()).optional(),
-  }),
+  // Optional: when omitted, the planner infers a proof_spec from the intent.
+  proof_spec: z
+    .object({
+      type: z.enum(['photo', 'form']),
+      instructions: z.string().min(1).max(1000),
+      minPhotos: z.number().int().min(1).max(5).optional(),
+      formFields: z.array(z.string()).optional(),
+    })
+    .optional(),
   budget_usdt: z.string().regex(/^\d+(\.\d{1,6})?$/, 'must be decimal string'),
   timeout_seconds: z.number().int().min(60).max(86400).optional().default(3600),
 })

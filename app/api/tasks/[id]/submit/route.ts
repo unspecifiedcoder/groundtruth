@@ -8,7 +8,21 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const formData = await req.formData()
+  try {
+    return await handleSubmit(req, params)
+  } catch (err) {
+    console.error('[submit] unhandled error:', err)
+    return NextResponse.json({ error: 'Submission failed' }, { status: 500 })
+  }
+}
+
+async function handleSubmit(req: NextRequest, params: { id: string }) {
+  let formData: FormData
+  try {
+    formData = await req.formData()
+  } catch {
+    return NextResponse.json({ error: 'Invalid form submission' }, { status: 400 })
+  }
 
   const workerWallet = formData.get('worker_wallet') as string
   const proofType = formData.get('proof_type') as 'photo' | 'form'
@@ -42,9 +56,15 @@ export async function POST(
     }
   } else {
     const rawForm = formData.get('form_data') as string
+    let parsedForm: Record<string, string>
+    try {
+      parsedForm = JSON.parse(rawForm ?? '{}')
+    } catch {
+      return NextResponse.json({ error: 'Invalid form_data JSON' }, { status: 400 })
+    }
     proofPayload = {
       type: 'form',
-      formData: JSON.parse(rawForm ?? '{}'),
+      formData: parsedForm,
       submittedAt: new Date().toISOString(),
     }
   }

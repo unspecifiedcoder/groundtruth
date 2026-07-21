@@ -25,8 +25,36 @@ const ABI = parseAbi([
   'function lastFaucetTime(address) view returns (uint256)',
 ])
 
+// In-memory per-IP rate limit. The settlement wallet spends real gas on every
+// drip, so an unbounded stream of fresh addresses would drain it. This caps
+// requests per IP; the on-chain per-recipient cooldown remains the primary
+// anti-abuse control. (Best-effort only — resets on cold start / per instance.)
+const RATE_WINDOW_MS = 60_000
+const RATE_MAX = 5
+const ipHits = new Map<string, number[]>()
+
+function rateLimited(ip: string): boolean {
+  const now = Date.now()
+  const hits = (ipHits.get(ip) ?? []).filter(t => now - t < RATE_WINDOW_MS)
+  hits.push(now)
+  ipHits.set(ip, hits)
+  return hits.length > RATE_MAX
+}
+
+function clientIp(req: NextRequest): string {
+  const fwd = req.headers.get('x-forwarded-for')
+  return fwd ? fwd.split(',')[0].trim() : (req.headers.get('x-real-ip') ?? 'unknown')
+}
+
 export async function POST(req: NextRequest) {
   try {
+    if (rateLimited(clientIp(req))) {
+      return NextResponse.json(
+        { error: 'Rate limit exceeded. Please wait a moment and try again.' },
+        { status: 429 }
+      )
+    }
+
     const { address } = await req.json()
     if (!address || !isAddress(address)) {
       return NextResponse.json({ error: 'Invalid address' }, { status: 400 })
@@ -62,7 +90,7 @@ export async function POST(req: NextRequest) {
       functionName: 'drip',
       args: [address as `0x${string}`],
     })
-    await publicClient.waitForTransactionReceipt({ hash: txHash })
+    await publicClient.waitForTransactionReceipt({ hash: txHash, timeout: 60_000 })
 
     return NextResponse.json({
       success: true,
@@ -71,8 +99,10 @@ export async function POST(req: NextRequest) {
       token: MOCK_USDT_ADDRESS,
     })
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Unknown error'
-    return NextResponse.json({ error: msg }, { status: 500 })
+    // Log details server-side; return a generic message so internal RPC/chain
+    // details are not disclosed to unauthenticated callers.
+    console.error('[faucet] drip failed:', err)
+    return NextResponse.json({ error: 'Faucet temporarily unavailable' }, { status: 500 })
   }
 }
 
@@ -83,18 +113,27 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ token: MOCK_USDT_ADDRESS, symbol: 'mUSDT', decimals: 6 })
   }
 
-  const publicClient = createPublicClient({ chain: XLAYER_TESTNET, transport: http() })
-  const balance = await publicClient.readContract({
-    address: MOCK_USDT_ADDRESS,
-    abi: ABI,
-    functionName: 'balanceOf',
-    args: [address as `0x${string}`],
-  })
+  try {
+    const publicClient = createPublicClient({ chain: XLAYER_TESTNET, transport: http() })
+    const balance = await publicClient.readContract({
+      address: MOCK_USDT_ADDRESS,
+      abi: ABI,
+      functionName: 'balanceOf',
+      args: [address as `0x${string}`],
+    })
 
-  return NextResponse.json({
-    token: MOCK_USDT_ADDRESS,
-    symbol: 'mUSDT',
-    decimals: 6,
-    balance: (Number(balance) / 1e6).toFixed(2),
-  })
+    return NextResponse.json({
+      token: MOCK_USDT_ADDRESS,
+      symbol: 'mUSDT',
+      decimals: 6,
+      balance: (Number(balance) / 1e6).toFixed(2),
+    })
+  } catch (err) {
+    // RPC hiccup — return metadata without a balance rather than a 500.
+    console.error('[faucet] balance lookup failed:', err)
+    return NextResponse.json(
+      { token: MOCK_USDT_ADDRESS, symbol: 'mUSDT', decimals: 6, balance: null, error: 'balance unavailable' },
+      { status: 200 }
+    )
+  }
 }

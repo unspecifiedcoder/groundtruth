@@ -46,6 +46,9 @@ export async function planTask(intent: string): Promise<Plan> {
         max_tokens: 300,
         response_format: { type: 'json_object' },
       }),
+      // Bound the LLM call so a slow Groq response can't hang task creation;
+      // the catch below degrades gracefully to keywordFallback.
+      signal: AbortSignal.timeout(10_000),
     })
 
     if (!res.ok) return keywordFallback(intent)

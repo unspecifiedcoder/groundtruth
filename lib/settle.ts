@@ -18,7 +18,8 @@ export interface SettleResult {
 export async function settleTask(
   taskId: string,
   workerWallet: string,
-  paymentRef: string
+  paymentRef: string,
+  budgetUsdt?: string
 ): Promise<SettleResult> {
   // Derive idempotent task key
   const taskKey = keccak256(toBytes(taskId)) as `0x${string}`
@@ -33,7 +34,9 @@ export async function settleTask(
     // Chain unavailable — fall through to off-chain settle
   }
 
-  const { payoutUnits, feeUnits } = splitBudget(PRICE_USDT, FEE_BPS)
+  // Split the task's actual budget (falls back to the configured price only if
+  // no budget was recorded), so payouts reflect what the task advertised.
+  const { payoutUnits, feeUnits } = splitBudget(budgetUsdt ?? PRICE_USDT, FEE_BPS)
 
   // Try on-chain settlement first
   let txHash: string | undefined

@@ -6,6 +6,7 @@ import {
   type Hex,
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
+import { toUnits } from './money'
 
 const XLAYER_TESTNET = {
   id: 1952,
@@ -59,7 +60,8 @@ export async function agentPay(amountUsdt: string, payTo: string, appUrl: string
     args: [agentAddress],
   })
   const balanceBefore = (Number(balanceRaw) / 10 ** MUSDT_DECIMALS).toFixed(2)
-  const amountUnits = BigInt(Math.round(Number(amountUsdt) * 10 ** MUSDT_DECIMALS))
+  // Precise integer conversion (6 decimals) — avoids floating-point rounding.
+  const amountUnits = toUnits(amountUsdt)
 
   steps.push(`Agent wallet: ${agentAddress}`)
   steps.push(`mUSDT balance: ${balanceBefore} (need ${amountUsdt})`)
@@ -99,7 +101,7 @@ export async function agentPay(amountUsdt: string, payTo: string, appUrl: string
     args: [payTo as `0x${string}`, amountUnits],
   })
 
-  await publicClient.waitForTransactionReceipt({ hash: txHash })
+  await publicClient.waitForTransactionReceipt({ hash: txHash, timeout: 60_000 })
   const paymentTx = txHash
   steps.push(`Payment tx confirmed: ${paymentTx}`)
 

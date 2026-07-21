@@ -41,6 +41,13 @@ export async function insertTask(params: {
   return data as Task
 }
 
+// Best-effort delete — used to clean up an orphan task when payment recording
+// fails (e.g. a replayed payment) so no unpaid task lingers on the board.
+export async function deleteTask(id: string): Promise<void> {
+  const db = getServiceClient()
+  await db.from('tasks').delete().eq('id', id)
+}
+
 export async function getTask(id: string): Promise<Task | null> {
   const db = getServiceClient()
   const { data, error } = await db
@@ -118,7 +125,9 @@ export async function recordPaymentRef(params: {
     payer_address: params.payer_address,
     tx_hash: params.tx_hash ?? null,
   })
-  if (error?.code === '23505') return false  // unique violation = replay
+  // 23505 = unique violation on either payment_ref (PK) or tx_hash (unique).
+  // A replayed on-chain tx collides on tx_hash even with a fresh payment_ref.
+  if (error?.code === '23505') return false
   if (error) throw error
   return true
 }

@@ -4,8 +4,9 @@ import { settleTask } from '@/lib/settle'
 
 // Simple secret-based auth for admin endpoints
 function isAuthorized(req: NextRequest): boolean {
-  const secret = req.headers.get('x-admin-secret')
-  return secret === (process.env.ADMIN_SECRET ?? '')
+  const configured = process.env.ADMIN_SECRET
+  if (!configured) return false // no admin secret set → admin endpoints are closed
+  return req.headers.get('x-admin-secret') === configured
 }
 
 export async function POST(
@@ -51,7 +52,8 @@ export async function POST(
   const settleResult = await settleTask(
     params.id,
     task.worker_wallet ?? '',
-    task.payment_ref ?? ''
+    task.payment_ref ?? '',
+    task.budget_usdt
   )
 
   return NextResponse.json({
