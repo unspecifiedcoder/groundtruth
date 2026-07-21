@@ -1,67 +1,6 @@
 import Link from 'next/link'
-
-/* ── Signature element: a friendly "reality globe" with live oracle pins ──
-   A dotted sphere (latitude/longitude ellipses), a slow-rotating orbit ring,
-   and coral/leaf pins that pop like humans checking in from around the world. */
-function RealityGlobe() {
-  const pins = [
-    { cx: 118, cy: 96, c: 'var(--accent)', d: '0s' },
-    { cx: 176, cy: 128, c: 'var(--good)', d: '0.7s' },
-    { cx: 96, cy: 150, c: 'var(--good)', d: '1.4s' },
-    { cx: 150, cy: 74, c: 'var(--accent)', d: '1.0s' },
-    { cx: 190, cy: 176, c: 'var(--warn)', d: '0.4s' },
-  ]
-  return (
-    <div className="relative w-[280px] h-[280px] sm:w-[340px] sm:h-[340px] animate-float">
-      {/* soft halo */}
-      <div
-        className="absolute inset-0 rounded-full blur-2xl"
-        style={{ background: 'radial-gradient(circle at 50% 45%, var(--accent-weak), transparent 65%)' }}
-      />
-      {/* rotating orbit ring */}
-      <svg viewBox="0 0 280 280" className="absolute inset-0 w-full h-full animate-spin-slow" aria-hidden>
-        <ellipse cx="140" cy="140" rx="132" ry="52" fill="none" stroke="var(--border-strong)" strokeWidth="1" strokeDasharray="3 7" />
-      </svg>
-      {/* globe */}
-      <svg viewBox="0 0 280 280" className="absolute inset-0 w-full h-full" role="img" aria-label="A globe with human oracles checking in from around the world">
-        <defs>
-          <radialGradient id="sphere" cx="42%" cy="38%" r="70%">
-            <stop offset="0%" stopColor="var(--bg-elev)" />
-            <stop offset="100%" stopColor="var(--bg-subtle)" />
-          </radialGradient>
-        </defs>
-        <circle cx="140" cy="140" r="96" fill="url(#sphere)" stroke="var(--border-strong)" strokeWidth="1.5" />
-        {/* longitude */}
-        {[28, 55, 82].map((rx, i) => (
-          <ellipse key={`lo${i}`} cx="140" cy="140" rx={rx} ry="96" fill="none" stroke="var(--border)" strokeWidth="1" />
-        ))}
-        {/* latitude */}
-        {[-52, 0, 52].map((off, i) => (
-          <ellipse key={`la${i}`} cx="140" cy={140 + off} rx="96" ry={off === 0 ? 96 : 74} fill="none" stroke="var(--border)" strokeWidth="1" />
-        ))}
-        {/* pins */}
-        {pins.map((p, i) => (
-          <g key={i} className="animate-pin" style={{ transformOrigin: `${p.cx}px ${p.cy}px`, animationDelay: p.d }}>
-            <circle cx={p.cx} cy={p.cy} r="12" fill={p.c} opacity="0.18" />
-            <circle cx={p.cx} cy={p.cy} r="5" fill={p.c} />
-            <circle cx={p.cx} cy={p.cy} r="2" fill="var(--bg-elev)" />
-          </g>
-        ))}
-      </svg>
-      {/* floating "verified" stamp */}
-      <div
-        className="absolute -bottom-2 -right-1 sm:right-2 card px-3 py-2 flex items-center gap-2 rotate-[-6deg]"
-        style={{ borderRadius: '14px' }}
-      >
-        <span className="flex h-6 w-6 items-center justify-center rounded-full text-[11px]" style={{ background: 'var(--good-weak)', color: 'var(--good)' }}>✓</span>
-        <div className="leading-tight">
-          <div className="font-display text-[11px] font-bold" style={{ color: 'var(--text)' }}>Proof verified</div>
-          <div className="font-mono text-[9px]" style={{ color: 'var(--text-faint)' }}>paid on X Layer</div>
-        </div>
-      </div>
-    </div>
-  )
-}
+import { LogoMark } from './logo'
+import LiveNetwork from './live-network'
 
 const FLOW = [
   { label: 'AI asks', desc: 'An agent calls human_do via MCP', emoji: '🤖', c: 'var(--info)' },
@@ -76,7 +15,7 @@ export default function Home() {
     <main className="overflow-hidden" style={{ color: 'var(--text)' }}>
 
       {/* ─── HERO ─── */}
-      <section className="relative px-5 pt-16 pb-24 sm:pt-24">
+      <section className="relative px-5 pt-10 pb-20 sm:pt-14">
         {/* dotted warm backdrop */}
         <div
           className="absolute inset-0 pointer-events-none"
@@ -100,21 +39,20 @@ export default function Home() {
             <h1 className="fade-up fade-up-2 font-display font-extrabold tracking-tight leading-[1.02] text-[2.75rem] sm:text-6xl mb-5"
                 style={{ color: 'var(--text)', textWrap: 'balance' }}>
               Hire a human.<br />
-              <span className="underline-stroke">Anywhere on Earth.</span>{' '}
-              <span className="inline-block animate-float">🌍</span>
+              <span className="underline-stroke">Anywhere on Earth.</span>
             </h1>
 
-            <p className="fade-up fade-up-3 text-lg leading-relaxed max-w-xl mx-auto lg:mx-0 mb-8"
+            <p className="fade-up fade-up-3 text-lg leading-relaxed max-w-xl mx-auto lg:mx-0 mb-7"
                style={{ color: 'var(--text-muted)' }}>
-              Your AI can read the whole internet — but it can&apos;t walk outside.
-              GroundTruth sends a <strong style={{ color: 'var(--text)' }}>real person</strong> to check,
-              photograph, and verify the physical world. Settled on-chain in seconds.
+              AI can search the web — but it can&apos;t inspect the real world. GroundTruth
+              dispatches <strong style={{ color: 'var(--text)' }}>nearby people</strong> to capture
+              evidence, verify locations, and return cryptographically provable results — settled on X Layer in seconds.
             </p>
 
-            <div className="fade-up fade-up-4 flex flex-col sm:flex-row gap-3 justify-center lg:justify-start mb-9">
-              <Link href="/tasks" className="btn btn-primary px-7 py-3.5 text-[15px]">
-                Post a task →
-              </Link>
+            <div className="fade-up fade-up-4 flex flex-col sm:flex-row gap-3 justify-center lg:justify-start mb-6">
+              <a href="#for-agents" className="btn btn-primary px-7 py-3.5 text-[15px]">
+                Post a task <span className="btn-arrow">→</span>
+              </a>
               <Link href="/tasks" className="btn btn-ghost px-7 py-3.5 text-[15px]">
                 I want to earn
               </Link>
@@ -135,9 +73,9 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Right: signature globe */}
+          {/* Right: living network — dispatch signal + live verified feed */}
           <div className="fade-up fade-up-4 flex justify-center lg:justify-end">
-            <RealityGlobe />
+            <LiveNetwork />
           </div>
         </div>
       </section>
@@ -170,17 +108,22 @@ export default function Home() {
       </section>
 
       {/* ─── FOR AI AGENTS ─── */}
-      <section className="px-5 py-20 border-t" style={{ borderColor: 'var(--border)' }}>
+      <section id="for-agents" className="px-5 py-20 border-t scroll-mt-20" style={{ borderColor: 'var(--border)' }}>
         <div className="max-w-5xl mx-auto grid lg:grid-cols-2 gap-12 items-center">
           <div>
-            <p className="chip text-[10px] mb-3" style={{ color: 'var(--info)' }}>For AI agents</p>
+            <p className="chip text-[10px] mb-3" style={{ color: 'var(--info)' }}>For AI agents · post a task</p>
             <h2 className="font-display text-3xl font-extrabold mb-4" style={{ color: 'var(--text)' }}>
-              One MCP endpoint. Three tools.
+              Posting a task takes one call.
             </h2>
-            <p className="mb-7 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-              GroundTruth is registered on OKX.AI as Agent #6282. Any MCP-compatible
-              agent discovers and calls it — no custom integration required.
+            <p className="mb-5 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+              You don&apos;t post tasks by hand — your agent does. GroundTruth is registered on
+              OKX.AI as Agent #6282; any MCP-compatible agent discovers and calls it, pays via
+              x402, and a human gets to work. No custom integration required.
             </p>
+            <div className="card font-mono text-xs mb-6 px-4 py-3 flex items-center gap-2 overflow-x-auto">
+              <span style={{ color: 'var(--good)' }}>$</span>
+              <span style={{ color: 'var(--text)' }}>claude mcp add groundtruth --transport http {process.env.NEXT_PUBLIC_APP_URL ?? 'https://okxsubmission.vercel.app'}/api/mcp</span>
+            </div>
             <div className="space-y-3">
               {[
                 { tool: 'ground_truth_info', desc: 'Discover pricing & capabilities' },
@@ -251,7 +194,7 @@ export default function Home() {
 
           <div className="mt-9 text-center">
             <Link href="/tasks" className="btn btn-primary px-8 py-3.5">
-              View open missions →
+              View open missions <span className="btn-arrow">→</span>
             </Link>
           </div>
         </div>
@@ -260,10 +203,8 @@ export default function Home() {
       {/* ─── FOOTER ─── */}
       <footer className="border-t px-5 py-8" style={{ borderColor: 'var(--border)' }}>
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs" style={{ color: 'var(--text-faint)' }}>
-          <div className="flex items-center gap-3">
-            <div className="w-5 h-5 rounded-md flex items-center justify-center" style={{ background: 'var(--accent)', color: 'var(--accent-ink)' }}>
-              <span className="font-display font-black text-[8px]">GT</span>
-            </div>
+          <div className="flex items-center gap-2.5">
+            <LogoMark size={22} ground={false} />
             <span>GroundTruth · OKX AI Genesis Hackathon 2026</span>
           </div>
           <div className="flex items-center gap-4 font-mono">

@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { Bricolage_Grotesque, JetBrains_Mono, Inter } from 'next/font/google'
 import './globals.css'
 import ThemeToggle from './theme-toggle'
+import { Logo } from './logo'
 
 // Bricolage Grotesque — friendly, characterful display face (not the usual
 // Inter/Space Grotesk default), keeps "easy for all" while standing out.
@@ -24,11 +25,14 @@ const inter = Inter({
   display: 'swap',
 })
 
+const faviconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="M20 3.5c-6.35 0-11.5 5.05-11.5 11.28 0 7.9 8.9 15.3 10.86 17.86.34.45.94.45 1.28 0C22.6 30.08 31.5 22.68 31.5 14.78 31.5 8.55 26.35 3.5 20 3.5Z" fill="%23FF5A3C"/><path d="M14.8 15.1l3.6 3.6 6.8-6.9" stroke="white" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`
+
 export const metadata: Metadata = {
   title: 'GroundTruth — Reality-as-a-Service',
   description:
     'AI agents hire human oracles to complete real-world tasks. On-chain proof. Instant USDT payment on X Layer.',
   manifest: '/manifest.json',
+  icons: { icon: `data:image/svg+xml,${faviconSvg}` },
 }
 
 // Set the saved theme before first paint to avoid a flash. Default: bright.
@@ -50,21 +54,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           <div className="max-w-6xl mx-auto px-5 h-16 flex items-center justify-between">
 
-            <Link href="/" className="flex items-center gap-3 group">
-              <div
-                className="relative w-9 h-9 rounded-xl flex items-center justify-center transition-transform group-hover:-rotate-6"
-                style={{ background: 'var(--accent)', color: 'var(--accent-ink)', boxShadow: 'var(--shadow-accent)' }}
-              >
-                <span className="font-display font-black text-[13px]">GT</span>
-              </div>
-              <div className="flex items-baseline gap-2">
-                <span className="font-display font-extrabold text-[15px] tracking-tight" style={{ color: 'var(--text)' }}>
-                  GroundTruth
-                </span>
-                <span className="font-mono text-[10px] hidden sm:inline" style={{ color: 'var(--text-faint)' }}>
-                  ASP #6282
-                </span>
-              </div>
+            <Link href="/" className="flex items-center gap-2.5 group">
+              <Logo size={30} />
+              <span className="font-mono text-[10px] hidden sm:inline" style={{ color: 'var(--text-faint)' }}>
+                ASP #6282
+              </span>
             </Link>
 
             <div className="flex items-center gap-1.5">
@@ -78,7 +72,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
               {[
                 { href: '/tasks', label: 'Tasks' },
-                { href: '/pulse', label: 'Pulse' },
+                { href: '/pulse', label: 'Network' },
                 { href: '/faucet', label: 'Faucet' },
               ].map(l => (
                 <Link
@@ -97,7 +91,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 href="/tasks"
                 className="btn btn-primary ml-1.5 px-4 py-1.5 text-sm"
               >
-                Earn USDT →
+                Earn USDT <span className="btn-arrow">→</span>
               </Link>
             </div>
           </div>

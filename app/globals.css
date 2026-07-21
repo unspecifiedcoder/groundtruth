@@ -24,6 +24,7 @@
   --accent-ink:  #FFFFFF;
   --accent-weak: #FFE8E2;
   --accent-line: #FFCDBF;
+  --accent-deep: #C9391F; /* darker coral — tactile button "lip" */
 
   --good:        #12876A; /* leaf green — verified / earth / paid */
   --good-weak:   #DCF0E8;
@@ -55,6 +56,7 @@
   --accent-ink:  #04060A;
   --accent-weak: rgba(13,204,255,0.10);
   --accent-line: rgba(13,204,255,0.28);
+  --accent-deep: #0892BD; /* darker cyan — tactile button "lip" */
 
   --good:        #00E87A;
   --good-weak:   rgba(0,232,122,0.10);
@@ -96,17 +98,69 @@ body {
   border-color: var(--accent-line);
 }
 
+/* Signature "dispatch ticket" — a field-dispatch card with a monospace header,
+   a dashed tear line, and punched perforation notches on the sides. Distinctive
+   on purpose, so surfaces don't read as a uniform AI card grid. */
+.ticket {
+  position: relative;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.ticket:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); border-color: var(--accent-line); }
+.ticket-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.6rem 0.9rem;
+  font-family: var(--font-mono), monospace;
+  font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--text-faint);
+  border-bottom: 1.5px dashed var(--border-strong);
+}
+/* perforation notches sitting on the dashed tear line */
+.ticket::before, .ticket::after {
+  content: ''; position: absolute; top: 30px; width: 12px; height: 12px;
+  border-radius: 999px; background: var(--bg);
+  border: 1px solid var(--border); transform: translateY(-50%);
+}
+.ticket::before { left: -6px; }
+.ticket::after  { right: -6px; }
+.ticket-body { padding: 1.15rem 1rem 1.25rem; }
+
+/* Tactile pill buttons — a solid "lip" that compresses on press. Deliberately
+   not the flat filled-rectangle + outline pair that reads as a generic default. */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
   font-family: var(--font-display), sans-serif; font-weight: 700;
-  border-radius: 14px; transition: transform 0.15s ease, box-shadow 0.2s ease, background-color 0.2s ease, filter 0.2s ease;
+  border-radius: 999px;
+  transition: transform 0.11s ease, box-shadow 0.11s ease, background-color 0.2s ease, filter 0.2s ease, border-color 0.2s ease;
   cursor: pointer;
+  will-change: transform;
 }
-.btn:active { transform: translateY(1px); }
-.btn-primary { background: var(--accent); color: var(--accent-ink); box-shadow: var(--shadow-accent); }
-.btn-primary:hover { filter: brightness(1.05); transform: translateY(-2px); }
-.btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border-strong); }
-.btn-ghost:hover { border-color: var(--accent); background: var(--accent-weak); }
+.btn-primary {
+  background: var(--accent); color: var(--accent-ink);
+  box-shadow: 0 4px 0 var(--accent-deep);
+}
+.btn-primary:hover { filter: brightness(1.04); }
+.btn-primary:active { transform: translateY(4px); box-shadow: 0 0 0 var(--accent-deep); }
+
+.btn-ghost {
+  background: var(--bg-elev); color: var(--text);
+  border: 1.5px solid var(--border-strong);
+  box-shadow: 0 4px 0 var(--border-strong);
+}
+.btn-ghost:hover { border-color: var(--accent); color: var(--accent); box-shadow: 0 4px 0 var(--accent-line); }
+.btn-ghost:active { transform: translateY(4px); box-shadow: 0 0 0 var(--border-strong); }
+
+.btn-arrow { display: inline-block; transition: transform 0.2s cubic-bezier(0.2,0.7,0.2,1); }
+.btn:hover .btn-arrow { transform: translateX(4px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-primary:active, .btn-ghost:active { transform: none; }
+  .btn:hover .btn-arrow { transform: none; }
+}
 
 .chip {
   display: inline-flex; align-items: center; gap: 0.4rem;
@@ -118,9 +172,10 @@ body {
 .underline-stroke {
   background-image: linear-gradient(var(--accent), var(--accent));
   background-repeat: no-repeat;
-  background-position: 0 92%;
-  background-size: 100% 0.32em;
-  padding-bottom: 0.05em;
+  background-position: 0 96%;
+  background-size: 100% 0.2em;
+  padding-bottom: 0.08em;
+  border-radius: 2px;
 }
 
 /* Focus visibility — accessibility floor */
