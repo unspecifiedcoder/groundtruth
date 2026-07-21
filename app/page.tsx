@@ -1,218 +1,167 @@
 import Link from 'next/link'
 
-const FLOW_NODES = [
-  {
-    id: 'agent',
-    label: 'AI AGENT',
-    desc: 'Calls human_do via MCP',
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="3" width="18" height="18" rx="3" />
-        <circle cx="9" cy="10" r="1.5" />
-        <circle cx="15" cy="10" r="1.5" />
-        <path d="M9 15s1 1.5 3 1.5 3-1.5 3-1.5" />
+/* ── Signature element: a friendly "reality globe" with live oracle pins ──
+   A dotted sphere (latitude/longitude ellipses), a slow-rotating orbit ring,
+   and coral/leaf pins that pop like humans checking in from around the world. */
+function RealityGlobe() {
+  const pins = [
+    { cx: 118, cy: 96, c: 'var(--accent)', d: '0s' },
+    { cx: 176, cy: 128, c: 'var(--good)', d: '0.7s' },
+    { cx: 96, cy: 150, c: 'var(--good)', d: '1.4s' },
+    { cx: 150, cy: 74, c: 'var(--accent)', d: '1.0s' },
+    { cx: 190, cy: 176, c: 'var(--warn)', d: '0.4s' },
+  ]
+  return (
+    <div className="relative w-[280px] h-[280px] sm:w-[340px] sm:h-[340px] animate-float">
+      {/* soft halo */}
+      <div
+        className="absolute inset-0 rounded-full blur-2xl"
+        style={{ background: 'radial-gradient(circle at 50% 45%, var(--accent-weak), transparent 65%)' }}
+      />
+      {/* rotating orbit ring */}
+      <svg viewBox="0 0 280 280" className="absolute inset-0 w-full h-full animate-spin-slow" aria-hidden>
+        <ellipse cx="140" cy="140" rx="132" ry="52" fill="none" stroke="var(--border-strong)" strokeWidth="1" strokeDasharray="3 7" />
       </svg>
-    ),
-    color: '#0DCCFF',
-  },
-  {
-    id: 'chain',
-    label: 'X LAYER',
-    desc: 'Locks USDT in escrow',
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+      {/* globe */}
+      <svg viewBox="0 0 280 280" className="absolute inset-0 w-full h-full" role="img" aria-label="A globe with human oracles checking in from around the world">
+        <defs>
+          <radialGradient id="sphere" cx="42%" cy="38%" r="70%">
+            <stop offset="0%" stopColor="var(--bg-elev)" />
+            <stop offset="100%" stopColor="var(--bg-subtle)" />
+          </radialGradient>
+        </defs>
+        <circle cx="140" cy="140" r="96" fill="url(#sphere)" stroke="var(--border-strong)" strokeWidth="1.5" />
+        {/* longitude */}
+        {[28, 55, 82].map((rx, i) => (
+          <ellipse key={`lo${i}`} cx="140" cy="140" rx={rx} ry="96" fill="none" stroke="var(--border)" strokeWidth="1" />
+        ))}
+        {/* latitude */}
+        {[-52, 0, 52].map((off, i) => (
+          <ellipse key={`la${i}`} cx="140" cy={140 + off} rx="96" ry={off === 0 ? 96 : 74} fill="none" stroke="var(--border)" strokeWidth="1" />
+        ))}
+        {/* pins */}
+        {pins.map((p, i) => (
+          <g key={i} className="animate-pin" style={{ transformOrigin: `${p.cx}px ${p.cy}px`, animationDelay: p.d }}>
+            <circle cx={p.cx} cy={p.cy} r="12" fill={p.c} opacity="0.18" />
+            <circle cx={p.cx} cy={p.cy} r="5" fill={p.c} />
+            <circle cx={p.cx} cy={p.cy} r="2" fill="var(--bg-elev)" />
+          </g>
+        ))}
       </svg>
-    ),
-    color: '#A78BFA',
-  },
-  {
-    id: 'oracle',
-    label: 'ORACLE',
-    desc: 'Human executes on-site',
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="8" r="4" />
-        <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
-      </svg>
-    ),
-    color: '#F5A623',
-  },
-  {
-    id: 'proof',
-    label: 'PROOF',
-    desc: 'AI verifies submission',
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 2L4 6v6c0 5 3.6 9.7 8 11 4.4-1.3 8-6 8-11V6L12 2z" />
-        <polyline points="9 12 11 14 15 10" />
-      </svg>
-    ),
-    color: '#00E87A',
-  },
-  {
-    id: 'payout',
-    label: 'PAYOUT',
-    desc: 'USDT sent to oracle wallet',
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="9" />
-        <path d="M12 7v10M9.5 9.5c0-1.4 1.1-2.5 2.5-2.5s2.5 1.1 2.5 2.5c0 3-5 3-5 6 0 1.4 1.1 2.5 2.5 2.5s2.5-1.1 2.5-2.5" />
-      </svg>
-    ),
-    color: '#F5A623',
-  },
+      {/* floating "verified" stamp */}
+      <div
+        className="absolute -bottom-2 -right-1 sm:right-2 card px-3 py-2 flex items-center gap-2 rotate-[-6deg]"
+        style={{ borderRadius: '14px' }}
+      >
+        <span className="flex h-6 w-6 items-center justify-center rounded-full text-[11px]" style={{ background: 'var(--good-weak)', color: 'var(--good)' }}>✓</span>
+        <div className="leading-tight">
+          <div className="font-display text-[11px] font-bold" style={{ color: 'var(--text)' }}>Proof verified</div>
+          <div className="font-mono text-[9px]" style={{ color: 'var(--text-faint)' }}>paid on X Layer</div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const FLOW = [
+  { label: 'AI asks', desc: 'An agent calls human_do via MCP', emoji: '🤖', c: 'var(--info)' },
+  { label: 'Escrow', desc: 'USDT locked on X Layer', emoji: '🔒', c: 'var(--accent)' },
+  { label: 'Human acts', desc: 'A real person goes on-site', emoji: '🚶', c: 'var(--good)' },
+  { label: 'Proof', desc: 'Photo or form, verified', emoji: '📸', c: 'var(--info)' },
+  { label: 'Payout', desc: 'USDT to the oracle, instantly', emoji: '💸', c: 'var(--good)' },
 ]
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-[#04060A] text-[#EDF2F7] overflow-hidden">
+    <main className="overflow-hidden" style={{ color: 'var(--text)' }}>
 
       {/* ─── HERO ─── */}
-      <section className="relative min-h-[92vh] flex flex-col items-center justify-center px-5 text-center overflow-hidden">
-
-        {/* Dot-grid background */}
+      <section className="relative px-5 pt-16 pb-24 sm:pt-24">
+        {/* dotted warm backdrop */}
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
-            backgroundImage: 'radial-gradient(circle, rgba(13,204,255,0.10) 1px, transparent 1px)',
-            backgroundSize: '36px 36px',
-            maskImage: 'radial-gradient(ellipse 80% 80% at 50% 50%, black 40%, transparent 100%)',
-            WebkitMaskImage: 'radial-gradient(ellipse 80% 80% at 50% 50%, black 40%, transparent 100%)',
+            backgroundImage: 'radial-gradient(circle, var(--grid-dot) 1px, transparent 1px)',
+            backgroundSize: '34px 34px',
+            maskImage: 'radial-gradient(ellipse 75% 70% at 50% 30%, black 30%, transparent 100%)',
+            WebkitMaskImage: 'radial-gradient(ellipse 75% 70% at 50% 30%, black 30%, transparent 100%)',
           }}
         />
 
-        {/* Oracle node pulses — static positions, CSS-animated */}
-        {[
-          { top: '22%', left: '15%', delay: '0s' },
-          { top: '35%', left: '78%', delay: '0.8s' },
-          { top: '65%', left: '22%', delay: '1.6s' },
-          { top: '58%', left: '72%', delay: '0.4s' },
-          { top: '18%', left: '55%', delay: '1.2s' },
-        ].map((pos, i) => (
-          <div key={i} className="absolute pointer-events-none" style={{ top: pos.top, left: pos.left }}>
-            <div
-              className="absolute w-3 h-3 rounded-full border border-[#0DCCFF]/60 animate-pulse-ring"
-              style={{ animationDelay: pos.delay, top: '-6px', left: '-6px' }}
-            />
-            <div className="w-2 h-2 rounded-full bg-[#0DCCFF]/50" style={{ animationDelay: pos.delay }} />
-          </div>
-        ))}
+        <div className="relative max-w-6xl mx-auto grid lg:grid-cols-[1.05fr_0.95fr] gap-10 items-center">
+          {/* Left: message */}
+          <div className="text-center lg:text-left">
+            <div className="fade-up fade-up-1 chip inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-6"
+                 style={{ background: 'var(--accent-weak)', color: 'var(--accent)' }}>
+              <span className="w-1.5 h-1.5 rounded-full animate-status" style={{ background: 'var(--accent)' }} />
+              <span className="text-[10px]">Live on X Layer · Agent #6282</span>
+            </div>
 
-        {/* Content */}
-        <div className="relative max-w-3xl mx-auto">
+            <h1 className="fade-up fade-up-2 font-display font-extrabold tracking-tight leading-[1.02] text-[2.75rem] sm:text-6xl mb-5"
+                style={{ color: 'var(--text)', textWrap: 'balance' }}>
+              Hire a human.<br />
+              <span className="underline-stroke">Anywhere on Earth.</span>{' '}
+              <span className="inline-block animate-float">🌍</span>
+            </h1>
 
-          {/* Status badge */}
-          <div className="fade-up fade-up-1 inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[#0DCCFF]/20 bg-[#0DCCFF]/5 mb-8">
-            <span className="w-1.5 h-1.5 bg-[#0DCCFF] rounded-full animate-status" />
-            <span className="text-[#0DCCFF] text-xs tracking-widest" style={{ fontFamily: 'var(--font-mono), monospace' }}>
-              LIVE ON X LAYER · AGENT #6282
-            </span>
-          </div>
+            <p className="fade-up fade-up-3 text-lg leading-relaxed max-w-xl mx-auto lg:mx-0 mb-8"
+               style={{ color: 'var(--text-muted)' }}>
+              Your AI can read the whole internet — but it can&apos;t walk outside.
+              GroundTruth sends a <strong style={{ color: 'var(--text)' }}>real person</strong> to check,
+              photograph, and verify the physical world. Settled on-chain in seconds.
+            </p>
 
-          {/* Eyebrow */}
-          <p className="fade-up fade-up-2 text-[#7A9AB5] text-xs tracking-[0.2em] uppercase mb-4"
-             style={{ fontFamily: 'var(--font-mono), monospace' }}>
-            Field Intelligence Network
-          </p>
+            <div className="fade-up fade-up-4 flex flex-col sm:flex-row gap-3 justify-center lg:justify-start mb-9">
+              <Link href="/tasks" className="btn btn-primary px-7 py-3.5 text-[15px]">
+                Post a task →
+              </Link>
+              <Link href="/tasks" className="btn btn-ghost px-7 py-3.5 text-[15px]">
+                I want to earn
+              </Link>
+            </div>
 
-          {/* Headline */}
-          <h1 className="fade-up fade-up-3 text-5xl sm:text-7xl font-black tracking-tight leading-[1.05] mb-6"
-              style={{ fontFamily: 'var(--font-display), sans-serif' }}>
-            AI agents,<br />
-            <span className="text-[#0DCCFF]">meet the real world.</span>
-          </h1>
-
-          <p className="fade-up fade-up-4 text-lg text-[#7A9AB5] max-w-xl mx-auto mb-10 leading-relaxed">
-            Post a task. A human oracle executes it on the ground.
-            Receive cryptographic proof — settled instantly in USDT on X Layer.
-          </p>
-
-          <div className="fade-up fade-up-5 flex flex-col sm:flex-row gap-3 justify-center mb-16">
-            <Link
-              href="/tasks"
-              className="px-8 py-4 font-bold rounded-xl transition-all text-sm text-black"
-              style={{
-                fontFamily: 'var(--font-display), sans-serif',
-                background: 'linear-gradient(135deg, #F5A623, #FFB93A)',
-                boxShadow: '0 0 32px rgba(245,166,35,0.25)',
-              }}
-            >
-              Browse Tasks — Earn USDT →
-            </Link>
-            <a
-              href="/api/mcp"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-8 py-4 border border-[#1C2A3A] hover:border-[#0DCCFF]/40 text-[#EDF2F7] font-semibold rounded-xl transition-all text-sm hover:bg-[#0C1420]"
-            >
-              MCP Endpoint for Agents
-            </a>
+            {/* stat chips */}
+            <div className="fade-up fade-up-5 grid grid-cols-3 gap-3 max-w-md mx-auto lg:mx-0">
+              {[
+                { v: '$2', s: 'per task', c: 'var(--accent)' },
+                { v: '~8 min', s: 'avg completion', c: 'var(--good)' },
+                { v: 'X Layer', s: 'settled on-chain', c: 'var(--info)' },
+              ].map(st => (
+                <div key={st.s} className="card px-3 py-4 text-center">
+                  <div className="font-display text-2xl font-extrabold" style={{ color: st.c }}>{st.v}</div>
+                  <div className="text-xs mt-1" style={{ color: 'var(--text-faint)' }}>{st.s}</div>
+                </div>
+              ))}
+            </div>
           </div>
 
-          {/* Stat row */}
-          <div className="fade-up fade-up-5 grid grid-cols-3 gap-4 max-w-md mx-auto">
-            {[
-              { value: '$2', sub: 'per task', color: '#F5A623' },
-              { value: '5–15m', sub: 'avg completion', color: '#0DCCFF' },
-              { value: 'X Layer', sub: 'settlement chain', color: '#A78BFA' },
-            ].map(s => (
-              <div key={s.sub} className="border border-[#1C2A3A] rounded-xl p-4 bg-[#0C1420]/50">
-                <div className="text-2xl font-black" style={{ color: s.color, fontFamily: 'var(--font-display), sans-serif' }}>{s.value}</div>
-                <div className="text-[#3A5269] text-xs mt-1">{s.sub}</div>
-              </div>
-            ))}
+          {/* Right: signature globe */}
+          <div className="fade-up fade-up-4 flex justify-center lg:justify-end">
+            <RealityGlobe />
           </div>
-        </div>
-
-        {/* Scroll hint */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
-          <div className="w-px h-8 bg-gradient-to-b from-[#1C2A3A] to-transparent" />
-          <span className="text-[#3A5269] text-[10px] tracking-widest" style={{ fontFamily: 'var(--font-mono), monospace' }}>SCROLL</span>
         </div>
       </section>
 
-      {/* ─── SIGNAL FLOW ─── */}
-      <section className="px-5 py-24 border-t border-[#1C2A3A]">
+      {/* ─── HOW IT WORKS ─── */}
+      <section className="px-5 py-20 border-t" style={{ borderColor: 'var(--border)' }}>
         <div className="max-w-5xl mx-auto">
-
-          <div className="text-center mb-16">
-            <p className="text-[#7A9AB5] text-xs tracking-[0.2em] uppercase mb-3"
-               style={{ fontFamily: 'var(--font-mono), monospace' }}>Protocol</p>
-            <h2 className="text-3xl font-black" style={{ fontFamily: 'var(--font-display), sans-serif' }}>
-              How the signal travels
+          <div className="text-center mb-14">
+            <p className="chip text-[10px] mb-3" style={{ color: 'var(--accent)' }}>How it works</p>
+            <h2 className="font-display text-3xl sm:text-4xl font-extrabold" style={{ color: 'var(--text)', textWrap: 'balance' }}>
+              From prompt to proof, in five steps
             </h2>
           </div>
 
-          {/* Flow diagram */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-0">
-            {FLOW_NODES.map((node, i) => (
-              <div key={node.id} className="flex flex-col sm:flex-row items-center">
-                {/* Node */}
-                <div className="flex flex-col items-center text-center group">
-                  <div
-                    className="w-16 h-16 rounded-2xl border flex items-center justify-center mb-3 transition-all group-hover:scale-105"
-                    style={{
-                      borderColor: `${node.color}30`,
-                      backgroundColor: `${node.color}08`,
-                      color: node.color,
-                    }}
-                  >
-                    {node.icon}
-                  </div>
-                  <div className="text-[10px] font-black tracking-widest mb-1"
-                       style={{ color: node.color, fontFamily: 'var(--font-mono), monospace' }}>
-                    {node.label}
-                  </div>
-                  <div className="text-[#3A5269] text-xs max-w-[90px] leading-tight">{node.desc}</div>
+          <div className="flex flex-col sm:flex-row items-stretch justify-center gap-3">
+            {FLOW.map((n, i) => (
+              <div key={n.label} className="flex-1 flex flex-col sm:flex-row items-center">
+                <div className="card card-hover w-full sm:w-auto flex-1 p-5 text-center">
+                  <div className="text-3xl mb-2">{n.emoji}</div>
+                  <div className="font-display font-bold text-sm mb-1" style={{ color: n.c }}>{n.label}</div>
+                  <div className="text-xs leading-snug" style={{ color: 'var(--text-muted)' }}>{n.desc}</div>
                 </div>
-
-                {/* Connector (not after last) */}
-                {i < FLOW_NODES.length - 1 && (
-                  <div className="relative flex-1 h-px sm:w-16 w-px sm:h-auto h-8 bg-[#1C2A3A] mx-4 my-4 sm:my-0 overflow-hidden">
-                    <div className="animate-travel w-2 h-2 rounded-full -translate-y-1/2" style={{ backgroundColor: FLOW_NODES[i + 1].color, boxShadow: `0 0 6px ${FLOW_NODES[i + 1].color}` }} />
-                    <div className="animate-travel-2 w-2 h-2 rounded-full -translate-y-1/2" style={{ backgroundColor: FLOW_NODES[i].color, boxShadow: `0 0 6px ${FLOW_NODES[i].color}` }} />
-                  </div>
+                {i < FLOW.length - 1 && (
+                  <div className="hidden sm:block text-xl px-1" style={{ color: 'var(--text-faint)' }}>→</div>
                 )}
               </div>
             ))}
@@ -221,112 +170,87 @@ export default function Home() {
       </section>
 
       {/* ─── FOR AI AGENTS ─── */}
-      <section className="px-5 py-24 border-t border-[#1C2A3A]">
-        <div className="max-w-5xl mx-auto grid sm:grid-cols-2 gap-12 items-center">
-
+      <section className="px-5 py-20 border-t" style={{ borderColor: 'var(--border)' }}>
+        <div className="max-w-5xl mx-auto grid lg:grid-cols-2 gap-12 items-center">
           <div>
-            <p className="text-[#0DCCFF] text-xs tracking-[0.2em] uppercase mb-3"
-               style={{ fontFamily: 'var(--font-mono), monospace' }}>For AI Agents</p>
-            <h2 className="text-3xl font-black mb-4" style={{ fontFamily: 'var(--font-display), sans-serif' }}>
-              Plug in via MCP
+            <p className="chip text-[10px] mb-3" style={{ color: 'var(--info)' }}>For AI agents</p>
+            <h2 className="font-display text-3xl font-extrabold mb-4" style={{ color: 'var(--text)' }}>
+              One MCP endpoint. Three tools.
             </h2>
-            <p className="text-[#7A9AB5] mb-7 leading-relaxed">
-              GroundTruth is registered on OKX.AI as Agent #6282. Any compatible agent discovers and
-              calls our tools — no custom integration required.
+            <p className="mb-7 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+              GroundTruth is registered on OKX.AI as Agent #6282. Any MCP-compatible
+              agent discovers and calls it — no custom integration required.
             </p>
             <div className="space-y-3">
               {[
                 { tool: 'ground_truth_info', desc: 'Discover pricing & capabilities' },
                 { tool: 'human_do', desc: 'Dispatch a real-world task' },
-                { tool: 'task_status', desc: 'Poll for completion & cryptographic proof' },
+                { tool: 'task_status', desc: 'Poll for completion & proof' },
               ].map(t => (
-                <div key={t.tool} className="flex items-start gap-3">
-                  <span className="mt-0.5 w-4 h-4 rounded border border-[#0DCCFF]/30 bg-[#0DCCFF]/10 flex items-center justify-center flex-shrink-0">
-                    <span className="text-[#0DCCFF] text-[8px]">✓</span>
-                  </span>
+                <div key={t.tool} className="flex items-center gap-3">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-md text-[10px] flex-shrink-0"
+                        style={{ background: 'var(--good-weak)', color: 'var(--good)' }}>✓</span>
                   <div>
-                    <span className="text-sm font-medium" style={{ fontFamily: 'var(--font-mono), monospace', color: '#0DCCFF' }}>{t.tool}</span>
-                    <span className="text-[#7A9AB5] text-sm ml-2">— {t.desc}</span>
+                    <span className="font-mono text-sm font-semibold" style={{ color: 'var(--info)' }}>{t.tool}</span>
+                    <span className="text-sm ml-2" style={{ color: 'var(--text-muted)' }}>— {t.desc}</span>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Code block */}
-          <div className="bg-[#080D14] border border-[#1C2A3A] rounded-2xl overflow-hidden"
-               style={{ fontFamily: 'var(--font-mono), monospace' }}>
-            <div className="flex items-center gap-2 px-5 py-3 border-b border-[#1C2A3A] bg-[#0C1420]">
-              <div className="w-2.5 h-2.5 rounded-full bg-[#FF4444]/60" />
-              <div className="w-2.5 h-2.5 rounded-full bg-[#F5A623]/60" />
-              <div className="w-2.5 h-2.5 rounded-full bg-[#00E87A]/60" />
-              <span className="text-[#3A5269] text-xs ml-2">mcp-request.json</span>
+          {/* code card */}
+          <div className="card overflow-hidden font-mono">
+            <div className="flex items-center gap-2 px-5 py-3 border-b" style={{ borderColor: 'var(--border)', background: 'var(--bg-subtle)' }}>
+              <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--accent)' }} />
+              <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--warn)' }} />
+              <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--good)' }} />
+              <span className="text-xs ml-2" style={{ color: 'var(--text-faint)' }}>mcp-request.json</span>
             </div>
-            <div className="p-5 text-xs leading-relaxed">
-              <div className="text-[#3A5269]">{'// POST /api/mcp'}</div>
-              <div className="mt-2 text-[#EDF2F7]">{'{'}</div>
-              <div className="ml-4"><span className="text-[#A78BFA]">&quot;method&quot;</span><span className="text-[#7A9AB5]">: </span><span className="text-[#00E87A]">&quot;tools/call&quot;</span><span className="text-[#7A9AB5]">,</span></div>
-              <div className="ml-4"><span className="text-[#A78BFA]">&quot;params&quot;</span><span className="text-[#7A9AB5]">: {'{'}</span></div>
-              <div className="ml-8"><span className="text-[#A78BFA]">&quot;name&quot;</span><span className="text-[#7A9AB5]">: </span><span className="text-[#00E87A]">&quot;human_do&quot;</span><span className="text-[#7A9AB5]">,</span></div>
-              <div className="ml-8"><span className="text-[#A78BFA]">&quot;arguments&quot;</span><span className="text-[#7A9AB5]">: {'{'}</span></div>
-              <div className="ml-12"><span className="text-[#A78BFA]">&quot;intent&quot;</span><span className="text-[#7A9AB5]">: </span><span className="text-[#00E87A]">&quot;Photo of storefront&quot;</span><span className="text-[#7A9AB5]">,</span></div>
-              <div className="ml-12"><span className="text-[#A78BFA]">&quot;budget_usdt&quot;</span><span className="text-[#7A9AB5]">: </span><span className="text-[#F5A623]">&quot;2.00&quot;</span></div>
-              <div className="ml-8 text-[#7A9AB5]">{'}'}</div>
-              <div className="ml-4 text-[#7A9AB5]">{'}'}</div>
-              <div className="text-[#EDF2F7]">{'}'}</div>
-              <div className="mt-4 pt-4 border-t border-[#1C2A3A] text-[#3A5269]">{'// Response'}</div>
-              <div className="mt-1 text-[#00E87A]">{'{ "task_id": "84dc...", "status": "pending" }'}</div>
+            <div className="p-5 text-[13px] leading-relaxed">
+              <div style={{ color: 'var(--text-faint)' }}>{'// POST /api/mcp'}</div>
+              <div className="mt-2" style={{ color: 'var(--text)' }}>{'{'}</div>
+              <div className="ml-4"><span style={{ color: 'var(--info)' }}>&quot;name&quot;</span><span style={{ color: 'var(--text-muted)' }}>: </span><span style={{ color: 'var(--good)' }}>&quot;human_do&quot;</span><span style={{ color: 'var(--text-muted)' }}>,</span></div>
+              <div className="ml-4"><span style={{ color: 'var(--info)' }}>&quot;arguments&quot;</span><span style={{ color: 'var(--text-muted)' }}>: {'{'}</span></div>
+              <div className="ml-8"><span style={{ color: 'var(--info)' }}>&quot;intent&quot;</span><span style={{ color: 'var(--text-muted)' }}>: </span><span style={{ color: 'var(--good)' }}>&quot;Photo of the storefront&quot;</span><span style={{ color: 'var(--text-muted)' }}>,</span></div>
+              <div className="ml-8"><span style={{ color: 'var(--info)' }}>&quot;budget_usdt&quot;</span><span style={{ color: 'var(--text-muted)' }}>: </span><span style={{ color: 'var(--accent)' }}>&quot;2.00&quot;</span></div>
+              <div className="ml-4" style={{ color: 'var(--text-muted)' }}>{'}'}</div>
+              <div style={{ color: 'var(--text)' }}>{'}'}</div>
+              <div className="mt-4 pt-4 border-t" style={{ borderColor: 'var(--border)', color: 'var(--text-faint)' }}>{'// → { task_id, status: "pending" }'}</div>
             </div>
           </div>
         </div>
       </section>
 
       {/* ─── FOR ORACLES ─── */}
-      <section className="px-5 py-24 border-t border-[#1C2A3A]">
+      <section className="px-5 py-20 border-t" style={{ borderColor: 'var(--border)' }}>
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
-            <p className="text-[#F5A623] text-xs tracking-[0.2em] uppercase mb-3"
-               style={{ fontFamily: 'var(--font-mono), monospace' }}>For Human Oracles</p>
-            <h2 className="text-3xl font-black mb-3" style={{ fontFamily: 'var(--font-display), sans-serif' }}>
-              Complete missions. Get paid.
+            <p className="chip text-[10px] mb-3" style={{ color: 'var(--good)' }}>For human oracles</p>
+            <h2 className="font-display text-3xl sm:text-4xl font-extrabold mb-3" style={{ color: 'var(--text)', textWrap: 'balance' }}>
+              Do a small task. Get paid on the spot.
             </h2>
-            <p className="text-[#7A9AB5] max-w-xl mx-auto">
-              No experience required. Every task pays instantly to your wallet in USDT on X Layer.
+            <p className="max-w-xl mx-auto" style={{ color: 'var(--text-muted)' }}>
+              No experience needed. Every mission pays instantly to your wallet in USDT on X Layer.
             </p>
           </div>
 
           <div className="grid sm:grid-cols-3 gap-5">
             {[
-              {
-                icon: '📍',
-                title: 'Claim a mission',
-                desc: 'Browse the task board. Find something near you. Lock it in.',
-              },
-              {
-                icon: '📸',
-                title: 'Execute on the ground',
-                desc: 'Take photos, fill forms, verify conditions — whatever the AI needs.',
-              },
-              {
-                icon: '💰',
-                title: 'Get paid on-chain',
-                desc: 'Submit your proof. AI verifies. USDT lands in your wallet within seconds.',
-              },
+              { icon: '📍', title: 'Claim a mission', desc: 'Browse the board, find one near you, lock it in.' },
+              { icon: '📸', title: 'Do it in the world', desc: 'Snap a photo, fill a form, verify a fact on-site.' },
+              { icon: '💰', title: 'Get paid on-chain', desc: 'Submit proof, AI verifies, USDT lands in seconds.' },
             ].map(s => (
-              <div key={s.title} className="border border-[#1C2A3A] rounded-2xl p-6 bg-[#0C1420]/40 hover:border-[#F5A623]/20 hover:bg-[#F5A623]/3 transition-all group">
+              <div key={s.title} className="card card-hover p-6">
                 <div className="text-3xl mb-4">{s.icon}</div>
-                <h3 className="font-bold mb-2 text-[#EDF2F7]" style={{ fontFamily: 'var(--font-display), sans-serif' }}>{s.title}</h3>
-                <p className="text-[#7A9AB5] text-sm leading-relaxed">{s.desc}</p>
+                <h3 className="font-display font-bold mb-2" style={{ color: 'var(--text)' }}>{s.title}</h3>
+                <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>{s.desc}</p>
               </div>
             ))}
           </div>
 
-          <div className="mt-8 text-center">
-            <Link
-              href="/tasks"
-              className="inline-flex items-center gap-2 px-8 py-4 border border-[#F5A623]/30 text-[#F5A623] font-bold rounded-xl hover:bg-[#F5A623]/10 transition-all"
-              style={{ fontFamily: 'var(--font-display), sans-serif' }}
-            >
+          <div className="mt-9 text-center">
+            <Link href="/tasks" className="btn btn-primary px-8 py-3.5">
               View open missions →
             </Link>
           </div>
@@ -334,24 +258,23 @@ export default function Home() {
       </section>
 
       {/* ─── FOOTER ─── */}
-      <footer className="border-t border-[#1C2A3A] px-5 py-8">
-        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#3A5269]">
+      <footer className="border-t px-5 py-8" style={{ borderColor: 'var(--border)' }}>
+        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs" style={{ color: 'var(--text-faint)' }}>
           <div className="flex items-center gap-3">
-            <div className="w-5 h-5 rounded bg-[#0DCCFF]/10 border border-[#0DCCFF]/30 flex items-center justify-center">
-              <span className="text-[#0DCCFF] font-black text-[8px]" style={{ fontFamily: 'var(--font-display), sans-serif' }}>GT</span>
+            <div className="w-5 h-5 rounded-md flex items-center justify-center" style={{ background: 'var(--accent)', color: 'var(--accent-ink)' }}>
+              <span className="font-display font-black text-[8px]">GT</span>
             </div>
             <span>GroundTruth · OKX AI Genesis Hackathon 2026</span>
           </div>
-          <div className="flex items-center gap-4" style={{ fontFamily: 'var(--font-mono), monospace' }}>
+          <div className="flex items-center gap-4 font-mono">
             <span>Agent #6282</span>
             <span>·</span>
             <span>X Layer chainId 196</span>
             <span>·</span>
-            <a href="/api/mcp" className="hover:text-[#7A9AB5] transition-colors">MCP Endpoint</a>
+            <a href="/api/mcp" className="transition-colors hover:opacity-80" style={{ color: 'var(--text-muted)' }}>MCP Endpoint</a>
           </div>
         </div>
       </footer>
-
     </main>
   )
 }

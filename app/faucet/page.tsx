@@ -39,29 +39,26 @@ export default function FaucetPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#04060A] text-[#EDF2F7] flex items-center justify-center p-5">
+    <main className="min-h-screen flex items-center justify-center p-5" style={{ color: 'var(--text)' }}>
       <div className="max-w-md w-full">
 
         <div className="text-center mb-10">
-          <div className="inline-flex items-center gap-2 mb-5">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#0DCCFF] animate-status" />
-            <span className="text-[#0DCCFF] text-[10px] tracking-widest" style={{ fontFamily: 'var(--font-mono), monospace' }}>
-              X LAYER TESTNET
-            </span>
+          <div className="chip inline-flex items-center gap-2 mb-5" style={{ color: 'var(--info)' }}>
+            <span className="w-1.5 h-1.5 rounded-full animate-status" style={{ background: 'var(--info)' }} />
+            <span className="text-[10px]">X Layer testnet</span>
           </div>
-          <h1 className="text-4xl font-black text-[#EDF2F7] mb-3" style={{ fontFamily: 'var(--font-display), sans-serif' }}>
+          <h1 className="font-display text-4xl font-extrabold mb-3" style={{ color: 'var(--text)' }}>
             mUSDT Faucet
           </h1>
-          <p className="text-[#7A9AB5]">
+          <p style={{ color: 'var(--text-muted)' }}>
             Get 10 Mock USDT to test GroundTruth task payments.<br />
             One drip per hour per address.
           </p>
         </div>
 
-        <div className="border border-[#1C2A3A] rounded-2xl p-6 bg-[#0C1420]/40 space-y-4">
+        <div className="card p-6 space-y-4">
           <div>
-            <label className="block text-xs font-bold tracking-wider text-[#7A9AB5] mb-2 uppercase"
-                   style={{ fontFamily: 'var(--font-mono), monospace' }}>
+            <label className="chip block text-xs font-bold mb-2" style={{ color: 'var(--text-muted)' }}>
               Wallet address
             </label>
             <input
@@ -69,37 +66,33 @@ export default function FaucetPage() {
               placeholder="0x..."
               value={address}
               onChange={e => setAddress(e.target.value)}
-              className="w-full bg-[#080D14] border border-[#1C2A3A] focus:border-[#0DCCFF]/50 focus:ring-1 focus:ring-[#0DCCFF]/20 rounded-xl px-4 py-3 text-sm text-[#EDF2F7] outline-none transition-all placeholder-[#3A5269]"
-              style={{ fontFamily: 'var(--font-mono), monospace' }}
+              className="font-mono w-full rounded-xl px-4 py-3 text-sm outline-none transition-all"
+              style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border)', color: 'var(--text)' }}
             />
           </div>
 
           <button
             onClick={handleDrip}
             disabled={status === 'loading'}
-            className="w-full py-4 rounded-xl font-bold text-black transition-all disabled:opacity-40"
-            style={{
-              background: 'linear-gradient(135deg, #0DCCFF, #38D9F5)',
-              fontFamily: 'var(--font-display), sans-serif',
-            }}
+            className="btn btn-primary w-full py-4 disabled:opacity-40"
           >
             {status === 'loading' ? (
               <span className="flex items-center justify-center gap-2">
-                <span className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                <span className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: 'var(--accent-ink)', borderTopColor: 'transparent' }} />
                 Sending 10 mUSDT...
               </span>
             ) : 'Request 10 mUSDT →'}
           </button>
 
           {status === 'error' && (
-            <p className="text-[#FF4444] text-sm text-center flex items-center justify-center gap-2">
+            <p className="text-sm text-center flex items-center justify-center gap-2" style={{ color: 'var(--accent)' }}>
               <span>⚠</span> {message}
             </p>
           )}
 
           {status === 'success' && (
-            <div className="border border-[#00E87A]/20 bg-[#00E87A]/5 rounded-xl p-4 text-center">
-              <p className="text-[#00E87A] font-semibold flex items-center justify-center gap-2">
+            <div className="rounded-xl p-4 text-center" style={{ background: 'var(--good-weak)', border: '1px solid var(--good)' }}>
+              <p className="font-semibold flex items-center justify-center gap-2" style={{ color: 'var(--good)' }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
@@ -110,8 +103,8 @@ export default function FaucetPage() {
                   href={`https://www.oklink.com/xlayer-test/tx/${txHash}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-xs text-[#3A5269] hover:text-[#7A9AB5] mt-2 block transition-colors"
-                  style={{ fontFamily: 'var(--font-mono), monospace' }}
+                  className="font-mono text-xs mt-2 block transition-colors hover:opacity-80"
+                  style={{ color: 'var(--text-faint)' }}
                 >
                   {txHash.slice(0, 12)}…{txHash.slice(-8)} ↗
                 </a>
@@ -120,16 +113,15 @@ export default function FaucetPage() {
           )}
         </div>
 
-        <div className="mt-5 border border-[#1C2A3A] rounded-xl p-4 text-xs text-[#3A5269] space-y-1.5"
-             style={{ fontFamily: 'var(--font-mono), monospace' }}>
-          <p><span className="text-[#7A9AB5]">Token:</span> Mock USDT (mUSDT)</p>
-          <p><span className="text-[#7A9AB5]">Contract:</span> 0x725cCe0916d2E8682438732fD9e79803B4fAB2BD</p>
-          <p><span className="text-[#7A9AB5]">Network:</span> X Layer Testnet (chainId 1952)</p>
-          <p><span className="text-[#7A9AB5]">Amount:</span> 10 mUSDT per drip</p>
+        <div className="card font-mono mt-5 p-4 text-xs space-y-1.5" style={{ color: 'var(--text-faint)' }}>
+          <p><span style={{ color: 'var(--text-muted)' }}>Token:</span> Mock USDT (mUSDT)</p>
+          <p className="break-all"><span style={{ color: 'var(--text-muted)' }}>Contract:</span> 0x725cCe0916d2E8682438732fD9e79803B4fAB2BD</p>
+          <p><span style={{ color: 'var(--text-muted)' }}>Network:</span> X Layer Testnet (chainId 1952)</p>
+          <p><span style={{ color: 'var(--text-muted)' }}>Amount:</span> 10 mUSDT per drip</p>
         </div>
 
         <div className="mt-6 text-center">
-          <Link href="/tasks" className="text-sm text-[#F5A623] hover:underline font-medium">
+          <Link href="/tasks" className="text-sm font-medium hover:underline" style={{ color: 'var(--accent)' }}>
             → Browse missions and earn real USDT
           </Link>
         </div>
