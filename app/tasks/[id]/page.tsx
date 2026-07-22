@@ -115,6 +115,7 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
   const [loading, setLoading] = useState(false)
   const [wallet, setWallet] = useState('')
   const [files, setFiles] = useState<File[]>([])
+  const [dragActive, setDragActive] = useState(false)
   const [formData, setFormData] = useState<Record<string, string>>({})
   const [error, setError] = useState('')
   const [vision, setVision] = useState<{ checked: boolean; match: boolean; confidence: number; reason: string } | null>(null)
@@ -517,14 +518,27 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
                 <label className="chip block text-xs font-bold mb-2" style={{ color: 'var(--text-muted)' }}>
                   Upload {task.proof_spec.minPhotos ?? 1}+ photo{(task.proof_spec.minPhotos ?? 1) > 1 ? 's' : ''}
                 </label>
-                <label className="block w-full border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors group"
-                       style={{ borderColor: 'var(--border-strong)', background: 'var(--bg-subtle)' }}>
+                <label
+                  className="block w-full border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all group"
+                  style={{
+                    borderColor: dragActive ? 'var(--accent)' : 'var(--border-strong)',
+                    background: dragActive ? 'var(--accent-weak)' : 'var(--bg-subtle)',
+                  }}
+                  onDragOver={e => { e.preventDefault(); setDragActive(true) }}
+                  onDragEnter={e => { e.preventDefault(); setDragActive(true) }}
+                  onDragLeave={e => { e.preventDefault(); setDragActive(false) }}
+                  onDrop={e => {
+                    e.preventDefault(); setDragActive(false)
+                    const dropped = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'))
+                    if (dropped.length) setFiles(dropped)
+                  }}
+                >
                   <input type="file" accept="image/*" multiple capture="environment"
                          onChange={e => setFiles(Array.from(e.target.files ?? []))} className="hidden" />
                   {files.length === 0 ? (
                     <>
                       <div className="text-3xl mb-3 group-hover:scale-110 transition-transform">📸</div>
-                      <p className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Tap to take photo or upload</p>
+                      <p className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>{dragActive ? 'Drop your photo here' : 'Tap to take photo, or drag & drop'}</p>
                       <p className="text-xs mt-1" style={{ color: 'var(--text-faint)' }}>JPG, PNG up to 10MB</p>
                     </>
                   ) : (
