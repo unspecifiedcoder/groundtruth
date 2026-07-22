@@ -96,39 +96,41 @@ export async function agentPay(amountUsdt: string, payTo: string, appUrl: string
     steps.push('Sufficient balance — no faucet needed')
   }
 
-  // Step 3: Transfer mUSDT as real on-chain payment
-  steps.push(`Sending ${amountUsdt} mUSDT payment on-chain...`)
-  const txHash = await walletClient.writeContract({
-    address: MUSDT_ADDRESS,
-    abi: ERC20_ABI,
-    functionName: 'transfer',
-    args: [payTo as `0x${string}`, amountUnits],
-  })
+  // Step 3+4: build the x402 payment.
+  // Default is the SPEC-FAITHFUL "exact" scheme via Permit2: the agent SIGNS an
+  // authorization (never sends the tokens); the facilitator settles it on-chain.
+  // Set X402_EXACT=false for the legacy direct-transfer path.
+  const useExact = process.env.X402_EXACT !== 'false'
+  let paymentTx: string | undefined
+  let paymentHeader: string
 
-  await publicClient.waitForTransactionReceipt({ hash: txHash, timeout: 60_000 })
-  const paymentTx = txHash
-  steps.push(`Payment tx confirmed: ${paymentTx}`)
+  if (useExact) {
+    const { signX402Payment, PERMIT2_ADDRESS } = await import('./x402')
+    const { privateKeyToAccount } = await import('viem/accounts')
+    const operator = privateKeyToAccount(process.env.SETTLEMENT_PRIVATE_KEY as `0x${string}`).address
 
-  // Step 4: Build x402 payment header (parseFallback reads {from, txHash, paymentReference})
-  const paymentPayload = {
-    from: agentAddress,
-    txHash: paymentTx,
-    paymentReference: `agent-pay-${Date.now()}`,
-    network: 'xlayer-testnet',
-    token: MUSDT_ADDRESS,
-    amount: amountUnits.toString(),
+    // One-time: approve Permit2 to move the agent's mUSDT.
+    const allowance = await publicClient.readContract({
+      address: MUSDT_ADDRESS, abi: ERC20_ABI, functionName: 'allowance', args: [agentAddress, PERMIT2_ADDRESS],
+    }) as bigint
+    if (allowance < amountUnits) {
+      steps.push('Approving Permit2 (one-time)...')
+      const ap = await walletClient.writeContract({ address: MUSDT_ADDRESS, abi: ERC20_ABI, functionName: 'approve', args: [PERMIT2_ADDRESS, (1n << 256n) - 1n] })
+      await publicClient.waitForTransactionReceipt({ hash: ap, timeout: 60_000 })
+    }
+
+    steps.push('Signing x402 (exact/Permit2) payment authorization...')
+    const signed = await signX402Payment(pk, { token: MUSDT_ADDRESS, amount: amountUnits.toString(), payTo: payTo as `0x${string}`, spender: operator })
+    paymentHeader = signed.header
+    steps.push('x402 authorization signed — the facilitator will verify and settle on-chain.')
+  } else {
+    steps.push(`Sending ${amountUsdt} mUSDT payment on-chain (legacy transfer)...`)
+    const txHash = await walletClient.writeContract({ address: MUSDT_ADDRESS, abi: ERC20_ABI, functionName: 'transfer', args: [payTo as `0x${string}`, amountUnits] })
+    await publicClient.waitForTransactionReceipt({ hash: txHash, timeout: 60_000 })
+    paymentTx = txHash
+    steps.push(`Payment tx confirmed: ${paymentTx}`)
+    paymentHeader = Buffer.from(JSON.stringify({ from: agentAddress, txHash, paymentReference: `agent-pay-${Date.now()}`, network: 'xlayer-testnet', token: MUSDT_ADDRESS, amount: amountUnits.toString() })).toString('base64')
   }
-  const paymentHeader = Buffer.from(JSON.stringify(paymentPayload)).toString('base64')
 
-  steps.push('x402 payment header built — submitting task...')
-
-  return {
-    success: true,
-    agentAddress,
-    balanceBefore,
-    faucetTx,
-    paymentTx,
-    paymentHeader,
-    steps,
-  }
+  return { success: true, agentAddress, balanceBefore, faucetTx, paymentTx, paymentHeader, steps }
 }

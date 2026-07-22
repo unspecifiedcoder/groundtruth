@@ -43,12 +43,43 @@ export async function POST(req: NextRequest) {
   let payerAddress: string
   let txHash: string
 
+  // Detect the spec-faithful x402 "exact" scheme (a signed Permit2 authorization).
+  let x402Exact = false
+  if (paymentHeader) {
+    try { x402Exact = JSON.parse(Buffer.from(paymentHeader, 'base64').toString('utf8')).scheme === 'exact' } catch { /* not exact */ }
+  }
+
   if (isDemoMode) {
     paymentRef = `demo-${taskId}`
     amountUnits = BigInt(2000000)
     feeUnits = BigInt(240000)
     payerAddress = '0x0000000000000000000000000000000000000000'
     txHash = `0xdemo${taskId.replace(/-/g, '')}`
+  } else if (x402Exact) {
+    // x402 exact scheme — WE are the facilitator: verify the agent's signed
+    // authorization, then settle it on-chain via Permit2 (pulls agent → payroll).
+    const { verifyX402Payment, settleX402Payment } = await import('@/lib/x402')
+    const { privateKeyToAccount } = await import('viem/accounts')
+    const { toUnits, splitBudget } = await import('@/lib/money')
+    const opKey = process.env.SETTLEMENT_PRIVATE_KEY as `0x${string}`
+    const operator = privateKeyToAccount(opKey).address
+    const token = (process.env.PAYOUT_TOKEN ?? process.env.X402_VERIFY_TOKEN ?? '0x725cCe0916d2E8682438732fD9e79803B4fAB2BD') as `0x${string}`
+    const payTo = process.env.PAYROLL_CONTRACT_ADDRESS as `0x${string}`
+    const budgetUnits = toUnits(input.budget_usdt)
+
+    const v = await verifyX402Payment(paymentHeader!, { token, minAmount: budgetUnits, payTo, spender: operator })
+    if (!v.ok) return NextResponse.json({ ...buildChallenge(), error: `x402 verify failed: ${v.reason}` }, { status: 402 })
+    let settleTx: string
+    try {
+      settleTx = await settleX402Payment(paymentHeader!, opKey)
+    } catch (e) {
+      return NextResponse.json({ error: 'x402 settlement failed', detail: e instanceof Error ? e.message : String(e) }, { status: 402 })
+    }
+    paymentRef = `x402-${taskId}`
+    amountUnits = v.amount!
+    feeUnits = splitBudget(input.budget_usdt, Number(process.env.ASP_FEE_BPS ?? '1200')).feeUnits
+    payerAddress = v.from!
+    txHash = settleTx
   } else {
     const result = await verifyPayment(paymentHeader!, taskId)
     if (!result.success) {
@@ -82,12 +113,15 @@ export async function POST(req: NextRequest) {
       payment_ref: paymentRef,
     })
   } catch (err) {
+    const detail = err instanceof Error ? err.message
+      : (err && typeof err === 'object') ? JSON.stringify(err) : String(err)
+    console.error('[human-do] insertTask failed:', detail)
     return NextResponse.json(
       {
         error: 'Task creation failed after payment was captured',
         payment_ref: paymentRef,
         tx_hash: txHash || null,
-        detail: err instanceof Error ? err.message : String(err),
+        detail,
       },
       { status: 500 }
     )
