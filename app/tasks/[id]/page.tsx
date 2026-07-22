@@ -4,11 +4,10 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
 const VERIFY_STEPS = [
-  { label: 'Uploading proof to GroundTruth network...', duration: 600 },
-  { label: 'Extracting image metadata & EXIF data...', duration: 700 },
-  { label: 'Running AI vision analysis...', duration: 900 },
-  { label: 'Checking against mission requirements...', duration: 600 },
-  { label: 'Proof confirmed ✓', duration: 400 },
+  { label: 'Uploading proof to GroundTruth network...', duration: 700 },
+  { label: 'Running integrity checks...', duration: 900 },
+  { label: 'Confirming acceptance...', duration: 900 },
+  { label: 'Finalizing…', duration: 1200 },
 ]
 
 function VerifyingScreen() {
@@ -22,55 +21,56 @@ function VerifyingScreen() {
         setStep(i)
         setTimeout(next, VERIFY_STEPS[i].duration)
       }
+      // On the last step we stop advancing and hold here — the spinner keeps
+      // going until the backend responds and the parent unmounts this screen.
     }
     setTimeout(next, VERIFY_STEPS[0].duration)
   }, [])
-
-  const confirmed = step === VERIFY_STEPS.length - 1
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6" style={{ color: 'var(--text)' }}>
       <div className="max-w-sm w-full">
         <div className="flex justify-center mb-8">
-          <div className="w-20 h-20 rounded-2xl flex items-center justify-center transition-all duration-500"
-               style={{ background: confirmed ? 'var(--good-weak)' : 'var(--accent-weak)', border: `1px solid ${confirmed ? 'var(--good)' : 'var(--accent-line)'}` }}>
-            {confirmed ? (
-              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--good)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            ) : (
-              <div className="w-8 h-8 border-2 rounded-full animate-spin" style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }} />
-            )}
+          {/* Always spinning while mounted — this screen only ever means "work in progress". */}
+          <div className="w-20 h-20 rounded-2xl flex items-center justify-center"
+               style={{ background: 'var(--accent-weak)', border: '1px solid var(--accent-line)' }}>
+            <div className="w-8 h-8 border-2 rounded-full animate-spin" style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }} />
           </div>
         </div>
 
         <h2 className="font-display text-xl font-extrabold text-center mb-8 transition-colors duration-300"
-            style={{ color: confirmed ? 'var(--good)' : 'var(--text)' }}>
+            style={{ color: 'var(--text)' }}>
           {VERIFY_STEPS[step].label}
         </h2>
 
         <div className="space-y-2">
-          {VERIFY_STEPS.map((s, i) => (
-            <div key={i} className="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-300"
-                 style={{
-                   opacity: i < step ? 0.3 : i === step ? 1 : 0.1,
-                   background: i === step ? 'var(--bg-elev)' : 'transparent',
-                   border: i === step ? '1px solid var(--border)' : '1px solid transparent',
-                 }}>
-              <div className="w-4 h-4 rounded flex-shrink-0 flex items-center justify-center"
+          {VERIFY_STEPS.map((s, i) => {
+            const isDone = i < step
+            const isActive = i === step
+            return (
+              <div key={i} className="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-300"
                    style={{
-                     background: (i < step || (i === step && confirmed)) ? 'var(--good)' : 'transparent',
-                     border: (i < step || (i === step && confirmed)) ? 'none' : `1px solid ${i === step ? 'var(--accent)' : 'var(--border)'}`,
+                     opacity: isDone ? 0.3 : isActive ? 1 : 0.1,
+                     background: isActive ? 'var(--bg-elev)' : 'transparent',
+                     border: isActive ? '1px solid var(--border)' : '1px solid transparent',
                    }}>
-                {(i < step || (i === step && confirmed)) && (
-                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="var(--accent-ink)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                )}
+                <div className="w-4 h-4 rounded flex-shrink-0 flex items-center justify-center"
+                     style={{
+                       background: isDone ? 'var(--good)' : 'transparent',
+                       border: isDone ? 'none' : `1px solid ${isActive ? 'var(--accent)' : 'var(--border)'}`,
+                     }}>
+                  {isDone ? (
+                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="var(--accent-ink)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  ) : isActive ? (
+                    <div className="w-2.5 h-2.5 border-2 rounded-full animate-spin" style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }} />
+                  ) : null}
+                </div>
+                <span className="text-sm" style={{ color: 'var(--text-muted)' }}>{s.label}</span>
               </div>
-              <span className="text-sm" style={{ color: 'var(--text-muted)' }}>{s.label}</span>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
     </div>
@@ -95,6 +95,13 @@ interface Task {
       payout_usdt?: string
       tx_hash?: string | null
       explorer?: string | null
+    }
+    notary?: {
+      decision?: 'accept' | 'reject' | 'uncertain'
+      confidence?: number
+      reason?: string
+      checked?: boolean
+      mode?: 'photo' | 'form'
     }
   } | null
 }
@@ -283,7 +290,16 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
           <span className="text-3xl">✕</span>
         </div>
         <h2 className="font-display text-2xl font-extrabold mb-2" style={{ color: 'var(--text)' }}>Not accepted</h2>
-        <p className="mb-8" style={{ color: 'var(--text-muted)' }}>The proof wasn&apos;t accepted for this mission, so no payout was released.</p>
+        <p className="mb-4" style={{ color: 'var(--text-muted)' }}>The proof didn&apos;t match the mission, so no payout was released.</p>
+        {task?.result?.notary?.decision === 'reject' && task.result.notary.reason && (
+          <div className="rounded-xl px-3 py-2.5 mb-6 flex items-start gap-2 text-left text-sm"
+               style={{ background: 'color-mix(in srgb, #E5484D 12%, transparent)', border: '1px solid #E5484D' }}>
+            <span style={{ color: '#E5484D' }}>⚠</span>
+            <span style={{ color: 'var(--text)' }}>
+              <strong style={{ color: '#E5484D' }}>AI notary flagged a mismatch</strong> — {task.result.notary.reason}
+            </span>
+          </div>
+        )}
         <button onClick={() => router.push('/tasks')} className="btn btn-primary w-full py-3">Find another mission →</button>
       </div>
     </div>
@@ -302,10 +318,23 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
         <h2 className="font-display text-2xl font-extrabold mb-2" style={{ color: 'var(--text)' }}>
           Mission complete.
         </h2>
-        <p className="mb-2" style={{ color: 'var(--text-muted)' }}>The agent accepted your proof.</p>
+        <p className="mb-2" style={{ color: 'var(--text-muted)' }}>Your proof was verified and accepted.</p>
 
-        {/* AI-vision content check — advisory: a mismatch red-flags but still processes */}
-        {vision?.checked && (
+        {/* Notary verdict — the semantic AI check that gated this payout */}
+        {task.result?.notary?.checked && task.result.notary.decision !== 'reject' && (
+          <div className="rounded-xl px-3 py-2.5 mb-4 flex items-start gap-2 text-left text-sm"
+               style={{ background: 'var(--good-weak)', border: '1px solid var(--good)' }}>
+            <span style={{ color: 'var(--good)' }}>✓</span>
+            <span style={{ color: 'var(--text)' }}>
+              <strong style={{ color: 'var(--good)' }}>AI notary verified</strong> the {task.result.notary.mode ?? 'proof'} matches the task
+              {task.result.notary.confidence ? ` · ${Math.round(task.result.notary.confidence * 100)}% confident` : ''}
+              {task.result.notary.reason ? <span style={{ color: 'var(--text-faint)' }}> — {task.result.notary.reason}</span> : ''}.
+            </span>
+          </div>
+        )}
+
+        {/* Legacy advisory vision block (kept for photo tasks without notary) */}
+        {!task.result?.notary?.checked && vision?.checked && (
           vision.match ? (
             <div className="rounded-xl px-3 py-2.5 mb-4 flex items-start gap-2 text-left text-sm"
                  style={{ background: 'var(--good-weak)', border: '1px solid var(--good)' }}>
@@ -343,8 +372,9 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
             </p>
           )
           return (
-            <p className="text-sm mb-8" style={{ color: 'var(--text-faint)' }}>
-              Proof accepted{addrShort ? <> for <span className="font-mono text-xs" style={{ color: 'var(--text-muted)' }}>{addrShort}</span></> : ''}. Your on-chain payout is being processed — it&apos;ll appear in the ledger shortly.
+            <p className="text-sm mb-8 flex items-center justify-center gap-2" style={{ color: 'var(--text-faint)' }}>
+              <span className="w-3.5 h-3.5 border-2 rounded-full animate-spin flex-shrink-0" style={{ borderColor: 'var(--good)', borderTopColor: 'transparent' }} />
+              <span>Payout confirming on-chain{addrShort ? <> to <span className="font-mono text-xs" style={{ color: 'var(--text-muted)' }}>{addrShort}</span></> : ''}…</span>
             </p>
           )
         })()}

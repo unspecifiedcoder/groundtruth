@@ -13,7 +13,22 @@ const API_URL = process.env.VISION_API_URL ?? 'https://api.groq.com/openai/v1/ch
 const API_KEY = process.env.VISION_API_KEY ?? process.env.GROQ_API_KEY
 const MODEL = process.env.VISION_MODEL ?? process.env.GROQ_VISION_MODEL ?? 'meta-llama/llama-4-scout-17b-16e-instruct'
 
+// Thinking models (e.g. Gemini flash) spend tokens reasoning before the answer,
+// so a small budget truncates the JSON. Give room; override per-provider.
+const MAX_TOKENS = Number(process.env.VISION_MAX_TOKENS ?? '1200')
+
 const skipped = (reason: string): VisionResult => ({ checked: false, match: true, confidence: 0, reason })
+
+// Providers differ: some return raw JSON, Gemini wraps it in ```json fences and
+// may add prose. Extract the first {...} object robustly.
+export function extractJson(s: string): any {
+  const fence = s.match(/```(?:json)?\s*([\s\S]*?)```/i)
+  const body = fence ? fence[1] : s
+  const start = body.indexOf('{')
+  const end = body.lastIndexOf('}')
+  if (start === -1 || end === -1) throw new Error('no json object in response')
+  return JSON.parse(body.slice(start, end + 1))
+}
 
 export async function verifyImageMatchesIntent(dataUrl: string, intent: string): Promise<VisionResult> {
   const key = API_KEY
@@ -33,19 +48,19 @@ export async function verifyImageMatchesIntent(dataUrl: string, intent: string):
                 type: 'text',
                 text:
                   `A person was asked to complete this real-world task: "${intent}".\n` +
-                  `Look at the photo they submitted as proof. Does it plausibly show that task being done?\n` +
-                  `Be lenient on framing/quality; judge the subject matter. Respond ONLY as JSON: ` +
-                  `{"match": true|false, "confidence": 0.0-1.0, "reason": "one short sentence"}`,
+                  `Look at the image they submitted as proof. Does its CONTENT plausibly show that task being done?\n` +
+                  `Judge the subject matter only — be lenient on framing, quality, and medium (photo, ` +
+                  `screenshot, or graphic all count). Reject only if the content clearly does not match the task.\n` +
+                  `Respond ONLY as JSON: {"match": true|false, "confidence": 0.0-1.0, "reason": "one short sentence"}`,
               },
               { type: 'image_url', image_url: { url: dataUrl } },
             ],
           },
         ],
         temperature: 0,
-        max_tokens: 150,
-        response_format: { type: 'json_object' },
+        max_tokens: MAX_TOKENS,
       }),
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(20_000),
     })
 
     if (!res.ok) return skipped(`vision unavailable (HTTP ${res.status})`)
@@ -53,7 +68,7 @@ export async function verifyImageMatchesIntent(dataUrl: string, intent: string):
     const content = json.choices?.[0]?.message?.content
     if (!content) return skipped('vision returned no content')
 
-    const parsed = JSON.parse(content)
+    const parsed = extractJson(content)
     return {
       checked: true,
       match: !!parsed.match,

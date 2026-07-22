@@ -3,7 +3,8 @@ import { getTask, transition, recordProofHash, recentProofHashes, bumpWorker } f
 import { verifyProof } from '@/lib/verify'
 import { settleTask } from '@/lib/settle'
 import { runAfterResponse } from '@/lib/after'
-import type { ProofPayload } from '@/lib/types'
+import { notaryReview } from '@/lib/notary'
+import type { ProofPayload, ProofSpec, NotaryVerdict } from '@/lib/types'
 
 export async function POST(
   req: NextRequest,
@@ -70,24 +71,17 @@ async function handleSubmit(req: NextRequest, params: { id: string }) {
     }
   }
 
-  // Move to submitted
-  const submitted = await transition(params.id, 'claimed', 'submitted', {
-    proof_payload: proofPayload,
-    submitted_at: new Date().toISOString(),
-  })
-  if (!submitted) {
-    return NextResponse.json({ error: 'State transition failed' }, { status: 409 })
-  }
-
-  // Run verification (pass the task intent so AI vision can content-check photos)
-  const recentHashes = await recentProofHashes(60)
+  // Run verification (dedup only matters for photos, so skip that read for
+  // forms). Verify works on the in-memory payload, so we don't need to persist
+  // the 'submitted' state first — we resolve straight to the final status in a
+  // single write below, saving several cold DB round-trips.
+  const recentHashes = proofType === 'photo' ? await recentProofHashes(60) : []
   const result = await verifyProof(task.proof_spec as any, proofPayload, imageBuffers, recentHashes, task.intent)
 
-  // Store proof hashes for dedup
+  // Store proof hashes for dedup (photos only)
   if (proofType === 'photo') {
     for (const buf of imageBuffers) {
       try {
-        // Simple content hash for dedup tracking
         const { createHash } = await import('crypto')
         const hash = createHash('sha256').update(buf).digest('hex')
         await recordProofHash(params.id, hash)
@@ -95,61 +89,78 @@ async function handleSubmit(req: NextRequest, params: { id: string }) {
     }
   }
 
-  // Integrity gate. A hard-fail (no image / garbage / wrong type / duplicate) is
-  // blatant fraud → fail immediately, no agent needed.
+  const now = new Date().toISOString()
   const integrityFailed = result.outcome === 'failed'
-  if (integrityFailed) {
-    await transition(params.id, 'submitted', 'failed', {
-      result,
-      resolved_at: new Date().toISOString(),
-    })
+
+  // Semantic notary gate — the real content check. Only runs once integrity has
+  // passed (no point asking an LLM to judge blatant garbage). It judges the
+  // proof against the task intent and returns accept / reject / uncertain.
+  // A CONFIDENT mismatch rejects; uncertain still pays (fail toward the worker).
+  let notary: NotaryVerdict | null = null
+  if (!integrityFailed) {
+    notary = await notaryReview(task.intent, task.proof_spec as ProofSpec, proofPayload, imageBuffers)
+    result.notary = notary
+  }
+  const semanticReject = notary?.decision === 'reject'
+  const rejected = integrityFailed || semanticReject
+  const autoAccept = process.env.AUTO_ACCEPT !== 'false'
+
+  // Single CAS transition from 'claimed' to the resolved status.
+  //   failed   : integrity gate OR the notary confidently rejected the proof
+  //   verified : passed + auto-accept → pay out in the background
+  //   submitted: passed + manual mode → wait for the agent's accept/reject
+  const target: 'failed' | 'verified' | 'submitted' =
+    rejected ? 'failed' : autoAccept ? 'verified' : 'submitted'
+
+  const moved = await transition(params.id, 'claimed', target, {
+    proof_payload: proofPayload,
+    result,
+    submitted_at: now,
+    ...(target === 'submitted' ? {} : { resolved_at: now }),
+  })
+  if (!moved) {
+    return NextResponse.json({ error: 'State transition failed' }, { status: 409 })
+  }
+
+  if (rejected) {
     await bumpWorker({ wallet: workerWallet, earned_units: BigInt(0), outcome: 'failed' }).catch(() => {})
     return NextResponse.json({
       task_id: params.id,
       status: 'failed',
       integrity: result.outcome,
+      notary,
       checks: result.checks,
       vision: result.vision ?? null,
-      message: 'Proof did not pass integrity checks.',
+      message: semanticReject
+        ? `Proof doesn't match the task${notary?.reason ? ` — ${notary.reason}` : ''}.`
+        : 'Proof did not pass integrity checks.',
     })
   }
 
-  // Store the result (checks + vision) on the submitted task.
-  await transition(params.id, 'submitted', 'submitted', { result }).catch(() => {})
-
-  // Auto-accept (default ON via AUTO_ACCEPT). The buyer-agent auto-verifies a
-  // proof that passed integrity and releases the on-chain payout right away, so
-  // an honest worker is paid in seconds and never waits on an offline agent.
-  // Set AUTO_ACCEPT=false to require manual/agent accept via the review endpoint.
-  const autoAccept = process.env.AUTO_ACCEPT !== 'false'
-  if (autoAccept) {
-    const verified = await transition(params.id, 'submitted', 'verified', {
-      resolved_at: new Date().toISOString(),
+  if (target === 'verified') {
+    // Settle in the background so the worker isn't blocked on on-chain
+    // confirmation. settleTask writes result.settle when the tx lands; the UI
+    // poll flips to "paid" then. The task is already 'verified' → not re-claimable.
+    runAfterResponse(() =>
+      settleTask(params.id, workerWallet, task.payment_ref ?? '', task.budget_usdt)
+    )
+    return NextResponse.json({
+      task_id: params.id,
+      status: 'verified',
+      integrity: result.outcome,
+      notary,
+      checks: result.checks,
+      vision: result.vision ?? null,
+      settle: { status: 'pending' },
+      message: 'Accepted — releasing your payout on-chain…',
     })
-    if (verified) {
-      // Settle in the background so the worker isn't blocked on the ~10s on-chain
-      // confirmation. settleTask writes result.settle to the task when the tx
-      // lands; the UI live-poll flips from "settling" to "paid" the moment it
-      // appears. The task is already 'verified', so nothing else can re-claim it.
-      runAfterResponse(() =>
-        settleTask(params.id, workerWallet, task.payment_ref ?? '', task.budget_usdt)
-      )
-      return NextResponse.json({
-        task_id: params.id,
-        status: 'verified',
-        integrity: result.outcome,
-        checks: result.checks,
-        vision: result.vision ?? null,
-        settle: { status: 'pending' },
-        message: 'Accepted — releasing your payout on-chain…',
-      })
-    }
   }
 
   return NextResponse.json({
     task_id: params.id,
     status: 'submitted',
     integrity: result.outcome,
+    notary,
     checks: result.checks,
     vision: result.vision ?? null,
     message: 'Proof submitted — awaiting the agent’s verification.',

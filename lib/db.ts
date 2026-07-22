@@ -168,6 +168,33 @@ export async function bumpWorker(params: {
   }).throwOnError()
 }
 
+export interface WorkerRep {
+  wallet: string
+  tasks_completed: number
+  tasks_failed: number
+  earned_usdt: string
+}
+
+// Top human oracles by completed tasks — surfaces reputation on the board so
+// the marketplace isn't "any wallet that uploads a JPEG" (Sybil-visibility).
+export async function listTopWorkers(limit = 5): Promise<WorkerRep[]> {
+  const db = getServiceClient()
+  const { fromUnits } = await import('./money')
+  const { data } = await db
+    .from('workers')
+    .select('wallet,tasks_completed,tasks_failed,total_earned_units')
+    .order('tasks_completed', { ascending: false })
+    .limit(limit)
+  return (data ?? [])
+    .filter((w: { tasks_completed: number }) => w.tasks_completed > 0)
+    .map((w: { wallet: string; tasks_completed: number; tasks_failed: number; total_earned_units: string }) => ({
+      wallet: w.wallet,
+      tasks_completed: w.tasks_completed,
+      tasks_failed: w.tasks_failed,
+      earned_usdt: fromUnits(BigInt(w.total_earned_units ?? 0)),
+    }))
+}
+
 export interface LedgerEntry {
   direction: 'in' | 'out'
   address: string          // payer (in) or worker (out)

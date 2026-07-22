@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { listOpenTasks, listTransactions, type LedgerEntry } from '@/lib/db'
+import { listOpenTasks, listTransactions, listTopWorkers, type LedgerEntry, type WorkerRep } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
 
@@ -34,8 +34,16 @@ function timeAgo(iso: string): string {
   return `${Math.floor(s / 86400)}d ago`
 }
 
+async function getTopWorkers(): Promise<WorkerRep[]> {
+  try {
+    return await listTopWorkers(5)
+  } catch {
+    return []
+  }
+}
+
 export default async function TasksPage() {
-  const [tasks, ledger] = await Promise.all([getOpenTasks(), getTransactions()])
+  const [tasks, ledger, oracles] = await Promise.all([getOpenTasks(), getTransactions(), getTopWorkers()])
 
   return (
     <main className="min-h-screen pb-20" style={{ color: 'var(--text)' }}>
@@ -142,6 +150,42 @@ export default async function TasksPage() {
             </div>
           )}
         </div>
+
+        {/* Top oracles — reputation */}
+        {oracles.length > 0 && (
+          <div className="mt-14 pt-8 border-t" style={{ borderColor: 'var(--border)' }}>
+            <div className="mb-4">
+              <h2 className="font-display text-xl font-extrabold" style={{ color: 'var(--text)' }}>Top oracles</h2>
+              <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>Humans who’ve delivered the most verified proof, ranked by completed missions.</p>
+            </div>
+            <div className="card divide-y" style={{ borderColor: 'var(--border)' }}>
+              {oracles.map((w: WorkerRep, i: number) => {
+                const total = w.tasks_completed + w.tasks_failed
+                const rate = total > 0 ? Math.round((w.tasks_completed / total) * 100) : 100
+                return (
+                  <div key={w.wallet} className="flex items-center gap-3 py-3 px-1">
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 font-display font-bold text-xs"
+                         style={{ background: i === 0 ? 'var(--accent-weak)' : 'var(--bg-subtle)', color: i === 0 ? 'var(--accent)' : 'var(--text-muted)' }}>
+                      {i + 1}
+                    </div>
+                    <span className="font-mono text-xs flex-1 truncate" style={{ color: 'var(--text)' }}>
+                      {w.wallet.slice(0, 6)}…{w.wallet.slice(-4)}
+                    </span>
+                    <span className="chip text-[10px]" style={{ color: 'var(--good)' }}>{rate}% verified</span>
+                    <div className="text-right flex-shrink-0">
+                      <div className="font-display font-bold text-sm" style={{ color: 'var(--text)' }}>{w.tasks_completed}</div>
+                      <div className="font-mono text-[10px]" style={{ color: 'var(--text-faint)' }}>missions</div>
+                    </div>
+                    <div className="text-right flex-shrink-0 w-16">
+                      <div className="font-display font-bold text-sm" style={{ color: 'var(--good)' }}>{w.earned_usdt}</div>
+                      <div className="font-mono text-[10px]" style={{ color: 'var(--text-faint)' }}>USDT</div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Settlement ledger */}
         <div className="mt-14 pt-8 border-t" style={{ borderColor: 'var(--border)' }}>

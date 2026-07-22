@@ -53,11 +53,20 @@ export interface VisionResult {
   reason: string
 }
 
+export interface NotaryVerdict {
+  decision: 'accept' | 'reject' | 'uncertain'
+  confidence: number
+  reason: string
+  checked: boolean          // did the notary model actually run?
+  mode: 'photo' | 'form'
+}
+
 export interface TaskResult {
   outcome: 'verified' | 'failed' | 'needs_review'
   checks: VerificationCheck[]
   confidence?: number
-  vision?: VisionResult   // advisory AI-vision content check (photo tasks)
+  vision?: VisionResult     // advisory AI-vision content check (photo tasks)
+  notary?: NotaryVerdict    // semantic proof-vs-intent judgment (the accept gate)
 }
 
 export interface Task {
