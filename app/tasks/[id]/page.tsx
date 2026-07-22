@@ -89,24 +89,63 @@ interface Task {
   budget_usdt: string
   status: string
   expires_at: string
+  result?: {
+    settle?: {
+      worker?: string
+      payout_usdt?: string
+      tx_hash?: string | null
+      explorer?: string | null
+    }
+  } | null
 }
 
 export default function TaskDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter()
   const [task, setTask] = useState<Task | null>(null)
-  const [phase, setPhase] = useState<'loading' | 'view' | 'claimed' | 'verifying' | 'submitted' | 'error'>('loading')
+  const [phase, setPhase] = useState<'loading' | 'view' | 'claimed' | 'verifying' | 'awaiting' | 'done' | 'rejected' | 'error'>('loading')
   const [loading, setLoading] = useState(false)
   const [wallet, setWallet] = useState('')
   const [files, setFiles] = useState<File[]>([])
   const [formData, setFormData] = useState<Record<string, string>>({})
   const [error, setError] = useState('')
+  const [vision, setVision] = useState<{ checked: boolean; match: boolean; confidence: number; reason: string } | null>(null)
 
   useEffect(() => {
     fetch(`/api/v1/tasks/${params.id}`)
       .then(r => r.json())
-      .then(t => { setTask(t); setPhase('view') })
+      .then(t => {
+        setTask(t)
+        // Restore the right screen from the task's real status, so a refresh
+        // on the awaiting/done/rejected screen doesn't drop back to the submit
+        // form (which would 409 as "Submission failed" on a re-submit).
+        const settleWorker = t.result?.settle?.worker
+        if (settleWorker) setWallet(settleWorker)
+        if (t.status === 'submitted') setPhase('awaiting')
+        // 'verified' but no payout tx yet = settling in the background → keep on
+        // the awaiting/settling screen until the tx lands.
+        else if (t.status === 'verified') setPhase(t.result?.settle?.tx_hash ? 'done' : 'awaiting')
+        else if (t.status === 'failed') setPhase('rejected')
+        else setPhase('view') // pending / claimed / expired
+      })
       .catch(() => setPhase('error'))
   }, [params.id])
+
+  // While awaiting the agent's decision, poll for the resolution.
+  useEffect(() => {
+    if (phase !== 'awaiting') return
+    const iv = setInterval(async () => {
+      try {
+        const r = await fetch(`/api/v1/tasks/${params.id}`)
+        const t = await r.json()
+        setTask(t) // keep status fresh so the settling/awaiting copy is accurate
+        // Only flip to done once the on-chain payout tx is recorded, so the done
+        // screen always has a real tx to show (settlement runs in the background).
+        if (t.status === 'verified' && t.result?.settle?.tx_hash) { setPhase('done'); clearInterval(iv) }
+        else if (t.status === 'failed') { setPhase('rejected'); clearInterval(iv) }
+      } catch {}
+    }, 1500)
+    return () => clearInterval(iv)
+  }, [phase, params.id])
 
   async function handleClaim() {
     if (!wallet.match(/^0x[0-9a-fA-F]{40}$/)) {
@@ -144,16 +183,26 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
       } else {
         fd.append('form_data', JSON.stringify(formData))
       }
+      // Show the settling screen while the request runs — with auto-accept the
+      // server verifies and settles on-chain inline, so this can take a few sec.
+      setPhase('verifying')
       const res = await fetch(`/api/tasks/${params.id}/submit`, {
         method: 'POST',
         body: fd,
       })
-      if (!res.ok) { setError('Submission failed'); return }
-      setPhase('verifying')
-      await new Promise(r => setTimeout(r, 3200))
-      setPhase('submitted')
+      if (!res.ok) { setError('Submission failed'); setPhase('claimed'); return }
+      const data = await res.json().catch(() => ({}))
+      setVision(data.vision ?? null)
+      if (data.status === 'failed') { setPhase('rejected'); return }
+      // Reflect the accepted status immediately from the submit response so the
+      // "releasing your payout" copy shows at once instead of waiting a poll.
+      setTask(prev => (prev ? { ...prev, status: data.status } : prev))
+      // 'verified' (auto-accepted) or 'submitted' (manual) → awaiting screen;
+      // the poller flips it to 'done' the moment the payout tx is recorded.
+      setPhase('awaiting')
     } catch {
       setError('Network error')
+      setPhase('claimed')
     } finally {
       setLoading(false)
     }
@@ -182,11 +231,66 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
     </div>
   )
 
-  /* ── Verifying ── */
+  /* ── Verifying (integrity checks) ── */
   if (phase === 'verifying') return <VerifyingScreen />
 
-  /* ── Submitted ── */
-  if (phase === 'submitted') return (
+  /* ── Awaiting the agent's decision ── */
+  if (phase === 'awaiting') return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center" style={{ color: 'var(--text)' }}>
+      <div className="max-w-sm">
+        <div className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6"
+             style={{ background: 'var(--accent-weak)', border: '1px solid var(--accent-line)' }}>
+          <div className="w-8 h-8 border-2 rounded-full animate-spin" style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }} />
+        </div>
+        <h2 className="font-display text-2xl font-extrabold mb-2" style={{ color: 'var(--text)' }}>
+          {task?.status === 'verified' ? 'Accepted ✓' : 'Proof submitted ✓'}
+        </h2>
+        <p className="mb-4" style={{ color: 'var(--text-muted)' }}>
+          {task?.status === 'verified' ? (
+            <>Passed the checks and accepted. <strong style={{ color: 'var(--text)' }}>Releasing your payout on-chain</strong> now — this takes a few seconds.</>
+          ) : (
+            <>Passed integrity checks. Now awaiting the <strong style={{ color: 'var(--text)' }}>agent&apos;s</strong> verification — your payout releases on-chain the moment they accept.</>
+          )}
+        </p>
+
+        {vision?.checked && (
+          vision.match ? (
+            <div className="rounded-xl px-3 py-2.5 mb-4 flex items-start gap-2 text-left text-sm"
+                 style={{ background: 'var(--good-weak)', border: '1px solid var(--good)' }}>
+              <span style={{ color: 'var(--good)' }}>✓</span>
+              <span style={{ color: 'var(--text)' }}><strong style={{ color: 'var(--good)' }}>AI vision confirmed</strong> the photo matches the task{vision.confidence ? ` · ${Math.round(vision.confidence * 100)}%` : ''}.</span>
+            </div>
+          ) : (
+            <div className="rounded-xl px-3 py-2.5 mb-4 flex items-start gap-2 text-left text-sm"
+                 style={{ background: 'color-mix(in srgb, #E5484D 14%, transparent)', border: '1px solid #E5484D' }}>
+              <span style={{ color: '#E5484D' }}>⚠</span>
+              <span style={{ color: 'var(--text)' }}><strong style={{ color: '#E5484D' }}>AI vision flagged a possible mismatch</strong>{vision.reason ? ` — ${vision.reason}` : ''}. Shared with the agent for their decision.</span>
+            </div>
+          )
+        )}
+
+        <p className="font-mono text-xs" style={{ color: 'var(--text-faint)' }}>Live — updates automatically</p>
+      </div>
+    </div>
+  )
+
+  /* ── Rejected by agent / failed integrity ── */
+  if (phase === 'rejected') return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center" style={{ color: 'var(--text)' }}>
+      <div className="max-w-sm">
+        <div className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6"
+             style={{ background: 'color-mix(in srgb, #E5484D 12%, transparent)', border: '1px solid #E5484D' }}>
+          <span className="text-3xl">✕</span>
+        </div>
+        <h2 className="font-display text-2xl font-extrabold mb-2" style={{ color: 'var(--text)' }}>Not accepted</h2>
+        <p className="mb-8" style={{ color: 'var(--text-muted)' }}>The proof wasn&apos;t accepted for this mission, so no payout was released.</p>
+        <button onClick={() => router.push('/tasks')} className="btn btn-primary w-full py-3">Find another mission →</button>
+      </div>
+    </div>
+  )
+
+  /* ── Accepted → paid ── */
+  if (phase === 'done') return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center" style={{ color: 'var(--text)' }}>
       <div className="max-w-sm">
         <div className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6"
@@ -198,13 +302,52 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
         <h2 className="font-display text-2xl font-extrabold mb-2" style={{ color: 'var(--text)' }}>
           Mission complete.
         </h2>
-        <p className="mb-2" style={{ color: 'var(--text-muted)' }}>Your proof has been verified by AI.</p>
-        <p className="text-sm mb-8" style={{ color: 'var(--text-faint)' }}>
-          <span className="font-bold" style={{ color: 'var(--accent)' }}>${task.budget_usdt} USDT</span> is being sent to{' '}
-          <span className="font-mono text-xs" style={{ color: 'var(--text-muted)' }}>
-            {wallet.slice(0, 6)}…{wallet.slice(-4)}
-          </span>
-        </p>
+        <p className="mb-2" style={{ color: 'var(--text-muted)' }}>The agent accepted your proof.</p>
+
+        {/* AI-vision content check — advisory: a mismatch red-flags but still processes */}
+        {vision?.checked && (
+          vision.match ? (
+            <div className="rounded-xl px-3 py-2.5 mb-4 flex items-start gap-2 text-left text-sm"
+                 style={{ background: 'var(--good-weak)', border: '1px solid var(--good)' }}>
+              <span style={{ color: 'var(--good)' }}>✓</span>
+              <span style={{ color: 'var(--text)' }}>
+                <strong style={{ color: 'var(--good)' }}>AI vision confirmed</strong> the photo matches the task
+                {vision.confidence ? ` · ${Math.round(vision.confidence * 100)}% confident` : ''}.
+              </span>
+            </div>
+          ) : (
+            <div className="rounded-xl px-3 py-2.5 mb-4 flex items-start gap-2 text-left text-sm"
+                 style={{ background: 'color-mix(in srgb, #E5484D 14%, transparent)', border: '1px solid #E5484D' }}>
+              <span style={{ color: '#E5484D' }}>⚠</span>
+              <span style={{ color: 'var(--text)' }}>
+                <strong style={{ color: '#E5484D' }}>AI vision flagged a possible mismatch</strong>
+                {vision.reason ? ` — ${vision.reason}` : ''}. Logged for review; payout still processed.
+              </span>
+            </div>
+          )
+        )}
+        {(() => {
+          const settle = task.result?.settle
+          const payAddr = settle?.worker ?? wallet
+          const addrShort = payAddr ? `${payAddr.slice(0, 6)}…${payAddr.slice(-4)}` : ''
+          // Only claim "paid on-chain" when a real tx exists. If it verified but
+          // the payout tx isn't recorded yet, say so honestly — never fake it.
+          if (settle?.tx_hash) return (
+            <p className="text-sm mb-8" style={{ color: 'var(--text-faint)' }}>
+              <span className="font-bold" style={{ color: 'var(--good)' }}>{settle.payout_usdt ?? ''} USDT</span> paid on-chain to{' '}
+              <span className="font-mono text-xs" style={{ color: 'var(--text-muted)' }}>{addrShort}</span>{' '}
+              <span style={{ color: 'var(--text-faint)' }}>(after 12% fee)</span>
+              {settle.explorer && (
+                <> · <a href={settle.explorer} target="_blank" rel="noopener noreferrer" className="underline" style={{ color: 'var(--accent)' }}>view tx ↗</a></>
+              )}
+            </p>
+          )
+          return (
+            <p className="text-sm mb-8" style={{ color: 'var(--text-faint)' }}>
+              Proof accepted{addrShort ? <> for <span className="font-mono text-xs" style={{ color: 'var(--text-muted)' }}>{addrShort}</span></> : ''}. Your on-chain payout is being processed — it&apos;ll appear in the ledger shortly.
+            </p>
+          )
+        })()}
         <button onClick={() => router.push('/tasks')} className="btn btn-primary w-full py-3">
           Find more missions →
         </button>

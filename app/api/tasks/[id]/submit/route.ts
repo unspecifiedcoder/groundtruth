@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getTask, transition, recordProofHash, recentProofHashes, bumpWorker } from '@/lib/db'
 import { verifyProof } from '@/lib/verify'
-import { settlePayment } from '@/lib/payment'
+import { settleTask } from '@/lib/settle'
+import { runAfterResponse } from '@/lib/after'
 import type { ProofPayload } from '@/lib/types'
 
 export async function POST(
@@ -78,9 +79,9 @@ async function handleSubmit(req: NextRequest, params: { id: string }) {
     return NextResponse.json({ error: 'State transition failed' }, { status: 409 })
   }
 
-  // Run verification
+  // Run verification (pass the task intent so AI vision can content-check photos)
   const recentHashes = await recentProofHashes(60)
-  const result = await verifyProof(task.proof_spec as any, proofPayload, imageBuffers, recentHashes)
+  const result = await verifyProof(task.proof_spec as any, proofPayload, imageBuffers, recentHashes, task.intent)
 
   // Store proof hashes for dedup
   if (proofType === 'photo') {
@@ -94,34 +95,63 @@ async function handleSubmit(req: NextRequest, params: { id: string }) {
     }
   }
 
-  // Transition to final state
-  const finalState = await transition(params.id, 'submitted', result.outcome as any, {
-    result,
-    resolved_at: new Date().toISOString(),
-  })
-
-  // Trigger on-chain settlement if verified
-  if (result.outcome === 'verified' && task.payment_ref) {
-    settlePayment(task.payment_ref).catch(() => {})
+  // Integrity gate. A hard-fail (no image / garbage / wrong type / duplicate) is
+  // blatant fraud → fail immediately, no agent needed.
+  const integrityFailed = result.outcome === 'failed'
+  if (integrityFailed) {
+    await transition(params.id, 'submitted', 'failed', {
+      result,
+      resolved_at: new Date().toISOString(),
+    })
+    await bumpWorker({ wallet: workerWallet, earned_units: BigInt(0), outcome: 'failed' }).catch(() => {})
+    return NextResponse.json({
+      task_id: params.id,
+      status: 'failed',
+      integrity: result.outcome,
+      checks: result.checks,
+      vision: result.vision ?? null,
+      message: 'Proof did not pass integrity checks.',
+    })
   }
 
-  // Bump worker stats
-  const budgetUnits = BigInt(Math.round(parseFloat(task.budget_usdt) * 1_000_000))
-  await bumpWorker({
-    wallet: workerWallet,
-    earned_units: result.outcome === 'verified' ? budgetUnits : BigInt(0),
-    outcome: result.outcome === 'verified' ? 'completed' : result.outcome === 'failed' ? 'failed' : 'completed',
-  }).catch(() => {})
+  // Store the result (checks + vision) on the submitted task.
+  await transition(params.id, 'submitted', 'submitted', { result }).catch(() => {})
+
+  // Auto-accept (default ON via AUTO_ACCEPT). The buyer-agent auto-verifies a
+  // proof that passed integrity and releases the on-chain payout right away, so
+  // an honest worker is paid in seconds and never waits on an offline agent.
+  // Set AUTO_ACCEPT=false to require manual/agent accept via the review endpoint.
+  const autoAccept = process.env.AUTO_ACCEPT !== 'false'
+  if (autoAccept) {
+    const verified = await transition(params.id, 'submitted', 'verified', {
+      resolved_at: new Date().toISOString(),
+    })
+    if (verified) {
+      // Settle in the background so the worker isn't blocked on the ~10s on-chain
+      // confirmation. settleTask writes result.settle to the task when the tx
+      // lands; the UI live-poll flips from "settling" to "paid" the moment it
+      // appears. The task is already 'verified', so nothing else can re-claim it.
+      runAfterResponse(() =>
+        settleTask(params.id, workerWallet, task.payment_ref ?? '', task.budget_usdt)
+      )
+      return NextResponse.json({
+        task_id: params.id,
+        status: 'verified',
+        integrity: result.outcome,
+        checks: result.checks,
+        vision: result.vision ?? null,
+        settle: { status: 'pending' },
+        message: 'Accepted — releasing your payout on-chain…',
+      })
+    }
+  }
 
   return NextResponse.json({
     task_id: params.id,
-    outcome: result.outcome,
+    status: 'submitted',
+    integrity: result.outcome,
     checks: result.checks,
-    message:
-      result.outcome === 'verified'
-        ? 'Proof verified! Payment will be sent to your wallet.'
-        : result.outcome === 'needs_review'
-        ? 'Proof under manual review. Hold tight.'
-        : 'Proof did not pass verification.',
+    vision: result.vision ?? null,
+    message: 'Proof submitted — awaiting the agent’s verification.',
   })
 }

@@ -168,6 +168,70 @@ export async function bumpWorker(params: {
   }).throwOnError()
 }
 
+export interface LedgerEntry {
+  direction: 'in' | 'out'
+  address: string          // payer (in) or worker (out)
+  amount_usdt: string
+  tx_hash: string | null
+  explorer: string | null  // null for demo/off-chain rows
+  at: string               // ISO timestamp
+  intent: string | null
+}
+
+// Public settlement ledger: incoming x402 payments (agent → escrow) and
+// outgoing payouts (escrow → worker), merged newest-first. Payouts are read
+// from each task's stored result.settle (see settleTask).
+export async function listTransactions(limit = 25): Promise<LedgerEntry[]> {
+  const db = getServiceClient()
+  const { explorerTx } = await import('./chain')
+  const { fromUnits } = await import('./money')
+  const isRealHash = (h: string | null | undefined): h is string =>
+    !!h && /^0x[0-9a-fA-F]{64}$/.test(h)
+
+  const [paymentsRes, tasksRes] = await Promise.all([
+    db.from('payments').select('payer_address,amount_units,tx_hash,created_at,task_id').order('created_at', { ascending: false }).limit(limit),
+    db.from('tasks').select('id,intent,result').eq('status', 'verified').order('resolved_at', { ascending: false }).limit(200),
+  ])
+
+  const tasks = (tasksRes.data ?? []) as { id: string; intent: string; result: TaskResult | null }[]
+  const intentById = new Map(tasks.map(t => [t.id, t.intent]))
+
+  const inflows: LedgerEntry[] = (paymentsRes.data ?? []).map((p: { payer_address: string; amount_units: string; tx_hash: string | null; created_at: string; task_id: string }) => ({
+    direction: 'in' as const,
+    address: p.payer_address,
+    amount_usdt: fromUnits(BigInt(p.amount_units)),
+    tx_hash: p.tx_hash,
+    explorer: isRealHash(p.tx_hash) ? explorerTx(p.tx_hash) : null,
+    at: p.created_at,
+    intent: intentById.get(p.task_id) ?? null,
+  }))
+
+  const payouts: LedgerEntry[] = tasks
+    .map(t => {
+      // jsonb normally arrives parsed, but tolerate a stringified result too.
+      let result: unknown = t.result
+      if (typeof result === 'string') {
+        try { result = JSON.parse(result) } catch { result = null }
+      }
+      const s = (result as { settle?: { worker?: string; payout_usdt?: string; tx_hash?: string | null; explorer?: string | null; settled_at?: string } } | null)?.settle
+      if (!s?.worker) return null
+      return {
+        direction: 'out' as const,
+        address: s.worker,
+        amount_usdt: s.payout_usdt ?? '0',
+        tx_hash: s.tx_hash ?? null,
+        explorer: s.explorer ?? (isRealHash(s.tx_hash) ? explorerTx(s.tx_hash!) : null),
+        at: s.settled_at ?? '',
+        intent: t.intent,
+      } as LedgerEntry
+    })
+    .filter((e): e is LedgerEntry => e !== null)
+
+  return [...inflows, ...payouts]
+    .sort((a, b) => (a.at < b.at ? 1 : -1))
+    .slice(0, limit)
+}
+
 export async function pulseStats(): Promise<{
   total_tasks: number
   verified_tasks: number

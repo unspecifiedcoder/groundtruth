@@ -1,17 +1,21 @@
 import { keccak256, toBytes } from 'viem'
-import { settleOnChain, isSettled } from './chain'
+import { settleOnChain, isSettled, explorerTx } from './chain'
 import { transition, bumpWorker } from './db'
 import { settlePayment } from './payment'
 import { splitBudget } from './money'
 
 const CONTRACT_ADDRESS = (process.env.PAYROLL_CONTRACT_ADDRESS ?? '0x0000000000000000000000000000000000000000') as `0x${string}`
-const PAYMENT_TOKEN = (process.env.OKX_PAYMENT_TOKEN ?? '0x0000000000000000000000000000000000000000') as `0x${string}`
+// Token the worker is actually paid in — mUSDT on X Layer testnet by default
+// (the token the payment came in as). Overridable for a mainnet deployment.
+const PAYOUT_TOKEN = (process.env.PAYOUT_TOKEN ?? process.env.X402_VERIFY_TOKEN ?? '0x725cCe0916d2E8682438732fD9e79803B4fAB2BD') as `0x${string}`
 const PRICE_USDT = process.env.ASP_PRICE_USDT ?? '2.00'
 const FEE_BPS = Number(process.env.ASP_FEE_BPS ?? '1200')
 
 export interface SettleResult {
   success: boolean
   txHash?: string
+  explorer?: string
+  payout_usdt?: string
   error?: string
 }
 
@@ -46,7 +50,7 @@ export async function settleTask(
         contractAddress: CONTRACT_ADDRESS,
         taskKey,
         workerAddress: workerWallet as `0x${string}`,
-        tokenAddress: PAYMENT_TOKEN,
+        tokenAddress: PAYOUT_TOKEN,
         payoutUnits,
         feeUnits,
       })
@@ -76,5 +80,32 @@ export async function settleTask(
     outcome: 'completed',
   }).catch(() => {})
 
-  return { success: true, txHash }
+  const { fromUnits } = await import('./money')
+  const payoutUsdt = fromUnits(payoutUnits)
+
+  // Persist the payout on the task so the public ledger can show who was paid,
+  // how much, and the on-chain tx. The settle txHash isn't stored anywhere else.
+  await transition(taskId, 'verified', 'verified', {
+    result: {
+      outcome: 'verified',
+      checks: [],
+      confidence: 1,
+      settle: {
+        worker: workerWallet,
+        token: PAYOUT_TOKEN,
+        payout_usdt: payoutUsdt,
+        fee_usdt: fromUnits(feeUnits),
+        tx_hash: txHash ?? null,
+        explorer: txHash ? explorerTx(txHash) : null,
+        settled_at: new Date().toISOString(),
+      },
+    },
+  }).catch(() => {})
+
+  return {
+    success: true,
+    txHash,
+    explorer: txHash ? explorerTx(txHash) : undefined,
+    payout_usdt: payoutUsdt,
+  }
 }

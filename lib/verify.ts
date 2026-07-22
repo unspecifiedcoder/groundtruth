@@ -1,4 +1,5 @@
-import type { ProofPayload, ProofSpec, VerificationCheck, TaskResult } from './types'
+import type { ProofPayload, ProofSpec, VerificationCheck, TaskResult, VisionResult } from './types'
+import { verifyImageMatchesIntent } from './groq-vision'
 
 // Dynamic imports to avoid build errors when packages unavailable at type-check time
 async function getExifr() {
@@ -15,7 +16,8 @@ export async function verifyProof(
   spec: ProofSpec,
   payload: ProofPayload,
   imageBuffers?: Buffer[],
-  recentHashes?: string[]
+  recentHashes?: string[],
+  intent?: string
 ): Promise<TaskResult> {
   const checks: VerificationCheck[] = []
 
@@ -23,13 +25,6 @@ export async function verifyProof(
     // Real pipeline: photo count + valid-image decode (hard), plus resolution,
     // perceptual-hash dedup, and EXIF timestamp (soft).
     checks.push(...(await verifyPhoto(spec, payload, imageBuffers ?? [], recentHashes ?? [])))
-    // Soft signal representing AI vision (real Groq vision integration pending).
-    checks.push({
-      name: 'vision_match',
-      passed: true,
-      severity: 'soft',
-      detail: 'AI vision: image consistent with task requirements',
-    })
   }
 
   if (spec.type === 'form') {
@@ -42,8 +37,16 @@ export async function verifyProof(
   const softFailCount = softChecks.filter(c => !c.passed).length
   const totalChecks = checks.length
 
+  // Advisory AI-vision content check (photo tasks): does the image actually show
+  // what was asked? A mismatch RED-FLAGS the result but never changes the
+  // outcome — the flow keeps moving. Runs after gating so it can't block.
+  let vision: VisionResult | undefined
+  if (spec.type === 'photo' && intent && imageBuffers && imageBuffers.length > 0) {
+    vision = await runVision(imageBuffers[0], intent)
+  }
+
   if (hardFail) {
-    return { outcome: 'failed', checks }
+    return { outcome: 'failed', checks, vision }
   }
 
   const passed = checks.filter(c => c.passed).length
@@ -53,10 +56,27 @@ export async function verifyProof(
   // soft signals failing warrants manual review (genuine photos may lack EXIF,
   // be low-res, etc. without being fraudulent).
   if (softChecks.length > 0 && softFailCount / softChecks.length > 0.5) {
-    return { outcome: 'needs_review', checks, confidence }
+    return { outcome: 'needs_review', checks, confidence, vision }
   }
 
-  return { outcome: 'verified', checks, confidence }
+  return { outcome: 'verified', checks, confidence, vision }
+}
+
+// Build a data URL from the first image and ask the vision model if it matches.
+async function runVision(buf: Buffer, intent: string): Promise<VisionResult> {
+  try {
+    const sharp = await getSharp()
+    let mime = 'image/jpeg'
+    if (sharp) {
+      const fmt = (await sharp(buf).metadata()).format
+      if (fmt === 'png') mime = 'image/png'
+      else if (fmt === 'webp') mime = 'image/webp'
+    }
+    const dataUrl = `data:${mime};base64,${buf.toString('base64')}`
+    return await verifyImageMatchesIntent(dataUrl, intent)
+  } catch {
+    return { checked: false, match: true, confidence: 0, reason: 'vision skipped (encode error)' }
+  }
 }
 
 async function verifyPhoto(

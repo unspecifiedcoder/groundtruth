@@ -46,10 +46,18 @@ export interface VerificationCheck {
   detail?: string
 }
 
+export interface VisionResult {
+  checked: boolean   // did the AI vision model actually run?
+  match: boolean     // does the image plausibly show the task intent?
+  confidence: number // 0–1
+  reason: string
+}
+
 export interface TaskResult {
   outcome: 'verified' | 'failed' | 'needs_review'
   checks: VerificationCheck[]
   confidence?: number
+  vision?: VisionResult   // advisory AI-vision content check (photo tasks)
 }
 
 export interface Task {

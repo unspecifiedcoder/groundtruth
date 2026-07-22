@@ -187,6 +187,7 @@ const handler = createMcpHandler(
           const res = await fetch(`${appUrl}/api/v1/tasks/${task_id}`, { signal: AbortSignal.timeout(5000) })
           if (!res.ok) return { content: [{ type: 'text' as const, text: JSON.stringify({ error: 'Task not found', task_id }) }] }
           const task = await res.json()
+          const awaitingReview = task.status === 'submitted'
           return {
             content: [{
               type: 'text' as const,
@@ -194,8 +195,15 @@ const handler = createMcpHandler(
                 task_id: task.id,
                 status: task.status,
                 intent: task.intent,
+                // Proof is available once the human submits (awaiting your review) and after.
+                proof: (awaitingReview || task.status === 'verified') ? (task.proof_payload ?? null) : null,
+                ai_vision: task.result?.vision ?? null,
+                integrity_checks: task.result?.checks ?? null,
+                awaiting_your_review: awaitingReview,
+                next_action: awaitingReview
+                  ? 'Review the proof, then call review_task with decision "accept" (pays the oracle on-chain) or "reject".'
+                  : undefined,
                 result: task.result ?? null,
-                proof_available: task.status === 'verified',
                 created_at: task.created_at,
                 expires_at: task.expires_at,
               }),
@@ -203,6 +211,35 @@ const handler = createMcpHandler(
           }
         } catch {
           return { content: [{ type: 'text' as const, text: JSON.stringify({ error: 'Failed to fetch task status', task_id }) }] }
+        }
+      }
+    )
+
+    server.registerTool(
+      'review_task',
+      {
+        title: 'Review Task',
+        description: 'Review a submitted proof and accept or reject it. Accept releases the on-chain payout to the human oracle; reject fails the task with no payout. Call this after task_status shows the proof.',
+        inputSchema: {
+          task_id: z.string().uuid().describe('The task ID to review'),
+          decision: z.enum(['accept', 'reject']).describe('accept = pay the oracle; reject = no payout'),
+          reason: z.string().max(300).optional().describe('Optional note explaining the decision'),
+        },
+      },
+      async ({ task_id, decision, reason }: { task_id: string; decision: 'accept' | 'reject'; reason?: string }) => {
+        try {
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+          const adminSecret = process.env.ADMIN_SECRET
+          const res = await fetch(`${appUrl}/api/v1/tasks/${task_id}/review`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...(adminSecret ? { 'X-DEMO-KEY': adminSecret } : {}) },
+            body: JSON.stringify({ decision, reason }),
+            signal: AbortSignal.timeout(90_000),
+          })
+          const data = await res.json()
+          return { content: [{ type: 'text' as const, text: JSON.stringify(data) }] }
+        } catch (err) {
+          return { content: [{ type: 'text' as const, text: JSON.stringify({ error: 'Review failed', detail: err instanceof Error ? err.message : String(err), task_id }) }] }
         }
       }
     )

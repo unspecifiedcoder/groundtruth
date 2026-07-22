@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { listOpenTasks } from '@/lib/db'
+import { listOpenTasks, listTransactions, type LedgerEntry } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,8 +11,31 @@ async function getOpenTasks() {
   }
 }
 
+async function getTransactions(): Promise<LedgerEntry[]> {
+  try {
+    return await listTransactions(12)
+  } catch {
+    return []
+  }
+}
+
+function shortAddr(a: string): string {
+  if (!a || !a.startsWith('0x') || a.length < 12) return a || '—'
+  if (/^0x0+$/.test(a)) return 'agent wallet'
+  return `${a.slice(0, 6)}…${a.slice(-4)}`
+}
+
+function timeAgo(iso: string): string {
+  if (!iso) return ''
+  const s = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000))
+  if (s < 60) return `${s}s ago`
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`
+  return `${Math.floor(s / 86400)}d ago`
+}
+
 export default async function TasksPage() {
-  const tasks = await getOpenTasks()
+  const [tasks, ledger] = await Promise.all([getOpenTasks(), getTransactions()])
 
   return (
     <main className="min-h-screen pb-20" style={{ color: 'var(--text)' }}>
@@ -114,6 +137,72 @@ export default async function TasksPage() {
                       </div>
                     </div>
                   </Link>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Settlement ledger */}
+        <div className="mt-14 pt-8 border-t" style={{ borderColor: 'var(--border)' }}>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="font-display text-xl font-extrabold" style={{ color: 'var(--text)' }}>
+                Settlement Ledger
+              </h2>
+              <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                Every payment in and payout out — who got paid, how much, on-chain.
+              </p>
+            </div>
+            <span className="chip text-[10px]" style={{ color: 'var(--text-faint)' }}>Live</span>
+          </div>
+
+          {ledger.length === 0 ? (
+            <div className="card text-center py-12">
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No settlements yet. Completed missions will appear here.</p>
+            </div>
+          ) : (
+            <div className="card divide-y" style={{ borderColor: 'var(--border)' }}>
+              {ledger.map((tx: LedgerEntry, i: number) => {
+                const isIn = tx.direction === 'in'
+                const color = isIn ? 'var(--info)' : 'var(--good)'
+                const weak = isIn ? 'var(--info-weak)' : 'var(--good-weak)'
+                return (
+                  <div key={i} className="flex items-center gap-3 py-3 px-1" style={{ borderColor: 'var(--border)' }}>
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 font-bold text-sm"
+                         style={{ background: weak, color }}>
+                      {isIn ? '↓' : '↑'}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+                          {isIn ? 'Agent paid' : 'Oracle paid'}
+                        </span>
+                        <span className="font-mono text-xs" style={{ color: 'var(--text-faint)' }}>
+                          {isIn ? 'from' : 'to'} {shortAddr(tx.address)}
+                        </span>
+                      </div>
+                      {tx.intent && (
+                        <p className="text-xs truncate mt-0.5" style={{ color: 'var(--text-muted)' }}>{tx.intent}</p>
+                      )}
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <div className="font-display font-bold text-sm" style={{ color }}>
+                        {isIn ? '+' : '−'}{tx.amount_usdt} <span className="font-mono text-[10px]" style={{ color: 'var(--text-faint)' }}>USDT</span>
+                      </div>
+                      <div className="flex items-center gap-2 justify-end mt-0.5">
+                        <span className="font-mono text-[10px]" style={{ color: 'var(--text-faint)' }}>{timeAgo(tx.at)}</span>
+                        {tx.explorer ? (
+                          <a href={tx.explorer} target="_blank" rel="noopener noreferrer"
+                             className="font-mono text-[10px] underline" style={{ color: 'var(--accent)' }}>
+                            tx ↗
+                          </a>
+                        ) : (
+                          <span className="font-mono text-[10px]" style={{ color: 'var(--text-faint)' }}>demo</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 )
               })}
             </div>
