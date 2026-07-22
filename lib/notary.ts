@@ -24,6 +24,19 @@ const uncertain = (mode: 'photo' | 'form', reason: string): NotaryVerdict => ({
   decision: 'uncertain', confidence: 0, reason, checked: false, mode,
 })
 
+// Cache real verdicts by (image + intent + challenge) so a refresh/retry of the
+// SAME proof doesn't burn another vision call. Only successful ("checked")
+// verdicts are cached — an errored/rate-limited result is never cached, so a
+// retry after the quota resets re-attempts. Bounded to avoid unbounded growth.
+const verdictCache = new Map<string, NotaryVerdict>()
+const CACHE_MAX = 200
+function cacheGet(key: string): NotaryVerdict | undefined { return verdictCache.get(key) }
+function cacheSet(key: string, v: NotaryVerdict): void {
+  if (!v.checked) return
+  if (verdictCache.size >= CACHE_MAX) verdictCache.delete(verdictCache.keys().next().value as string)
+  verdictCache.set(key, v)
+}
+
 async function buildDataUrl(buf: Buffer): Promise<string> {
   try {
     const sharp = (await import('sharp')).default
@@ -46,9 +59,15 @@ export async function notaryReview(
 
 async function reviewPhoto(intent: string, imageBuffers: Buffer[], challenge?: string): Promise<NotaryVerdict> {
   if (!imageBuffers.length) return uncertain('photo', 'no image to review')
+
+  const { createHash } = await import('crypto')
+  const cacheKey = createHash('sha256').update(imageBuffers[0]).update(`|${intent}|${challenge ?? ''}`).digest('hex')
+  const hit = cacheGet(cacheKey)
+  if (hit) return hit
+
   const dataUrl = await buildDataUrl(imageBuffers[0])
   const v = await verifyImageMatchesIntent(dataUrl, intent, challenge)
-  if (!v.checked) return uncertain('photo', v.reason)
+  if (!v.checked) return uncertain('photo', v.reason) // not cached → retry re-attempts
 
   const subjectOk = v.match
   const challengeOk = !challenge || !!v.challengeFound
@@ -56,16 +75,20 @@ async function reviewPhoto(intent: string, imageBuffers: Buffer[], challenge?: s
   if (challenge) checks.push({ label: `Freshness code ${challenge} visible in photo`, passed: challengeOk })
   checks.push({ label: `Confidence ${Math.round(v.confidence * 100)}%`, passed: true })
 
+  let verdict: NotaryVerdict
   if (subjectOk && challengeOk) {
-    return { decision: 'accept', confidence: v.confidence, reason: v.reason, checked: true, mode: 'photo', checks }
+    verdict = { decision: 'accept', confidence: v.confidence, reason: v.reason, checked: true, mode: 'photo', checks }
+  } else {
+    // Subject mismatch OR missing freshness code → both are strong fraud signals.
+    const reason = !challengeOk ? `Freshness code "${challenge}" was not visible in the photo` : v.reason
+    const conf = !challengeOk ? Math.max(v.confidence, 0.9) : v.confidence
+    verdict = {
+      decision: conf >= REJECT_CONFIDENCE ? 'reject' : 'uncertain',
+      confidence: conf, reason, checked: true, mode: 'photo', checks,
+    }
   }
-  // Subject mismatch OR missing freshness code → both are strong fraud signals.
-  const reason = !challengeOk ? `Freshness code "${challenge}" was not visible in the photo` : v.reason
-  const conf = !challengeOk ? Math.max(v.confidence, 0.9) : v.confidence
-  return {
-    decision: conf >= REJECT_CONFIDENCE ? 'reject' : 'uncertain',
-    confidence: conf, reason, checked: true, mode: 'photo', checks,
-  }
+  cacheSet(cacheKey, verdict)
+  return verdict
 }
 
 async function reviewForm(intent: string, spec: ProofSpec, payload: ProofPayload): Promise<NotaryVerdict> {

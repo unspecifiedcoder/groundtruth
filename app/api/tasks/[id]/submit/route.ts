@@ -105,12 +105,21 @@ async function handleSubmit(req: NextRequest, params: { id: string }) {
   const rejected = integrityFailed || semanticReject
   const autoAccept = process.env.AUTO_ACCEPT !== 'false'
 
+  // FAIL CLOSED: if a task carries a freshness challenge but the notary could not
+  // actually run (vision/LLM skipped, errored, timed out, or hit a rate limit),
+  // we cannot confirm the anti-fraud check — so we must NOT auto-pay. Hold the
+  // proof for manual review instead. This means a rate-limited vision API can
+  // never silently approve an unverified proof; it degrades safely.
+  const challenged = !!(task.proof_spec as ProofSpec).challenge
+  const notaryCouldNotVerify = !!notary && notary.checked === false
+  const holdForReview = challenged && notaryCouldNotVerify
+
   // Single CAS transition from 'claimed' to the resolved status.
   //   failed   : integrity gate OR the notary confidently rejected the proof
   //   verified : passed + auto-accept → pay out in the background
-  //   submitted: passed + manual mode → wait for the agent's accept/reject
+  //   submitted: manual mode, OR held for review because verification was unavailable
   const target: 'failed' | 'verified' | 'submitted' =
-    rejected ? 'failed' : autoAccept ? 'verified' : 'submitted'
+    rejected ? 'failed' : (holdForReview || !autoAccept) ? 'submitted' : 'verified'
 
   const moved = await transition(params.id, 'claimed', target, {
     proof_payload: proofPayload,
@@ -163,6 +172,9 @@ async function handleSubmit(req: NextRequest, params: { id: string }) {
     notary,
     checks: result.checks,
     vision: result.vision ?? null,
-    message: 'Proof submitted — awaiting the agent’s verification.',
+    held_for_review: holdForReview,
+    message: holdForReview
+      ? 'Proof received — AI verification is temporarily unavailable, so it’s held for review. No payout is released until it’s verified.'
+      : 'Proof submitted — awaiting the agent’s verification.',
   })
 }
