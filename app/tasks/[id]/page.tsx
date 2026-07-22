@@ -307,7 +307,10 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
             <p className="text-xs mt-2 font-bold" style={{ color: '#E5484D' }}>→ Payment rejected.</p>
           </div>
         )}
-        <button onClick={() => router.push('/tasks')} className="btn btn-primary w-full py-3">Find another mission →</button>
+        <div className="space-y-2">
+          <button onClick={() => { setError(''); setFiles([]); setPhase('claimed') }} className="btn btn-primary w-full py-3">Try again →</button>
+          <button onClick={() => router.push('/tasks')} className="btn w-full py-2.5" style={{ background: 'var(--bg-subtle)', color: 'var(--text-muted)' }}>Find another mission</button>
+        </div>
       </div>
     </div>
   )

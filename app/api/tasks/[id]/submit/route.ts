@@ -34,12 +34,18 @@ async function handleSubmit(req: NextRequest, params: { id: string }) {
   }
 
   const task = await getTask(params.id)
-  if (!task || task.status !== 'claimed') {
-    return NextResponse.json({ error: 'Task not in claimed state' }, { status: 409 })
+  // Allow a fresh submit (claimed) OR a RETRY of a failed attempt by the same
+  // worker — an honest worker who blurred the code or missed the subject can try
+  // again within the task window instead of being locked out.
+  const isClaimed = task?.status === 'claimed'
+  const isRetry = task?.status === 'failed' && task.worker_wallet === workerWallet
+  if (!task || (!isClaimed && !isRetry)) {
+    return NextResponse.json({ error: 'Task not open for submission' }, { status: 409 })
   }
   if (task.worker_wallet !== workerWallet) {
     return NextResponse.json({ error: 'Not your task' }, { status: 403 })
   }
+  const fromStatus = task.status // 'claimed' or 'failed' (retry)
 
   // Build proof payload
   const imageBuffers: Buffer[] = []
@@ -123,7 +129,7 @@ async function handleSubmit(req: NextRequest, params: { id: string }) {
   const target: 'failed' | 'verified' | 'submitted' =
     rejected ? 'failed' : (holdForReview || !autoAccept) ? 'submitted' : 'verified'
 
-  const moved = await transition(params.id, 'claimed', target, {
+  const moved = await transition(params.id, fromStatus, target, {
     proof_payload: proofPayload,
     result,
     submitted_at: now,
