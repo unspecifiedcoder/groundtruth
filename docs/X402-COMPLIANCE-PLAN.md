@@ -36,10 +36,13 @@
 ## Why this wins the objection
 A judge asking "is this real x402?" now gets: *"Yes — the agent signs a Permit2 authorization, our facilitator verifies the signature and settles it on X Layer via `permitTransferFrom`. The facilitator can't alter the amount or recipient; they're in the signature. Here's the on-chain settle tx."* That's the exact scheme, on the real protocol primitive.
 
-## Status
+## Status — ✅ COMPLETE (proven on-chain)
 - [x] Research + on-chain feasibility (Permit2 confirmed on X Layer)
-- [ ] `lib/x402.ts` — Permit2 sign/verify/settle
-- [ ] Agent-side signing in `agent-pay.ts`
-- [ ] Server verify+settle wiring in `human-do`
-- [ ] End-to-end test (agent signs → verify → on-chain permitTransferFrom)
-- [ ] `/verify` + `/settle` endpoints (optional, on-spec)
+- [x] `lib/x402.ts` — Permit2 sign / verify / settle
+- [x] Agent-side signing in `agent-pay.ts` (default `X402_EXACT`)
+- [x] Server verify+settle wiring in `human-do` (facilitator role)
+- [x] End-to-end proven: agent-signed authorization → facilitator settled 2 mUSDT
+      agent→payroll via `permitTransferFrom` → task created. payer = agent
+      `0x8046…`, settle tx `0x467e1a03…`; standalone settle `0xc3e248f5…`.
+- [ ] Optional polish: expose standalone `/verify` + `/settle` endpoints so the
+      facilitator is a visible component; add a witness to bind payTo in-signature.
