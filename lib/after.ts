@@ -7,9 +7,11 @@
 // back to a floating promise, which finishes fine because the process persists.
 export function runAfterResponse(work: () => Promise<unknown>): void {
   try {
-    // Loaded lazily so a missing package degrades instead of crashing the route.
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const mod = require('@vercel/functions') as { waitUntil?: (p: Promise<unknown>) => void }
+    // Loaded via a runtime require the bundler can't statically resolve, so a
+    // missing package is a graceful runtime miss (not a build-time warning).
+    // eslint-disable-next-line no-eval
+    const nodeRequire = eval('require') as (m: string) => unknown
+    const mod = nodeRequire('@vercel/functions') as { waitUntil?: (p: Promise<unknown>) => void }
     if (mod?.waitUntil) {
       mod.waitUntil(work().catch((e) => console.error('[after] background work failed:', e)))
       return

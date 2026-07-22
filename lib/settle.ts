@@ -3,6 +3,7 @@ import { settleOnChain, isSettled, explorerTx } from './chain'
 import { transition, bumpWorker, getTask } from './db'
 import { settlePayment } from './payment'
 import { splitBudget } from './money'
+import type { TaskResult } from './types'
 
 const CONTRACT_ADDRESS = (process.env.PAYROLL_CONTRACT_ADDRESS ?? '0x0000000000000000000000000000000000000000') as `0x${string}`
 // Token the worker is actually paid in — mUSDT on X Layer testnet by default
@@ -57,9 +58,9 @@ export async function settleTask(
     }
   } catch (e) {
     // On-chain failed — keep the existing verification result; just flag it.
-    const existing = ((await getTask(taskId))?.result as Record<string, unknown>) ?? {}
+    const existing = ((await getTask(taskId))?.result as unknown as Record<string, unknown>) ?? {}
     await transition(taskId, 'verified', 'verified', {
-      result: { ...existing, outcome: 'verified', confidence: 1 },
+      result: { checks: [], ...existing, outcome: 'verified', confidence: 1 } as unknown as TaskResult,
     })
     return {
       success: false,
@@ -83,12 +84,13 @@ export async function settleTask(
   // Preserve the verification result (checks + notary verdict + vision) that the
   // submit step wrote — merge the settle info in rather than overwriting it, so
   // the notary verdict survives to the done screen and task_status.
-  const existing = ((await getTask(taskId))?.result as Record<string, unknown>) ?? {}
+  const existing = ((await getTask(taskId))?.result as unknown as Record<string, unknown>) ?? {}
 
   // Persist the payout on the task so the public ledger can show who was paid,
   // how much, and the on-chain tx. The settle txHash isn't stored anywhere else.
   await transition(taskId, 'verified', 'verified', {
     result: {
+      checks: [],
       ...existing,
       outcome: 'verified',
       confidence: 1,
@@ -101,7 +103,7 @@ export async function settleTask(
         explorer: txHash ? explorerTx(txHash) : null,
         settled_at: new Date().toISOString(),
       },
-    },
+    } as unknown as TaskResult,
   }).catch(() => {})
 
   return {

@@ -22,6 +22,8 @@ const MUSDT_DECIMALS = 6
 const ERC20_ABI = parseAbi([
   'function balanceOf(address) view returns (uint256)',
   'function transfer(address to, uint256 amount) returns (bool)',
+  'function allowance(address owner, address spender) view returns (uint256)',
+  'function approve(address spender, uint256 amount) returns (bool)',
 ])
 
 export interface AgentPayResult {
@@ -29,7 +31,7 @@ export interface AgentPayResult {
   agentAddress: string
   balanceBefore: string
   faucetTx?: string
-  paymentTx: string
+  paymentTx?: string   // undefined in x402 exact mode (facilitator settles server-side)
   paymentHeader: string
   steps: string[]
 }
