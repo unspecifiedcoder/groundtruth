@@ -3,6 +3,7 @@ import { HumanDoInputSchema } from '@/lib/types'
 import { buildChallenge, verifyPayment } from '@/lib/payment'
 import { recordPaymentRef, insertTask, deleteTask } from '@/lib/db'
 import { planTask } from '@/lib/planner'
+import { generateChallenge } from '@/lib/challenge'
 
 export async function POST(req: NextRequest) {
   // Check for x402 payment header
@@ -60,8 +61,11 @@ export async function POST(req: NextRequest) {
     txHash = result.txHash ?? ''
   }
 
-  // Use planner if no explicit proof_spec provided — or use what was provided
-  const proofSpec = input.proof_spec ?? (await planTask(input.intent)).proof_spec
+  // Use planner if no explicit proof_spec provided — or use what was provided.
+  // Attach a per-task freshness challenge the worker must include in the proof,
+  // so a stale/stock image (that can't contain this code) is rejected.
+  const baseSpec = input.proof_spec ?? (await planTask(input.intent)).proof_spec
+  const proofSpec = { ...baseSpec, challenge: generateChallenge() }
 
   // At this point the payment is verified (and in the agent-pay flow, the mUSDT
   // transfer is already confirmed on-chain). Any failure below must not silently

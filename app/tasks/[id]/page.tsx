@@ -85,6 +85,7 @@ interface Task {
     instructions: string
     minPhotos?: number
     formFields?: string[]
+    challenge?: string
   }
   budget_usdt: string
   status: string
@@ -102,6 +103,7 @@ interface Task {
       reason?: string
       checked?: boolean
       mode?: 'photo' | 'form'
+      checks?: { label: string; passed: boolean }[]
     }
   } | null
 }
@@ -291,13 +293,18 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
         </div>
         <h2 className="font-display text-2xl font-extrabold mb-2" style={{ color: 'var(--text)' }}>Not accepted</h2>
         <p className="mb-4" style={{ color: 'var(--text-muted)' }}>The proof didn&apos;t match the mission, so no payout was released.</p>
-        {task?.result?.notary?.decision === 'reject' && task.result.notary.reason && (
-          <div className="rounded-xl px-3 py-2.5 mb-6 flex items-start gap-2 text-left text-sm"
-               style={{ background: 'color-mix(in srgb, #E5484D 12%, transparent)', border: '1px solid #E5484D' }}>
-            <span style={{ color: '#E5484D' }}>⚠</span>
-            <span style={{ color: 'var(--text)' }}>
-              <strong style={{ color: '#E5484D' }}>AI notary flagged a mismatch</strong> — {task.result.notary.reason}
-            </span>
+        {task?.result?.notary?.decision === 'reject' && (
+          <div className="rounded-xl p-4 mb-6 text-left" style={{ background: 'color-mix(in srgb, #E5484D 10%, transparent)', border: '1px solid #E5484D' }}>
+            <p className="chip text-[10px] font-bold mb-2" style={{ color: '#E5484D' }}>AI Notary — rejected</p>
+            <div className="space-y-1.5">
+              {(task.result.notary.checks ?? [{ label: task.result.notary.reason ?? 'Proof did not match', passed: false }]).map((c, i) => (
+                <div key={i} className="flex items-center gap-2 text-sm" style={{ color: 'var(--text)' }}>
+                  <span style={{ color: c.passed ? 'var(--good)' : '#E5484D' }}>{c.passed ? '✓' : '✗'}</span>
+                  <span>{c.label}</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs mt-2 font-bold" style={{ color: '#E5484D' }}>→ Payment rejected.</p>
           </div>
         )}
         <button onClick={() => router.push('/tasks')} className="btn btn-primary w-full py-3">Find another mission →</button>
@@ -320,16 +327,19 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
         </h2>
         <p className="mb-2" style={{ color: 'var(--text-muted)' }}>Your proof was verified and accepted.</p>
 
-        {/* Notary verdict — the semantic AI check that gated this payout */}
+        {/* Notary verdict — explainable checklist that gated this payout */}
         {task.result?.notary?.checked && task.result.notary.decision !== 'reject' && (
-          <div className="rounded-xl px-3 py-2.5 mb-4 flex items-start gap-2 text-left text-sm"
-               style={{ background: 'var(--good-weak)', border: '1px solid var(--good)' }}>
-            <span style={{ color: 'var(--good)' }}>✓</span>
-            <span style={{ color: 'var(--text)' }}>
-              <strong style={{ color: 'var(--good)' }}>AI notary verified</strong> the {task.result.notary.mode ?? 'proof'} matches the task
-              {task.result.notary.confidence ? ` · ${Math.round(task.result.notary.confidence * 100)}% confident` : ''}
-              {task.result.notary.reason ? <span style={{ color: 'var(--text-faint)' }}> — {task.result.notary.reason}</span> : ''}.
-            </span>
+          <div className="rounded-xl p-4 mb-4 text-left" style={{ background: 'var(--good-weak)', border: '1px solid var(--good)' }}>
+            <p className="chip text-[10px] font-bold mb-2" style={{ color: 'var(--good)' }}>AI Notary — verified</p>
+            <div className="space-y-1.5">
+              {(task.result.notary.checks ?? [{ label: `Matches the task · ${Math.round((task.result.notary.confidence ?? 0) * 100)}%`, passed: true }]).map((c, i) => (
+                <div key={i} className="flex items-center gap-2 text-sm" style={{ color: 'var(--text)' }}>
+                  <span style={{ color: c.passed ? 'var(--good)' : '#E5484D' }}>{c.passed ? '✓' : '✗'}</span>
+                  <span>{c.label}</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs mt-2 font-bold" style={{ color: 'var(--good)' }}>→ Payment released.</p>
           </div>
         )}
 
@@ -483,6 +493,21 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
               </svg>
               <p className="text-sm font-medium" style={{ color: 'var(--good)' }}>Mission locked. Submit your proof before it expires.</p>
             </div>
+
+            {/* Freshness challenge — proves the proof was made for THIS task */}
+            {task.proof_spec.challenge && (
+              <div className="rounded-xl p-4" style={{ background: 'var(--accent-weak)', border: '1px solid var(--accent-line)' }}>
+                <p className="chip text-[10px] font-bold mb-2" style={{ color: 'var(--accent)' }}>Freshness code — required</p>
+                <div className="font-mono text-3xl font-extrabold tracking-[0.3em] text-center py-2" style={{ color: 'var(--accent-deep, var(--accent))' }}>
+                  {task.proof_spec.challenge}
+                </div>
+                <p className="text-xs mt-1 text-center" style={{ color: 'var(--text-muted)' }}>
+                  {isPhoto
+                    ? 'Write this code on paper and include it in your photo. It proves the photo is fresh (not a stock image), and the AI notary checks for it.'
+                    : 'Include this exact code in one of your answers. It proves the proof was made for this task.'}
+                </p>
+              </div>
+            )}
 
             {isPhoto ? (
               <div>

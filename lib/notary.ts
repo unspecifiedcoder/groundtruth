@@ -1,4 +1,4 @@
-import type { ProofSpec, ProofPayload, NotaryVerdict } from './types'
+import type { ProofSpec, ProofPayload, NotaryVerdict, NotaryCheck } from './types'
 import { verifyImageMatchesIntent, extractJson } from './groq-vision'
 
 // The Notary: semantic judgment of proof-vs-intent — the real accept gate that
@@ -40,19 +40,31 @@ export async function notaryReview(
   payload: ProofPayload,
   imageBuffers: Buffer[] = []
 ): Promise<NotaryVerdict> {
-  if (spec.type === 'photo') return reviewPhoto(intent, imageBuffers)
+  if (spec.type === 'photo') return reviewPhoto(intent, imageBuffers, spec.challenge)
   return reviewForm(intent, spec, payload)
 }
 
-async function reviewPhoto(intent: string, imageBuffers: Buffer[]): Promise<NotaryVerdict> {
+async function reviewPhoto(intent: string, imageBuffers: Buffer[], challenge?: string): Promise<NotaryVerdict> {
   if (!imageBuffers.length) return uncertain('photo', 'no image to review')
   const dataUrl = await buildDataUrl(imageBuffers[0])
-  const v = await verifyImageMatchesIntent(dataUrl, intent)
+  const v = await verifyImageMatchesIntent(dataUrl, intent, challenge)
   if (!v.checked) return uncertain('photo', v.reason)
-  if (v.match) return { decision: 'accept', confidence: v.confidence, reason: v.reason, checked: true, mode: 'photo' }
+
+  const subjectOk = v.match
+  const challengeOk = !challenge || !!v.challengeFound
+  const checks: NotaryCheck[] = [{ label: 'Subject matches the task', passed: subjectOk }]
+  if (challenge) checks.push({ label: `Freshness code ${challenge} visible in photo`, passed: challengeOk })
+  checks.push({ label: `Confidence ${Math.round(v.confidence * 100)}%`, passed: true })
+
+  if (subjectOk && challengeOk) {
+    return { decision: 'accept', confidence: v.confidence, reason: v.reason, checked: true, mode: 'photo', checks }
+  }
+  // Subject mismatch OR missing freshness code → both are strong fraud signals.
+  const reason = !challengeOk ? `Freshness code "${challenge}" was not visible in the photo` : v.reason
+  const conf = !challengeOk ? Math.max(v.confidence, 0.9) : v.confidence
   return {
-    decision: v.confidence >= REJECT_CONFIDENCE ? 'reject' : 'uncertain',
-    confidence: v.confidence, reason: v.reason, checked: true, mode: 'photo',
+    decision: conf >= REJECT_CONFIDENCE ? 'reject' : 'uncertain',
+    confidence: conf, reason, checked: true, mode: 'photo', checks,
   }
 }
 
@@ -91,10 +103,25 @@ async function reviewForm(intent: string, spec: ProofSpec, payload: ProofPayload
     const parsed = extractJson(content)
     const confidence = Math.max(0, Math.min(1, Number(parsed.confidence) || 0))
     const reason = String(parsed.reason ?? '').slice(0, 200)
-    if (parsed.satisfies) return { decision: 'accept', confidence, reason, checked: true, mode: 'form' }
+
+    // Freshness: the reference code must appear somewhere in the submitted values.
+    const challenge = spec.challenge
+    const joined = Object.values(fields).join(' ').toUpperCase()
+    const challengeOk = !challenge || joined.includes(challenge.toUpperCase())
+    const satisfiesOk = !!parsed.satisfies
+
+    const checks: NotaryCheck[] = [{ label: 'Answer satisfies the task', passed: satisfiesOk }]
+    if (challenge) checks.push({ label: `Reference code ${challenge} included`, passed: challengeOk })
+    checks.push({ label: `Confidence ${Math.round(confidence * 100)}%`, passed: true })
+
+    if (satisfiesOk && challengeOk) {
+      return { decision: 'accept', confidence, reason, checked: true, mode: 'form', checks }
+    }
+    const rejReason = !challengeOk ? `Reference code "${challenge}" was not included` : reason
+    const conf = !challengeOk ? Math.max(confidence, 0.9) : confidence
     return {
-      decision: confidence >= REJECT_CONFIDENCE ? 'reject' : 'uncertain',
-      confidence, reason, checked: true, mode: 'form',
+      decision: conf >= REJECT_CONFIDENCE ? 'reject' : 'uncertain',
+      confidence: conf, reason: rejReason, checked: true, mode: 'form', checks,
     }
   } catch {
     return uncertain('form', 'form judge error')

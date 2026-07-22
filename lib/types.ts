@@ -30,6 +30,7 @@ export interface ProofSpec {
   instructions: string
   minPhotos?: number
   formFields?: string[]
+  challenge?: string   // per-task freshness code the worker must include in the proof
 }
 
 export interface ProofPayload {
@@ -51,6 +52,12 @@ export interface VisionResult {
   match: boolean     // does the image plausibly show the task intent?
   confidence: number // 0–1
   reason: string
+  challengeFound?: boolean  // was the freshness challenge code visible in the image?
+}
+
+export interface NotaryCheck {
+  label: string
+  passed: boolean
 }
 
 export interface NotaryVerdict {
@@ -59,6 +66,7 @@ export interface NotaryVerdict {
   reason: string
   checked: boolean          // did the notary model actually run?
   mode: 'photo' | 'form'
+  checks?: NotaryCheck[]     // explainable breakdown shown in the UI
 }
 
 export interface TaskResult {

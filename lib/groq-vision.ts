@@ -30,7 +30,7 @@ export function extractJson(s: string): any {
   return JSON.parse(body.slice(start, end + 1))
 }
 
-export async function verifyImageMatchesIntent(dataUrl: string, intent: string): Promise<VisionResult> {
+export async function verifyImageMatchesIntent(dataUrl: string, intent: string, challenge?: string): Promise<VisionResult> {
   const key = API_KEY
   if (!key || key.startsWith('REPLACE')) return skipped('vision skipped — no vision API key')
 
@@ -51,7 +51,11 @@ export async function verifyImageMatchesIntent(dataUrl: string, intent: string):
                   `Look at the image they submitted as proof. Does its CONTENT plausibly show that task being done?\n` +
                   `Judge the subject matter only — be lenient on framing, quality, and medium (photo, ` +
                   `screenshot, or graphic all count). Reject only if the content clearly does not match the task.\n` +
-                  `Respond ONLY as JSON: {"match": true|false, "confidence": 0.0-1.0, "reason": "one short sentence"}`,
+                  (challenge
+                    ? `ALSO: a freshness code was issued for this task. Is the exact text "${challenge}" clearly ` +
+                      `written or visible somewhere in the image (e.g. on a note held in frame)? Set "challenge_visible" accordingly.\n`
+                    : '') +
+                  `Respond ONLY as JSON: {"match": true|false, ${challenge ? '"challenge_visible": true|false, ' : ''}"confidence": 0.0-1.0, "reason": "one short sentence"}`,
               },
               { type: 'image_url', image_url: { url: dataUrl } },
             ],
@@ -74,6 +78,7 @@ export async function verifyImageMatchesIntent(dataUrl: string, intent: string):
       match: !!parsed.match,
       confidence: Math.max(0, Math.min(1, Number(parsed.confidence) || 0)),
       reason: String(parsed.reason ?? '').slice(0, 200),
+      challengeFound: challenge ? !!parsed.challenge_visible : undefined,
     }
   } catch {
     return skipped('vision error')
