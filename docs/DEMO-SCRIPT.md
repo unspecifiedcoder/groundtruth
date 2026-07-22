@@ -60,10 +60,13 @@ Say: **"Auto-accept was ON — the notary overrode it. Even a correct-looking ph
 - **"Does the AI actually decide, or is it cosmetic?"**
   → *"It's the gate. A confident mismatch or a missing freshness code sets the task to failed with zero on-chain payout — you just saw it say no."*
 
+- **"What if your vision API is down or rate-limited mid-demo?"**
+  → *"Verification degrades safely — no incorrect payment is ever made. We rotate across multiple keys, fall back to a second provider (OpenRouter), and if every provider is unavailable the task is **held for review**, not auto-approved. A rate-limited API can slow us down; it can never let a bad proof through."* (This is now a strength — the system fails **closed**.)
+
 ---
 
 ## Pre-demo checklist (don't get burned live)
-- [ ] **Pre-warm the vision key.** Gemini free tier rate-limits (~20 req/window); a rate-limited call fails toward the worker (pays). Do a warm-up call, then the reject beat first while quota is fresh. Consider a paid key for a high-stakes demo.
+- [ ] **Vision resilience is wired** (2 Gemini keys rotate on 429 → OpenRouter fallback → fail-closed hold). Still smart to pre-warm and not spam it, but a single rate-limit no longer breaks the demo or lets a bad proof through.
 - [ ] Agent wallet (`AGENT_PRIVATE_KEY`) funded with mUSDT (faucet).
 - [ ] `AUTO_ACCEPT` on (so the notary override is the visible story).
 - [ ] Have the code-bearing and no-code photos ready, or write the code on paper on camera (more convincing).
