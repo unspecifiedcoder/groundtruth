@@ -15,7 +15,7 @@ AI agents are powerful — but blind to the physical world. They can read the in
 
 **GroundTruth bridges that gap.**
 
-An AI agent posts a task (photo or form), a human oracle completes it in the real world, and the agent receives cryptographically verified proof — all settled on-chain in minutes.
+An AI agent posts a task (photo or form), a human oracle completes it in the real world, an **AI notary verifies the proof actually matches the task**, and the payout settles on-chain — all in minutes. Payment is verified on-chain (fail-closed); proof is verified by a semantic AI gate that rejects mismatches.
 
 ```
 AI Agent  →  [MCP: human_do]  →  x402 Payment  →  Oracle Board
@@ -97,9 +97,22 @@ Claude will autonomously check its wallet, drip from the faucet if needed, trans
 5. Proof hashed and stored on-chain
 6. Oracle earns 1.76 USDT (after 12% platform fee)
 
-**3. Payment Verification**
+**3. Payment Verification (fail-closed)**
 - Primary: OKX x402 facilitator (`https://www.okx.com/web3/build/ai/verify`)
-- Fallback: `parseFallback()` — decodes base64 JSON `{from, txHash, paymentReference}`
+- Fallback: **on-chain verification** (`lib/onchain-verify.ts`) — reads the tx receipt, re-derives the ERC-20 Transfer log, and confirms token, recipient, amount, and sender. Never trusts the header; a forged/replayed payment is rejected (tx hash bound to one payment).
+
+**4. Proof Verification — the semantic notary (`lib/notary.ts`)**
+
+Proof is checked on two levels, not just "a file was uploaded":
+
+1. **Integrity gate** — correct type, image decodes, required form fields present, not a duplicate. Blatant fraud fails instantly.
+2. **Semantic notary** — an AI judges whether the proof actually satisfies the task *intent*:
+   - **Photos** → a vision model (Gemini) — "does this image show the task being done?"
+   - **Forms** → an LLM (Groq) — "does this answer plausibly satisfy the task?"
+
+   A **confident mismatch is rejected with no payout** (a photo of a wall, a gibberish form). When the model is *unsure*, it errs toward paying the worker — GroundTruth never denies an honest oracle over an AI hiccup. The verdict (decision · confidence · reason) is stored on the task and shown to both the oracle and the calling agent.
+
+This makes "proof" mean *verified content*, not *a decodable JPEG*.
 
 ---
 
