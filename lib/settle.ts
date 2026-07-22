@@ -1,6 +1,6 @@
 import { keccak256, toBytes } from 'viem'
 import { settleOnChain, isSettled, explorerTx } from './chain'
-import { transition, bumpWorker } from './db'
+import { transition, bumpWorker, getTask } from './db'
 import { settlePayment } from './payment'
 import { splitBudget } from './money'
 
@@ -56,13 +56,10 @@ export async function settleTask(
       })
     }
   } catch (e) {
-    // On-chain failed — record off-chain and flag for manual settlement
+    // On-chain failed — keep the existing verification result; just flag it.
+    const existing = ((await getTask(taskId))?.result as Record<string, unknown>) ?? {}
     await transition(taskId, 'verified', 'verified', {
-      result: {
-        outcome: 'verified',
-        checks: [],
-        confidence: 1,
-      },
+      result: { ...existing, outcome: 'verified', confidence: 1 },
     })
     return {
       success: false,
@@ -83,12 +80,17 @@ export async function settleTask(
   const { fromUnits } = await import('./money')
   const payoutUsdt = fromUnits(payoutUnits)
 
+  // Preserve the verification result (checks + notary verdict + vision) that the
+  // submit step wrote — merge the settle info in rather than overwriting it, so
+  // the notary verdict survives to the done screen and task_status.
+  const existing = ((await getTask(taskId))?.result as Record<string, unknown>) ?? {}
+
   // Persist the payout on the task so the public ledger can show who was paid,
   // how much, and the on-chain tx. The settle txHash isn't stored anywhere else.
   await transition(taskId, 'verified', 'verified', {
     result: {
+      ...existing,
       outcome: 'verified',
-      checks: [],
       confidence: 1,
       settle: {
         worker: workerWallet,

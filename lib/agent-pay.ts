@@ -35,8 +35,12 @@ export interface AgentPayResult {
 }
 
 export async function agentPay(amountUsdt: string, payTo: string, appUrl: string): Promise<AgentPayResult> {
-  const pk = process.env.SETTLEMENT_PRIVATE_KEY as Hex | undefined
-  if (!pk) throw new Error('No agent wallet configured (SETTLEMENT_PRIVATE_KEY missing)')
+  // The paying agent should be a DISTINCT wallet from the settlement operator,
+  // so the on-chain trail reads agent → contract → worker (a real market), not
+  // one key paying itself. Set AGENT_PRIVATE_KEY to a separately-funded wallet;
+  // falls back to the settlement key only if unset.
+  const pk = (process.env.AGENT_PRIVATE_KEY ?? process.env.SETTLEMENT_PRIVATE_KEY) as Hex | undefined
+  if (!pk) throw new Error('No agent wallet configured (set AGENT_PRIVATE_KEY or SETTLEMENT_PRIVATE_KEY)')
 
   const steps: string[] = []
   const account = privateKeyToAccount(pk)
