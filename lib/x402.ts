@@ -134,6 +134,21 @@ export async function verifyX402Payment(
   if (BigInt(a.amount) < expect.minAmount) return { ok: false, reason: 'amount below required' }
   if (BigInt(a.deadline) < BigInt(Math.floor(Date.now() / 1000))) return { ok: false, reason: 'authorization expired' }
 
+  // Replay guard: reject an authorization whose Permit2 nonce is already spent,
+  // BEFORE wasting gas on a settle that would revert on-chain. Permit2 stores
+  // used unordered nonces as bits in nonceBitmap(owner, wordPos).
+  try {
+    const pub = createPublicClient({ chain, transport: http(RPC) })
+    const nonce = BigInt(a.nonce)
+    const word = await pub.readContract({
+      address: PERMIT2_ADDRESS,
+      abi: parseAbi(['function nonceBitmap(address,uint256) view returns (uint256)']),
+      functionName: 'nonceBitmap',
+      args: [getAddress(a.from), nonce >> 8n],
+    }) as bigint
+    if ((word & (1n << (nonce & 0xffn))) !== 0n) return { ok: false, reason: 'authorization already used (nonce spent)' }
+  } catch { /* bitmap read failed — on-chain settle still fails closed on reuse */ }
+
   return { ok: true, from: getAddress(a.from), amount: BigInt(a.amount) }
 }
 
