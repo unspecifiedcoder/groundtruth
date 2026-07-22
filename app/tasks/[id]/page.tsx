@@ -121,31 +121,32 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
         const settleWorker = t.result?.settle?.worker
         if (settleWorker) setWallet(settleWorker)
         if (t.status === 'submitted') setPhase('awaiting')
-        // 'verified' but no payout tx yet = settling in the background → keep on
-        // the awaiting/settling screen until the tx lands.
-        else if (t.status === 'verified') setPhase(t.result?.settle?.tx_hash ? 'done' : 'awaiting')
+        else if (t.status === 'verified') setPhase('done') // payout link fills in via poll if pending
         else if (t.status === 'failed') setPhase('rejected')
         else setPhase('view') // pending / claimed / expired
       })
       .catch(() => setPhase('error'))
   }, [params.id])
 
-  // While awaiting the agent's decision, poll for the resolution.
+  // Poll for resolution: while awaiting an agent (manual mode), or on the done
+  // screen until the background payout tx lands so its link can fill in.
   useEffect(() => {
-    if (phase !== 'awaiting') return
+    if (phase !== 'awaiting' && phase !== 'done') return
+    if (task?.result?.settle?.tx_hash) return // already have the tx, nothing to poll
     const iv = setInterval(async () => {
       try {
         const r = await fetch(`/api/v1/tasks/${params.id}`)
         const t = await r.json()
-        setTask(t) // keep status fresh so the settling/awaiting copy is accurate
-        // Only flip to done once the on-chain payout tx is recorded, so the done
-        // screen always has a real tx to show (settlement runs in the background).
-        if (t.status === 'verified' && t.result?.settle?.tx_hash) { setPhase('done'); clearInterval(iv) }
-        else if (t.status === 'failed') { setPhase('rejected'); clearInterval(iv) }
+        setTask(t)
+        if (t.status === 'failed') { setPhase('rejected'); clearInterval(iv) }
+        else if (t.status === 'verified') {
+          setPhase('done')
+          if (t.result?.settle?.tx_hash) clearInterval(iv) // paid — stop polling
+        }
       } catch {}
     }, 1500)
     return () => clearInterval(iv)
-  }, [phase, params.id])
+  }, [phase, params.id, task?.result?.settle?.tx_hash])
 
   async function handleClaim() {
     if (!wallet.match(/^0x[0-9a-fA-F]{40}$/)) {
@@ -194,12 +195,11 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
       const data = await res.json().catch(() => ({}))
       setVision(data.vision ?? null)
       if (data.status === 'failed') { setPhase('rejected'); return }
-      // Reflect the accepted status immediately from the submit response so the
-      // "releasing your payout" copy shows at once instead of waiting a poll.
+      // Reflect the accepted status immediately from the submit response.
       setTask(prev => (prev ? { ...prev, status: data.status } : prev))
-      // 'verified' (auto-accepted) or 'submitted' (manual) → awaiting screen;
-      // the poller flips it to 'done' the moment the payout tx is recorded.
-      setPhase('awaiting')
+      // Auto-accepted → jump straight to the success screen (payout detail fills
+      // in when the tx lands). Manual mode stays on 'awaiting' for the agent.
+      setPhase(data.status === 'verified' ? 'done' : 'awaiting')
     } catch {
       setError('Network error')
       setPhase('claimed')
