@@ -110,9 +110,11 @@ async function handleSubmit(req: NextRequest, params: { id: string }) {
   // we cannot confirm the anti-fraud check — so we must NOT auto-pay. Hold the
   // proof for manual review instead. This means a rate-limited vision API can
   // never silently approve an unverified proof; it degrades safely.
+  // Fail closed for the fraud-prone case: a PHOTO task (or any task carrying a
+  // freshness challenge) whose notary could not actually run is held, not paid.
   const challenged = !!(task.proof_spec as ProofSpec).challenge
   const notaryCouldNotVerify = !!notary && notary.checked === false
-  const holdForReview = challenged && notaryCouldNotVerify
+  const holdForReview = (challenged || proofType === 'photo') && notaryCouldNotVerify
 
   // Single CAS transition from 'claimed' to the resolved status.
   //   failed   : integrity gate OR the notary confidently rejected the proof

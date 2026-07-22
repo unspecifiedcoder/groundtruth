@@ -92,9 +92,26 @@ async function reviewPhoto(intent: string, imageBuffers: Buffer[], challenge?: s
 }
 
 async function reviewForm(intent: string, spec: ProofSpec, payload: ProofPayload): Promise<NotaryVerdict> {
+  const fields = payload.formData ?? {}
+  const challenge = spec.challenge
+
+  // Deterministic freshness gate FIRST — a plain string match, no API dependency.
+  // A missing reference code is a hard reject even if the LLM judge is unavailable,
+  // so freshness never fails open.
+  if (challenge) {
+    const joined = Object.values(fields).join(' ').toUpperCase()
+    if (!joined.includes(challenge.toUpperCase())) {
+      return {
+        decision: 'reject', confidence: 0.95,
+        reason: `Reference code "${challenge}" was not included`,
+        checked: true, mode: 'form',
+        checks: [{ label: `Reference code ${challenge} included`, passed: false }],
+      }
+    }
+  }
+
   const key = FORM_API_KEY
   if (!key || key.startsWith('REPLACE')) return uncertain('form', 'form judge skipped — no key')
-  const fields = payload.formData ?? {}
 
   try {
     const res = await fetch(FORM_API_URL, {
@@ -127,24 +144,19 @@ async function reviewForm(intent: string, spec: ProofSpec, payload: ProofPayload
     const confidence = Math.max(0, Math.min(1, Number(parsed.confidence) || 0))
     const reason = String(parsed.reason ?? '').slice(0, 200)
 
-    // Freshness: the reference code must appear somewhere in the submitted values.
-    const challenge = spec.challenge
-    const joined = Object.values(fields).join(' ').toUpperCase()
-    const challengeOk = !challenge || joined.includes(challenge.toUpperCase())
+    // Freshness already passed the deterministic gate above, so only the
+    // "satisfies the task" judgment remains.
     const satisfiesOk = !!parsed.satisfies
-
     const checks: NotaryCheck[] = [{ label: 'Answer satisfies the task', passed: satisfiesOk }]
-    if (challenge) checks.push({ label: `Reference code ${challenge} included`, passed: challengeOk })
+    if (challenge) checks.push({ label: `Reference code ${challenge} included`, passed: true })
     checks.push({ label: `Confidence ${Math.round(confidence * 100)}%`, passed: true })
 
-    if (satisfiesOk && challengeOk) {
+    if (satisfiesOk) {
       return { decision: 'accept', confidence, reason, checked: true, mode: 'form', checks }
     }
-    const rejReason = !challengeOk ? `Reference code "${challenge}" was not included` : reason
-    const conf = !challengeOk ? Math.max(confidence, 0.9) : confidence
     return {
-      decision: conf >= REJECT_CONFIDENCE ? 'reject' : 'uncertain',
-      confidence: conf, reason: rejReason, checked: true, mode: 'form', checks,
+      decision: confidence >= REJECT_CONFIDENCE ? 'reject' : 'uncertain',
+      confidence, reason, checked: true, mode: 'form', checks,
     }
   } catch {
     return uncertain('form', 'form judge error')
