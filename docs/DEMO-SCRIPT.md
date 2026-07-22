@@ -52,7 +52,7 @@ Say: **"Auto-accept was ON — the notary overrode it. Even a correct-looking ph
   → *"No — every task issues a random freshness code the worker must include in the proof. A stock or old image can't contain a code that didn't exist when it was captured, and the AI notary rejects it. Watch —"* (do the reject beat).
 
 - **"Is this real x402?"**
-  → *"The payment is a real on-chain mUSDT transfer on X Layer with an x402 payment header — an x402-**style** rail. A fully spec-faithful facilitator verify/settle round-trip is the next step; the money movement and escrow are already real and on the explorer."* (Own it — don't let them catch it.)
+  → *"Yes — the exact scheme. The agent signs a Permit2 EIP-712 authorization; it never sends the tokens. Our facilitator verifies the recovered signer and then settles on-chain via `Permit2.permitTransferFrom`. It can't change the amount or recipient — they're inside the signature. Here's the settle tx on X Layer."* (mUSDT lacks EIP-3009, so we use the Permit2 variant of exact — spec-faithful, no new token. If pushed: we're our own facilitator, which is legitimate under the spec.)
 
 - **"What stops Sybil / one person farming with 100 wallets?"**
   → *"Reputation is surfaced today (verified-rate per wallet); economic staking is a mainnet phase-2 concern, deliberately out of scope for a testnet build. The trust primitive that matters for the demo — proof authenticity — is solved by the freshness gate."*
