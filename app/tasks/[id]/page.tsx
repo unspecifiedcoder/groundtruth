@@ -204,11 +204,12 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
       if (!res.ok) { setError('Submission failed'); setPhase('claimed'); return }
       const data = await res.json().catch(() => ({}))
       setVision(data.vision ?? null)
+      // Settlement is synchronous, so by now the result (notary verdict + settle
+      // tx) is persisted — pull the fresh task so the done/rejected screens show
+      // the full explainable verdict and the on-chain payout.
+      try { const t = await fetch(`/api/v1/tasks/${params.id}`).then(r => r.json()); setTask(t) } catch {}
       if (data.status === 'failed') { setPhase('rejected'); return }
-      // Reflect the accepted status immediately from the submit response.
-      setTask(prev => (prev ? { ...prev, status: data.status } : prev))
-      // Auto-accepted → jump straight to the success screen (payout detail fills
-      // in when the tx lands). Manual mode stays on 'awaiting' for the agent.
+      // 'verified' → success (payout already settled). 'submitted' (manual mode) → awaiting.
       setPhase(data.status === 'verified' ? 'done' : 'awaiting')
     } catch {
       setError('Network error')

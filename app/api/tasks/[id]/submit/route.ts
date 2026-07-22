@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getTask, transition, recordProofHash, recentProofHashes, bumpWorker } from '@/lib/db'
 import { verifyProof } from '@/lib/verify'
 import { settleTask } from '@/lib/settle'
-import { runAfterResponse } from '@/lib/after'
 import { notaryReview } from '@/lib/notary'
 import type { ProofPayload, ProofSpec, NotaryVerdict } from '@/lib/types'
 
@@ -155,12 +154,11 @@ async function handleSubmit(req: NextRequest, params: { id: string }) {
   }
 
   if (target === 'verified') {
-    // Settle in the background so the worker isn't blocked on on-chain
-    // confirmation. settleTask writes result.settle when the tx lands; the UI
-    // poll flips to "paid" then. The task is already 'verified' → not re-claimable.
-    runAfterResponse(() =>
-      settleTask(params.id, workerWallet, task.payment_ref ?? '', task.budget_usdt)
-    )
+    // Settle SYNCHRONOUSLY so the payout is guaranteed before we respond — a
+    // "verified but never paid" state is the worst thing a worker/judge can hit.
+    // The on-chain wait (~5-8s on real infra) is covered by the "settling" UI.
+    // Reliable on any runtime without a background-execution dependency.
+    const settle = await settleTask(params.id, workerWallet, task.payment_ref ?? '', task.budget_usdt)
     return NextResponse.json({
       task_id: params.id,
       status: 'verified',
@@ -168,8 +166,8 @@ async function handleSubmit(req: NextRequest, params: { id: string }) {
       notary,
       checks: result.checks,
       vision: result.vision ?? null,
-      settle: { status: 'pending' },
-      message: 'Accepted — releasing your payout on-chain…',
+      settle,
+      message: settle.success ? 'Verified — payout settled on-chain.' : 'Verified — settlement is finalizing.',
     })
   }
 
