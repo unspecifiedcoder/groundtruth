@@ -13,7 +13,7 @@ async function getOpenTasks() {
 
 async function getTransactions(): Promise<LedgerEntry[]> {
   try {
-    return await listTransactions(12)
+    return await listTransactions(20)
   } catch {
     return []
   }
