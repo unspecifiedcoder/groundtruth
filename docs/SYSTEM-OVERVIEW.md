@@ -98,7 +98,7 @@ Neither claims to verify *truth of fact* (there's no ground truth for "the coffe
 Ranked by the adversarial review (honest — call these out yourself before a judge does):
 
 1. **x402 handshake is simplified.** The payment is a *real* on-chain mUSDT transfer + a self-built base64 x402 header — not a spec-faithful facilitator verify/settle round-trip (EIP-712 / Permit2 the facilitator validates). Money is real; the *protocol handshake* is simulated. Describe it as "x402-style / x402 rail." This is the clearest path to "front-runner."
-2. **Notary verifies topicality, not evidence.** It judges "does this image show X," with no liveness / geolocation / timestamp / anti-reuse — a matching stock photo passes. A server-issued nonce that must appear in-frame (proof produced *after* claim) + perceptual-hash dedup would close this.
+2. ~~**Notary verifies topicality, not evidence.**~~ **CLOSED (freshness challenge).** Every task issues a random code the worker must include in the proof (in-frame for photos, in a field for forms); the notary rejects any proof missing it — so a stock/old/reused image can't pass. Remaining hardening: perceptual-hash dedup + geolocation would strengthen it further.
 3. **"Uncertain → pays" is availability-gameable.** Rate-limiting or timing out the vision key degrades a call to `uncertain` → pays. Free-tier Gemini rate-limits (~20/min); pre-warm before a demo.
 4. **No stake / Sybil resistance.** Any address can claim + collect; reputation is *visible* (leaderboard) but not *economically bonded*. Phase-2 story.
 5. **Demo-bypass paths** mint `0xdemo…` tx hashes (admin key). The ledger already suppresses explorer links for non-real hashes; drive the real path in a live demo.
