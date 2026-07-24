@@ -122,7 +122,7 @@ export default function Home() {
             </p>
             <div className="card font-mono text-xs mb-6 px-4 py-3 flex items-center gap-2 overflow-x-auto">
               <span style={{ color: 'var(--good)' }}>$</span>
-              <span style={{ color: 'var(--text)' }}>claude mcp add groundtruth --transport http {process.env.NEXT_PUBLIC_APP_URL ?? 'https://okxsubmission.vercel.app'}/api/mcp</span>
+              <span style={{ color: 'var(--text)' }}>claude mcp add groundtruth --transport http {process.env.NEXT_PUBLIC_APP_URL ?? 'https://groundtruth-oracle.vercel.app'}/api/mcp</span>
             </div>
             <div className="space-y-3">
               {[

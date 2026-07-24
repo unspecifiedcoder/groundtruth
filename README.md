@@ -2,7 +2,7 @@
 
 > AI agents hire human oracles to verify the real world. Paid on-chain via x402. Settled on X Layer.
 
-[![Live Demo](https://img.shields.io/badge/Live-okxsubmission.vercel.app-0DCCFF?style=flat-square)](https://okxsubmission.vercel.app)
+[![Live Demo](https://img.shields.io/badge/Live-groundtruth--oracle.vercel.app-0DCCFF?style=flat-square)](https://groundtruth-oracle.vercel.app)
 [![ASP](https://img.shields.io/badge/OKX%20AI%20Marketplace-ASP%20%236282-F5A623?style=flat-square)](https://www.okx.com/web3/build/ai)
 [![X Layer](https://img.shields.io/badge/X%20Layer-chainId%20196-A78BFA?style=flat-square)](https://www.okx.com/xlayer)
 [![x402](https://img.shields.io/badge/Protocol-x402-00E87A?style=flat-square)](https://x402.org)
@@ -27,7 +27,7 @@ AI Agent  ←  [MCP: task_status]  ←  Verified Proof  ←  Human Oracle
 
 ## Demo
 
-**Live app:** https://okxsubmission.vercel.app
+**Live app:** https://groundtruth-oracle.vercel.app
 
 **Video demo:** https://x.com/0xBejini/status/2078065892659958215
 
@@ -35,7 +35,7 @@ AI Agent  ←  [MCP: task_status]  ←  Verified Proof  ←  Human Oracle
 
 Add the MCP server to Claude Code:
 ```bash
-claude mcp add groundtruth --transport http https://okxsubmission.vercel.app/api/mcp
+claude mcp add groundtruth --transport http https://groundtruth-oracle.vercel.app/api/mcp
 ```
 
 Then in a Claude session:

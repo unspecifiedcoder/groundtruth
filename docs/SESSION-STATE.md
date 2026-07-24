@@ -7,7 +7,7 @@ Odds given: Top-10 ~88%, category prize ~65%, grand prize ~35–40%.
 - Branch: **`harden-and-polish`** (NOT master). ~24 commits, all authored **Ravi Shankar Bejini**, **no AI attribution** (hard rule).
 - Remote: `github.com/unspecifiedcoder/groundtruth`, main branch = **`master`**.
 - Vercel project: `okx_submission` (`prj_lq9a68wM65cDdgVq7dZJSc8UE1XV`, team `team_fuF1ncl00YexNiv0zr3wRJgm`).
-- **Prod domain: `https://okxsubmission.vercel.app`**.
+- **Prod domain: `https://groundtruth-oracle.vercel.app`**.
 
 ## ✅ DONE (all tested)
 1. **Real x402 "exact" scheme (Permit2 variant)** — `lib/x402.ts`. Agent SIGNS an EIP-712 Permit2 authorization; facilitator VERIFIES (recovers signer, checks token/amount/payTo/spender/deadline + Permit2 nonce replay) and SETTLES via `Permit2.permitTransferFrom`. Facilitator cannot alter amount/recipient. **Proven on-chain** (settle tx `0x467e1a03…`, standalone `0xc3e248f5…`). Wired: `agent-pay.ts` signs (default `X402_EXACT`), `human-do` is the facilitator.
@@ -23,7 +23,7 @@ Odds given: Top-10 ~88%, category prize ~65%, grand prize ~35–40%.
 10. **Production build GREEN** — full `next build` caught + fixed 5 deploy-breaking type errors.
 
 ## ✅ Vercel env vars — ALL SET (via API, encrypted)
-`AGENT_PRIVATE_KEY`, `VISION_API_KEY` (2 Gemini keys, comma-sep), `VISION_API_URL`, `VISION_MODEL`, `VISION_FALLBACK`, `OPENROUTER_API_KEY`, and **`NEXT_PUBLIC_APP_URL` fixed to `https://okxsubmission.vercel.app`** (was a stale deployment-pinned URL — would have broken MCP self-calls).
+`AGENT_PRIVATE_KEY`, `VISION_API_KEY` (2 Gemini keys, comma-sep), `VISION_API_URL`, `VISION_MODEL`, `VISION_FALLBACK`, `OPENROUTER_API_KEY`, and **`NEXT_PUBLIC_APP_URL` fixed to `https://groundtruth-oracle.vercel.app`** (was a stale deployment-pinned URL — would have broken MCP self-calls).
 Pre-existing: ADMIN_SECRET, SETTLEMENT_PRIVATE_KEY, SUPABASE_*, GROQ_API_KEY, PAYROLL_CONTRACT_ADDRESS, ASP_*, OKX_*.
 
 ## ⏳ WHAT'S LEFT
