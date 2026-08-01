@@ -255,3 +255,9 @@ const handler = createMcpHandler(
 
 export const GET = handler
 export const POST = handler
+
+// The MCP transport handler hangs on HEAD (no response, ever) instead of
+// rejecting fast — OKX's endpoint-reachability check uses HEAD and times out.
+export async function HEAD() {
+  return new Response(null, { status: 200 })
+}
