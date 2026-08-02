@@ -263,10 +263,19 @@ export async function POST(req: Request) {
   if (hasBoth) return handler(req)
 
   const bodyText = await req.text()
+  if (!bodyText) {
+    // An empty body has no JSON-RPC request to answer — the MCP library
+    // hangs waiting for one that will never arrive. Answer immediately.
+    return Response.json(
+      { jsonrpc: '2.0', error: { code: -32600, message: 'Invalid Request: empty body — send a JSON-RPC 2.0 request' }, id: null },
+      { status: 400 }
+    )
+  }
+
   const headers = new Headers(req.headers)
   headers.set('accept', 'application/json, text/event-stream')
   headers.delete('content-length') // stale after re-reading the body as text
-  return handler(new Request(req.url, { method: 'POST', headers, body: bodyText || undefined }))
+  return handler(new Request(req.url, { method: 'POST', headers, body: bodyText }))
 }
 
 // A GET with no MCP session is a health/discovery probe from most test
