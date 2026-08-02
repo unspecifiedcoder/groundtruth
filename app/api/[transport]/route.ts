@@ -36,7 +36,8 @@ const handler = createMcpHandler(
               model: 'x402 per-task budget, set by the caller (not a fixed listing fee)',
               default_amount: process.env.ASP_PRICE_USDT ?? '2.00',
               currency: 'USDT',
-              network: 'X Layer, chain family index 196 — live payments currently settle on X Layer testnet (chainId 1952)',
+              platform: 'X Layer',
+              settlement: 'Current demo payments settle on X Layer Testnet (chainId 1952).',
               platform_fee_bps: process.env.ASP_FEE_BPS ?? '1200',
             },
             proof_types: {
