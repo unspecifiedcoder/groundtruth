@@ -31,13 +31,12 @@ const handler = createMcpHandler(
             endpoint: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/api/v1/human-do`,
             method: 'POST',
             authentication: 'x402 payment (handled automatically by the agent wallet)',
-            listing_fee: '0 USDT — free to discover and call this service',
+            registered_okx_service_call: 'Free discovery on X Layer mainnet — 0 USDT to call or discover this service.',
             pricing: {
               model: 'x402 per-task budget, set by the caller (not a fixed listing fee)',
               default_amount: process.env.ASP_PRICE_USDT ?? '2.00',
               currency: 'USDT',
-              platform: 'X Layer',
-              settlement: 'Current demo payments settle on X Layer Testnet (chainId 1952).',
+              note: 'Demo oracle-task settlements may use X Layer Testnet (chainId 1952) and are separate from the listed service call.',
               platform_fee_bps: process.env.ASP_FEE_BPS ?? '1200',
             },
             proof_types: {
