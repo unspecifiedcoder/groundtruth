@@ -260,20 +260,13 @@ const handler = createMcpHandler(
 export async function POST(req: Request) {
   const accept = req.headers.get('accept') ?? ''
   const hasBoth = accept.includes('application/json') && accept.includes('text/event-stream')
-  const normalized = hasBoth
-    ? req
-    : new Request(req.url, {
-        method: req.method,
-        headers: (() => {
-          const h = new Headers(req.headers)
-          h.set('accept', 'application/json, text/event-stream')
-          return h
-        })(),
-        body: req.body,
-        // @ts-expect-error - duplex required by undici for streaming bodies
-        duplex: 'half',
-      })
-  return handler(normalized)
+  if (hasBoth) return handler(req)
+
+  const bodyText = await req.text()
+  const headers = new Headers(req.headers)
+  headers.set('accept', 'application/json, text/event-stream')
+  headers.delete('content-length') // stale after re-reading the body as text
+  return handler(new Request(req.url, { method: 'POST', headers, body: bodyText || undefined }))
 }
 
 // A GET with no MCP session is a health/discovery probe from most test
