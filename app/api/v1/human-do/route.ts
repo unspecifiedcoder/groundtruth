@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { HumanDoInputSchema } from '@/lib/types'
-import { buildChallenge, verifyPayment } from '@/lib/payment'
+import { buildChallenge, buildChallengeHeaderV2, verifyPayment } from '@/lib/payment'
 import { recordPaymentRef, insertTask, deleteTask } from '@/lib/db'
 import { planTask } from '@/lib/planner'
 import { generateChallenge } from '@/lib/challenge'
+
+// Body stays v1-shaped (unchanged, for our own client/tests); the
+// PAYMENT-REQUIRED header carries the v2 shape, since that's what OKX's
+// marketplace actually validates per the A2MCP docs.
+function challengeResponse(status: number, extra?: Record<string, unknown>) {
+  const res = NextResponse.json({ ...buildChallenge(), ...(extra ?? {}) }, { status })
+  res.headers.set('PAYMENT-REQUIRED', buildChallengeHeaderV2())
+  return res
+}
 
 export async function POST(req: NextRequest) {
   // Check for x402 payment header
@@ -16,7 +25,7 @@ export async function POST(req: NextRequest) {
 
   if (!paymentHeader && !isDemoMode) {
     // No payment — return 402 challenge
-    return NextResponse.json(buildChallenge(), { status: 402 })
+    return challengeResponse(402)
   }
 
   // Parse and validate body
@@ -68,7 +77,7 @@ export async function POST(req: NextRequest) {
     const budgetUnits = toUnits(input.budget_usdt)
 
     const v = await verifyX402Payment(paymentHeader!, { token, minAmount: budgetUnits, payTo, spender: operator })
-    if (!v.ok) return NextResponse.json({ ...buildChallenge(), error: `x402 verify failed: ${v.reason}` }, { status: 402 })
+    if (!v.ok) return challengeResponse(402, { error: `x402 verify failed: ${v.reason}` })
     let settleTx: string
     try {
       settleTx = await settleX402Payment(paymentHeader!, opKey)
@@ -83,7 +92,7 @@ export async function POST(req: NextRequest) {
   } else {
     const result = await verifyPayment(paymentHeader!, taskId)
     if (!result.success) {
-      return NextResponse.json(buildChallenge(), { status: 402 })
+      return challengeResponse(402)
     }
     paymentRef = result.paymentRef
     amountUnits = result.amountUnits
@@ -171,5 +180,5 @@ export async function POST(req: NextRequest) {
 
 export async function GET() {
   // GET returns 402 challenge so agents can discover payment requirements
-  return NextResponse.json(buildChallenge(), { status: 402 })
+  return challengeResponse(402)
 }

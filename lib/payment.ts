@@ -64,6 +64,37 @@ export function buildChallenge(resourcePath = '/api/v1/human-do'): PaymentChalle
   }
 }
 
+// Per OKX's A2MCP docs: "for v2, base64-encode it and put it in the
+// PAYMENT-REQUIRED response header — that header is what the marketplace
+// validates, not the body." Our body has always been v1-shaped (flat
+// `resource` string, `maxAmountRequired`); this builds the v2 shape
+// (`resource` as an object, `amount` field) from the same challenge data,
+// base64-encoded, for that header specifically. Additive — the v1 body is
+// unchanged for our own client/tests.
+export function buildChallengeHeaderV2(resourcePath = '/api/v1/human-do'): string {
+  const opt = buildChallenge(resourcePath).accepts[0]
+  const v2 = {
+    x402Version: 2,
+    resource: {
+      url: opt.resource,
+      description: opt.description,
+      mimeType: opt.mimeType,
+    },
+    accepts: [
+      {
+        scheme: opt.scheme,
+        network: opt.network,
+        asset: opt.asset,
+        amount: opt.maxAmountRequired,
+        payTo: opt.payTo,
+        maxTimeoutSeconds: opt.maxTimeoutSeconds,
+        extra: opt.extra,
+      },
+    ],
+  }
+  return Buffer.from(JSON.stringify(v2)).toString('base64')
+}
+
 export async function verifyPayment(
   paymentHeader: string,
   taskId: string
