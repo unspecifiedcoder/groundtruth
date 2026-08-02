@@ -253,8 +253,41 @@ const handler = createMcpHandler(
   }
 )
 
-export const GET = handler
-export const POST = handler
+// mcp-handler strictly requires "Accept: application/json, text/event-stream"
+// on POST per the MCP Streamable HTTP spec, and 406-rejects anything else.
+// Some reviewer/test clients don't send that exact header — normalize it so
+// any JSON-RPC POST works regardless of what Accept header the caller sent.
+export async function POST(req: Request) {
+  const accept = req.headers.get('accept') ?? ''
+  const hasBoth = accept.includes('application/json') && accept.includes('text/event-stream')
+  const normalized = hasBoth
+    ? req
+    : new Request(req.url, {
+        method: req.method,
+        headers: (() => {
+          const h = new Headers(req.headers)
+          h.set('accept', 'application/json, text/event-stream')
+          return h
+        })(),
+        body: req.body,
+        // @ts-expect-error - duplex required by undici for streaming bodies
+        duplex: 'half',
+      })
+  return handler(normalized)
+}
+
+// A GET with no MCP session is a health/discovery probe from most test
+// tools, not a real MCP client — answer it instead of a bare 405.
+export async function GET(req: Request) {
+  if (req.headers.get('mcp-session-id')) return handler(req)
+  return Response.json({
+    status: 'ok',
+    protocol: 'mcp',
+    transport: 'streamable-http',
+    endpoint: '/api/mcp',
+    note: 'This is an MCP JSON-RPC endpoint — POST a JSON-RPC 2.0 request (e.g. { "method": "initialize", ... }) to interact with it.',
+  })
+}
 
 // The MCP transport handler hangs on HEAD (no response, ever) instead of
 // rejecting fast — OKX's endpoint-reachability check uses HEAD and times out.
