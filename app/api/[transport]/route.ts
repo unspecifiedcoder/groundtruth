@@ -264,20 +264,32 @@ export async function POST(req: Request) {
   const hasBoth = accept.includes('application/json') && accept.includes('text/event-stream')
   if (hasBoth) return handler(req)
 
-  const bodyText = await req.text()
-  if (!bodyText) {
-    // An empty body has no JSON-RPC request to answer — the MCP library
-    // hangs waiting for one that will never arrive. Answer immediately.
+  // A Content-Length of 0 means an empty body — check cheaply, without
+  // consuming the stream, so a real body can still flow through untouched
+  // below. (Rebuilding the Request from a re-read body previously caused
+  // intermittent 300s hangs in production — this avoids touching it at all.)
+  if (req.headers.get('content-length') === '0') {
     return Response.json(
       { jsonrpc: '2.0', error: { code: -32600, message: 'Invalid Request: empty body — send a JSON-RPC 2.0 request' }, id: null },
       { status: 400 }
     )
   }
 
-  const headers = new Headers(req.headers)
-  headers.set('accept', 'application/json, text/event-stream')
-  headers.delete('content-length') // stale after re-reading the body as text
-  return handler(new Request(req.url, { method: 'POST', headers, body: bodyText }))
+  const fixedHeaders = new Headers(req.headers)
+  fixedHeaders.set('accept', 'application/json, text/event-stream')
+
+  // Proxy only the perceived Accept header; every other property (body,
+  // method, url, text(), json()...) reads straight from the original,
+  // never-reconstructed request.
+  const patched = new Proxy(req, {
+    get(target, prop, receiver) {
+      if (prop === 'headers') return fixedHeaders
+      const value = Reflect.get(target, prop, receiver)
+      return typeof value === 'function' ? value.bind(target) : value
+    },
+  })
+
+  return handler(patched as Request)
 }
 
 // A GET with no MCP session is a health/discovery probe from most test
