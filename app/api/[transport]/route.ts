@@ -31,11 +31,13 @@ const handler = createMcpHandler(
             endpoint: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/api/v1/human-do`,
             method: 'POST',
             authentication: 'x402 payment (handled automatically by the agent wallet)',
+            listing_fee: '0 USDT — free to discover and call this service',
             pricing: {
-              amount: process.env.ASP_PRICE_USDT ?? '2.00',
+              model: 'x402 per-task budget, set by the caller (not a fixed listing fee)',
+              default_amount: process.env.ASP_PRICE_USDT ?? '2.00',
               currency: 'USDT',
-              network: 'X Layer testnet (chainId 1952)',
-              fee_bps: process.env.ASP_FEE_BPS ?? '1200',
+              network: 'X Layer (testnet, chainId 1952)',
+              platform_fee_bps: process.env.ASP_FEE_BPS ?? '1200',
             },
             proof_types: {
               photo: 'Agent asks for a photo; human takes it on-site and uploads',
