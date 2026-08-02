@@ -81,6 +81,11 @@ export async function verifyPayment(
       signal: AbortSignal.timeout(10_000),
     })
 
+    // TEMP diagnostic — remove after confirming facilitator behavior.
+    console.log('[facilitator-verify]', 'status=', res.status, 'ok=', res.ok)
+    const rawBody = await res.clone().text()
+    console.log('[facilitator-verify] body=', rawBody.slice(0, 500))
+
     if (res.ok) {
       const data = await res.json()
       if (data.isValid) {
@@ -100,8 +105,9 @@ export async function verifyPayment(
     // Facilitator reachable but did not validate (isValid=false, non-ok, etc.).
     // Do NOT trust the header on that basis — verify the claimed tx on-chain,
     // which is the real source of truth for our X Layer settlement.
-  } catch {
+  } catch (e) {
     // Facilitator unreachable — fall through to on-chain verification.
+    console.log('[facilitator-verify] fetch threw:', e instanceof Error ? e.message : String(e))
   }
 
   return verifyOnChain(paymentHeader, taskId)
