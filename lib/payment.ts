@@ -2,8 +2,13 @@ import { toUnits, splitBudget } from './money'
 import { verifyOnChainPayment } from './onchain-verify'
 
 const FACILITATOR_URL = process.env.OKX_FACILITATOR_URL ?? 'https://www.okx.com/web3/build/ai'
-const PAYMENT_TOKEN = process.env.OKX_PAYMENT_TOKEN ?? ''
-const PAYMENT_NETWORK = process.env.OKX_PAYMENT_NETWORK ?? '196'
+// Must match onchain-verify.ts exactly — that module is the actual source of
+// truth for what payment is accepted, so the advertised 402 challenge has to
+// describe the same token/recipient/chain or a payer's wallet has nothing to pay.
+const PAYMENT_ASSET = process.env.X402_VERIFY_TOKEN ?? '0x725cCe0916d2E8682438732fD9e79803B4fAB2BD'
+const PAYMENT_RECIPIENT = process.env.X402_VERIFY_RECIPIENT ?? process.env.PAYROLL_CONTRACT_ADDRESS ?? '0x430172985b21458d73576435D4aD4bEeA85F376C'
+const PAYMENT_CHAIN_ID = process.env.X402_VERIFY_CHAIN_ID ?? '1952'
+const PAYMENT_NETWORK = `eip155:${PAYMENT_CHAIN_ID}` // CAIP-2 — X Layer testnet; this demo does not settle on mainnet
 const PRICE_USDT = process.env.ASP_PRICE_USDT ?? '2.00'
 const FEE_BPS = Number(process.env.ASP_FEE_BPS ?? '1200')
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
@@ -47,12 +52,12 @@ export function buildChallenge(resourcePath = '/api/v1/human-do'): PaymentChalle
         network: PAYMENT_NETWORK,
         maxAmountRequired: amountUnits.toString(),
         resource: `${APP_URL}${resourcePath}`,
-        description: 'GroundTruth task creation — Reality-as-a-Service',
+        description: 'GroundTruth task creation — Reality-as-a-Service (demo: X Layer testnet, not the mainnet OKX-standard USDT0 path)',
         mimeType: 'application/json',
-        payTo: PAYMENT_TOKEN,
+        payTo: PAYMENT_RECIPIENT,
         maxTimeoutSeconds: 300,
-        asset: PAYMENT_TOKEN,
-        extra: { name: 'GroundTruth Task', version: '1' },
+        asset: PAYMENT_ASSET,
+        extra: { name: 'GroundTruth Task (testnet mUSDT)', version: '1' },
       },
     ],
     error: 'Payment required',
