@@ -66,14 +66,14 @@ export async function POST(req: NextRequest) {
     txHash = `0xdemo${taskId.replace(/-/g, '')}`
   } else if (x402Exact) {
     // x402 exact scheme — WE are the facilitator: verify the agent's signed
-    // authorization, then settle it on-chain via Permit2 (pulls agent → payroll).
+    // authorization, then settle it on-chain via Permit2 (pulls agent → payTo).
     const { verifyX402Payment, settleX402Payment } = await import('@/lib/x402')
     const { privateKeyToAccount } = await import('viem/accounts')
     const { toUnits, splitBudget } = await import('@/lib/money')
     const opKey = process.env.SETTLEMENT_PRIVATE_KEY as `0x${string}`
     const operator = privateKeyToAccount(opKey).address
     const token = (process.env.PAYOUT_TOKEN ?? process.env.X402_VERIFY_TOKEN ?? '0x725cCe0916d2E8682438732fD9e79803B4fAB2BD') as `0x${string}`
-    const payTo = process.env.PAYROLL_CONTRACT_ADDRESS as `0x${string}`
+    const payTo = (process.env.X402_VERIFY_RECIPIENT ?? process.env.PAYROLL_CONTRACT_ADDRESS) as `0x${string}`
     const budgetUnits = toUnits(input.budget_usdt)
 
     const v = await verifyX402Payment(paymentHeader!, { token, minAmount: budgetUnits, payTo, spender: operator })

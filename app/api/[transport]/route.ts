@@ -2,8 +2,9 @@ import { createMcpHandler } from 'mcp-handler'
 import { z } from 'zod'
 import { agentPay } from '@/lib/agent-pay'
 
-// GroundTruthPayroll contract receives x402 payments on X Layer testnet
-const PAYMENT_RECIPIENT = '0x430172985b21458d73576435D4aD4bEeA85F376C'
+// Must match what the server verifies against (lib/payment.ts / route.ts x402Exact
+// branch) — X402_VERIFY_RECIPIENT if set (mainnet), else the testnet payroll contract.
+const PAYMENT_RECIPIENT = process.env.X402_VERIFY_RECIPIENT ?? '0x430172985b21458d73576435D4aD4bEeA85F376C'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const handler = createMcpHandler(
@@ -35,8 +36,8 @@ const handler = createMcpHandler(
             pricing: {
               model: 'x402 per-task budget, set by the caller (not a fixed listing fee)',
               default_amount: process.env.ASP_PRICE_USDT ?? '2.00',
-              currency: 'USDT',
-              note: 'Demo oracle-task settlements may use X Layer Testnet (chainId 1952) and are separate from the listed service call.',
+              currency: 'USDT0',
+              network: `eip155:${process.env.X402_VERIFY_CHAIN_ID ?? '1952'}`,
               platform_fee_bps: process.env.ASP_FEE_BPS ?? '1200',
             },
             proof_types: {
