@@ -1,10 +1,8 @@
 import { createMcpHandler } from 'mcp-handler'
 import { z } from 'zod'
-import { agentPay } from '@/lib/agent-pay'
 
 // Must match what the server verifies against (lib/payment.ts / route.ts x402Exact
 // branch) — X402_VERIFY_RECIPIENT if set (mainnet), else the testnet payroll contract.
-const PAYMENT_RECIPIENT = process.env.X402_VERIFY_RECIPIENT ?? '0x430172985b21458d73576435D4aD4bEeA85F376C'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const handler = createMcpHandler(
@@ -37,7 +35,7 @@ const handler = createMcpHandler(
               model: 'x402 per-task budget, set by the caller (not a fixed listing fee)',
               default_amount: process.env.ASP_PRICE_USDT ?? '2.00',
               currency: 'USDT0',
-              network: `eip155:${process.env.X402_VERIFY_CHAIN_ID ?? '1952'}`,
+              network: `eip155:${process.env.SETTLEMENT_CHAIN_ID ?? '196'}`,
               platform_fee_bps: process.env.ASP_FEE_BPS ?? '1200',
             },
             proof_types: {
@@ -68,25 +66,20 @@ const handler = createMcpHandler(
         const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
         const amount = budget_usdt ?? '2.00'
 
-        // Step 1: Autonomous x402 payment — check balance, drip from faucet if needed, transfer mUSDT
-        let payResult: Awaited<ReturnType<typeof agentPay>> | null = null
+        // Autonomous payment through the OFFICIAL OKX Payment SDK: probe the
+        // resource, sign the EIP-3009 credential for the returned challenge,
+        // and replay. Same protocol an external OKX buyer agent uses.
         let payError: string | null = null
-        try {
-          payResult = await agentPay(amount, PAYMENT_RECIPIENT, appUrl)
-        } catch (err) {
-          payError = err instanceof Error ? err.message : String(err)
-        }
+        const buyerKey = (process.env.AGENT_PRIVATE_KEY ?? process.env.SETTLEMENT_PRIVATE_KEY) as
+          | `0x${string}`
+          | undefined
 
-        if (payResult) {
-          // Step 2: Submit task with real x402 payment header
+        if (buyerKey) {
           try {
-            const res = await fetch(`${appUrl}/api/v1/human-do`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'X-PAYMENT': payResult.paymentHeader,
-              },
-              body: JSON.stringify({
+            const { postWithPayment } = await import('@/lib/okx-buyer')
+            const paid = await postWithPayment(
+              `${appUrl}/api/v1/human-do`,
+              {
                 intent,
                 proof_spec: {
                   type: proof_type,
@@ -95,11 +88,15 @@ const handler = createMcpHandler(
                 },
                 budget_usdt: amount,
                 timeout_seconds: timeout_seconds ?? 3600,
-              }),
-              signal: AbortSignal.timeout(30_000),
-            })
-            const data = await res.json()
-            if (res.ok) {
+              },
+              buyerKey.startsWith('0x') ? buyerKey : (`0x${buyerKey}` as `0x${string}`)
+            )
+
+            if (paid.response.ok) {
+              const data = await paid.response.json()
+              const settlementTx =
+                (paid.settlement?.transaction as string | undefined) ??
+                (paid.settlement?.paymentId as string | undefined)
               return {
                 content: [{
                   type: 'text' as const,
@@ -113,15 +110,21 @@ const handler = createMcpHandler(
                     estimated_completion: 'varies with human-oracle availability',
                     next_step: 'Call task_status with this task_id to retrieve the human-completed, AI-verified proof and the on-chain settlement transaction.',
                     message: 'Task submitted to the human-oracle network. A human completes it in the real world and an AI notary verifies the proof; payout settles on-chain. Poll task_status for the verified result.',
-                    ...(payResult.paymentTx ? { payment_tx: payResult.paymentTx } : {}),
+                    paid_via: 'OKX Payment SDK (x402 exact / EIP-3009)',
+                    ...(paid.payer ? { payer: paid.payer } : {}),
+                    ...(settlementTx ? { payment_tx: settlementTx } : {}),
                   }),
                 }],
               }
             }
-            // x402 payment rejected — fall through to demo bypass
-          } catch {
-            // network error — fall through to demo bypass
+            payError = paid.error ?? `payment rejected (HTTP ${paid.response.status})`
+            // fall through to demo bypass
+          } catch (err) {
+            payError = err instanceof Error ? err.message : String(err)
+            // fall through to demo bypass
           }
+        } else {
+          payError = 'No agent wallet configured (set AGENT_PRIVATE_KEY or SETTLEMENT_PRIVATE_KEY)'
         }
 
         // Fallback: demo bypass if ADMIN_SECRET is set
