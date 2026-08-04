@@ -19,6 +19,9 @@ const NETWORK = (process.env.X402_NETWORK ?? 'eip155:196') as `eip155:${string}`
 const PAY_TO = (process.env.X402_VERIFY_RECIPIENT ??
   '0x72db032c0dFB6E7502e16A73fabdab31712dc706') as string
 const ROUTE_PATTERN = 'POST /api/v1/human-do'
+// GET is registered too so discovery probes (including OKX's own reachability
+// check) get a real SDK-built PAYMENT-REQUIRED challenge rather than a bare 402.
+const GET_ROUTE_PATTERN = 'GET /api/v1/human-do'
 export const RESOURCE_PATH = '/api/v1/human-do'
 
 // Fallback advertised price when we can't read a budget off the request body
@@ -55,23 +58,33 @@ export function getHttpResourceServer(): Promise<x402HTTPResourceServer> {
     const resourceServer = new x402ResourceServer(facilitator)
     resourceServer.register(NETWORK, new ExactEvmScheme())
 
+    const routeConfig = {
+      accepts: [
+        {
+          scheme: 'exact',
+          network: NETWORK,
+          payTo: PAY_TO,
+          // Charge exactly the budget the caller asked for.
+          price: (ctx: { adapter: { getBody?: () => unknown } }) =>
+            priceFromBody(ctx.adapter.getBody?.()),
+          maxTimeoutSeconds: 300,
+        },
+      ],
+      description: 'GroundTruth task creation — Reality-as-a-Service',
+      mimeType: 'application/json',
+      resource: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}${RESOURCE_PATH}`,
+      // Echo the challenge in the body as well. OKX validates the
+      // PAYMENT-REQUIRED header, but clients (and humans) reading the body get
+      // the same information instead of an empty object.
+      unpaidResponseBody: () => ({
+        contentType: 'application/json',
+        body: { error: 'Payment required', x402Version: 2 },
+      }),
+    }
+
     const httpServer = new x402HTTPResourceServer(resourceServer, {
-      [ROUTE_PATTERN]: {
-        accepts: [
-          {
-            scheme: 'exact',
-            network: NETWORK,
-            payTo: PAY_TO,
-            // Charge exactly the budget the caller asked for.
-            price: (ctx: { adapter: { getBody?: () => unknown } }) =>
-              priceFromBody(ctx.adapter.getBody?.()),
-            maxTimeoutSeconds: 300,
-          },
-        ],
-        description: 'GroundTruth task creation — Reality-as-a-Service',
-        mimeType: 'application/json',
-        resource: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}${RESOURCE_PATH}`,
-      },
+      [ROUTE_PATTERN]: routeConfig,
+      [GET_ROUTE_PATTERN]: routeConfig,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any)
 
@@ -114,6 +127,6 @@ export function makeContext(req: NextRequest, body: unknown) {
       req.headers.get('PAYMENT-SIGNATURE') ??
       req.headers.get('payment-signature') ??
       undefined,
-    routePattern: ROUTE_PATTERN,
+    routePattern: req.method === 'GET' ? GET_ROUTE_PATTERN : ROUTE_PATTERN,
   }
 }
