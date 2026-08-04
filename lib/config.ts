@@ -23,7 +23,7 @@ export const config = {
   },
   app: {
     url: process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000',
-    priceUsdt: process.env.ASP_PRICE_USDT ?? '2.00',
+    priceUsdt: process.env.ASP_PRICE_USDT ?? '0.01',
     feeBps: Number(process.env.ASP_FEE_BPS ?? '1200'),
   },
 } as const

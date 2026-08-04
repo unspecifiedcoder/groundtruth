@@ -10,7 +10,7 @@ const PAYMENT_RECIPIENT = process.env.X402_VERIFY_RECIPIENT ?? process.env.PAYRO
 const PAYMENT_CHAIN_ID = process.env.X402_VERIFY_CHAIN_ID ?? '1952'
 const PAYMENT_NETWORK = `eip155:${PAYMENT_CHAIN_ID}` // CAIP-2
 const IS_MAINNET = PAYMENT_CHAIN_ID === '196'
-const PRICE_USDT = process.env.ASP_PRICE_USDT ?? '2.00'
+const PRICE_USDT = process.env.ASP_PRICE_USDT ?? '0.01'
 const FEE_BPS = Number(process.env.ASP_FEE_BPS ?? '1200')
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 

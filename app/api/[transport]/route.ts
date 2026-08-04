@@ -33,7 +33,7 @@ const handler = createMcpHandler(
             registered_okx_service_call: 'Free discovery on X Layer mainnet — 0 USDT to call or discover this service.',
             pricing: {
               model: 'x402 per-task budget, set by the caller (not a fixed listing fee)',
-              default_amount: process.env.ASP_PRICE_USDT ?? '2.00',
+              default_amount: process.env.ASP_PRICE_USDT ?? '0.01',
               currency: 'USDT0',
               network: `eip155:${process.env.SETTLEMENT_CHAIN_ID ?? '196'}`,
               platform_fee_bps: process.env.ASP_FEE_BPS ?? '1200',
@@ -58,13 +58,13 @@ const handler = createMcpHandler(
           intent: z.string().min(1).max(500).describe('What you want the human to do'),
           proof_type: z.enum(['photo', 'form']).describe('Type of proof'),
           instructions: z.string().min(1).max(1000).describe('Detailed instructions for the human'),
-          budget_usdt: z.string().regex(/^\d+(\.\d{1,6})?$/).optional().default('2.00'),
+          budget_usdt: z.string().regex(/^\d+(\.\d{1,6})?$/).optional().default('0.01'),
           timeout_seconds: z.number().int().min(60).max(86400).optional().default(3600),
         },
       },
       async ({ intent, proof_type, instructions, budget_usdt, timeout_seconds }: { intent: string; proof_type: 'photo' | 'form'; instructions: string; budget_usdt?: string; timeout_seconds?: number }) => {
         const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
-        const amount = budget_usdt ?? '2.00'
+        const amount = budget_usdt ?? '0.01'
 
         // Autonomous payment through the OFFICIAL OKX Payment SDK: probe the
         // resource, sign the EIP-3009 credential for the returned challenge,

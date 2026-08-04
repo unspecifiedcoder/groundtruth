@@ -9,7 +9,7 @@ const CONTRACT_ADDRESS = (process.env.PAYROLL_CONTRACT_ADDRESS ?? '0x00000000000
 // Token the worker is actually paid in — mUSDT on X Layer testnet by default
 // (the token the payment came in as). Overridable for a mainnet deployment.
 const PAYOUT_TOKEN = (process.env.PAYOUT_TOKEN ?? process.env.X402_VERIFY_TOKEN ?? '0x725cCe0916d2E8682438732fD9e79803B4fAB2BD') as `0x${string}`
-const PRICE_USDT = process.env.ASP_PRICE_USDT ?? '2.00'
+const PRICE_USDT = process.env.ASP_PRICE_USDT ?? '0.01'
 const FEE_BPS = Number(process.env.ASP_FEE_BPS ?? '1200')
 
 export interface SettleResult {
