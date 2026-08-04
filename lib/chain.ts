@@ -35,6 +35,7 @@ const PAYROLL_ABI = parseAbi([
 const ERC20_ABI = parseAbi([
   'function allowance(address owner, address spender) view returns (uint256)',
   'function approve(address spender, uint256 amount) returns (bool)',
+  'function transfer(address to, uint256 amount) returns (bool)',
 ])
 
 export function getPublicClient() {
@@ -89,6 +90,26 @@ export async function settleOnChain(params: {
 }): Promise<Hash> {
   const { client, account } = getWalletClient()
   const worker = normalizeAddress(params.workerAddress)
+  const pub = getPublicClient()
+
+  // No payroll contract on this chain (e.g. mainnet, where only the operator
+  // wallet — not the testnet-only contract — actually holds the captured
+  // payment) — pay the worker directly from the operator's own balance instead
+  // of calling a contract that doesn't exist here. The fee simply stays in the
+  // operator wallet since it's never transferred out.
+  const code = await pub.getBytecode({ address: params.contractAddress }).catch(() => undefined)
+  if (!code) {
+    const hash = await client.writeContract({
+      address: params.tokenAddress,
+      abi: ERC20_ABI,
+      functionName: 'transfer',
+      args: [worker, params.payoutUnits],
+      account,
+    })
+    await pub.waitForTransactionReceipt({ hash, timeout: 60_000 })
+    return hash
+  }
+
   await ensureApproval(params.tokenAddress, params.contractAddress, account.address, params.payoutUnits + params.feeUnits, client, account)
   const hash = await client.writeContract({
     address: params.contractAddress,
@@ -97,7 +118,7 @@ export async function settleOnChain(params: {
     args: [params.taskKey, worker, params.tokenAddress, params.payoutUnits, params.feeUnits],
     account,
   })
-  await getPublicClient().waitForTransactionReceipt({ hash, timeout: 60_000 })
+  await pub.waitForTransactionReceipt({ hash, timeout: 60_000 })
   return hash
 }
 
