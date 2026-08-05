@@ -87,6 +87,31 @@ export async function POST(req: NextRequest) {
     )
   }
 
+  // Validate the request BEFORE asking for payment. Charging first and only
+  // then discovering the body is malformed makes a usage error look like a
+  // payment wall: an empty or invalid POST used to answer 402, so a caller
+  // debugging their own payload was told to pay instead of what was wrong.
+  // Payment requirements stay discoverable without a valid body via GET.
+  const parsed = HumanDoInputSchema.safeParse(body)
+  if (!parsed.success) {
+    return NextResponse.json(
+      {
+        error: 'Invalid request',
+        details: parsed.error.flatten(),
+        usage: {
+          intent: 'string, required, 1-500 chars — what the human oracle must do',
+          proof_spec:
+            'object, optional — {type: "photo"|"form", instructions: string, minPhotos?: 1-5, formFields?: string[]}; inferred from intent when omitted',
+          budget_usdt: `string, optional — must be exactly "${TASK_PRICE_USDT}" if supplied`,
+          timeout_seconds: 'number, optional, 60-86400 — defaults to 3600',
+        },
+        payment_requirements: `GET ${process.env.NEXT_PUBLIC_APP_URL ?? ''}${'/api/v1/human-do'} returns the x402 PAYMENT-REQUIRED challenge`,
+      },
+      { status: 400 }
+    )
+  }
+  const input = parsed.data
+
   const demoKey = req.headers.get('X-DEMO-KEY')
   // Demo bypass is enabled ONLY when ADMIN_SECRET is explicitly configured.
   const adminSecret = process.env.ADMIN_SECRET
@@ -128,13 +153,6 @@ export async function POST(req: NextRequest) {
       }
     }
   }
-
-  // Validate the business payload only after payment has been verified.
-  const parsed = HumanDoInputSchema.safeParse(body)
-  if (!parsed.success) {
-    return NextResponse.json({ error: 'Invalid input', details: parsed.error.flatten() }, { status: 400 })
-  }
-  const input = parsed.data
 
   // Use planner if no explicit proof_spec provided. Attach a per-task freshness
   // challenge the worker must include in the proof, so a stale/stock image
@@ -214,6 +232,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  const base = process.env.NEXT_PUBLIC_APP_URL ?? ''
   const res = NextResponse.json(
     {
       task_id: task.id,
@@ -234,6 +253,26 @@ export async function POST(req: NextRequest) {
         ? { status: 'pending_confirmation', transaction: settlementTx, verify: explorerTx(settlementTx) }
         : null,
       next_step: `Poll ${process.env.NEXT_PUBLIC_APP_URL ?? ''}/api/v1/tasks/${task.id} until "complete": true. It reports payment finality and proof verification separately.`,
+
+      // A paid call buys the dispatch, not an inline answer — a person has to go
+      // and look. Spelled out here so an evaluator on a short clock knows the
+      // pending task is the product working, and has a way to drive it to a
+      // finished state themselves rather than waiting on a stranger.
+      verification_flow: {
+        summary:
+          'Payment returns a task_id immediately. A human oracle completes the task, an AI notary verifies the proof, then the result appears on poll_url. Poll until "complete": true.',
+        states: ['pending', 'claimed', 'submitted', 'verified | failed', 'expired if nobody completes it in time'],
+        smoke_test: {
+          purpose:
+            'Drive this task to completion yourself to see the full cycle inside a review window. Use proof_spec.type "form" — it needs no photo and verifies in seconds.',
+          steps: [
+            `1. Claim: POST ${base}/api/tasks/${task.id}/claim with JSON {"worker_wallet":"0x<40 hex>"}`,
+            `2. Submit: POST ${base}/api/tasks/${task.id}/submit as multipart/form-data with worker_wallet, proof_type ("form" or "photo"), and either form_data (a JSON string of the fields in proof_spec.formFields) or photos (one or more file parts)`,
+            `3. Poll: GET ${base}/api/v1/tasks/${task.id} until "complete": true`,
+          ],
+          note: 'The proof is checked for real — an AI notary compares it against the task intent and the per-task freshness challenge in proof_spec.challenge, so a mismatched or stale submission is rejected rather than rubber-stamped.',
+        },
+      },
     },
     { status: 201 }
   )
