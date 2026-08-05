@@ -122,6 +122,31 @@ export async function settleOnChain(params: {
   return hash
 }
 
+/**
+ * On-chain finality of a settlement tx.
+ *
+ * The x402 PAYMENT-RESPONSE receipt is written the moment the broker broadcasts,
+ * so it reports `status: pending` even though `success: true` — the transfer
+ * simply isn't mined yet. Callers poll this to watch pending flip to confirmed
+ * instead of having to trust a receipt that looks unfinished.
+ */
+export async function getTxConfirmation(
+  hash: string
+): Promise<{ confirmed: boolean; blockNumber?: string; reverted?: boolean }> {
+  try {
+    const receipt = await getPublicClient().getTransactionReceipt({ hash: hash as Hash })
+    if (!receipt) return { confirmed: false }
+    return {
+      confirmed: receipt.status === 'success',
+      blockNumber: receipt.blockNumber.toString(),
+      ...(receipt.status === 'reverted' ? { reverted: true } : {}),
+    }
+  } catch {
+    // Not mined yet (or RPC hiccup) — not an error, just not final.
+    return { confirmed: false }
+  }
+}
+
 export async function isSettled(
   contractAddress: `0x${string}`,
   taskKey: `0x${string}`

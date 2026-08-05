@@ -5,6 +5,7 @@ import { planTask } from '@/lib/planner'
 import { generateChallenge } from '@/lib/challenge'
 import { getHttpResourceServer, makeContext } from '@/lib/okx-x402'
 import { TASK_PRICE_USDT, isExactPrice } from '@/lib/money'
+import { explorerTx } from '@/lib/chain'
 
 // Payments run through the OFFICIAL OKX Payment SDK (@okxweb3/x402-*): the
 // challenge, the buyer-credential verification, and the on-chain settlement are
@@ -123,6 +124,7 @@ export async function POST(req: NextRequest) {
   }
 
   const settlementHeaders: Record<string, string> = {}
+  let settlementTx: string | null = null
 
   if (!isDemoMode && httpServer && verified) {
     // Settle through the OKX Facilitator. Only after it confirms do we keep the
@@ -150,6 +152,7 @@ export async function POST(req: NextRequest) {
     }
 
     Object.assign(settlementHeaders, settle.headers ?? {})
+    settlementTx = settle.transaction ?? null
 
     const { toUnits, splitBudget } = await import('@/lib/money')
     let recorded = false
@@ -185,6 +188,17 @@ export async function POST(req: NextRequest) {
       budget_usdt: task.budget_usdt,
       expires_at: task.expires_at,
       poll_url: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/api/v1/tasks/${task.id}`,
+
+      // Say the async contract out loud. Two things settle independently: the
+      // payment gets mined, and a human physically completes the task. The
+      // PAYMENT-RESPONSE receipt is written before the transfer is mined, so it
+      // reads `status: pending` with `success: true` — that is the broker
+      // confirming the payment, not a failure. Poll `poll_url` until `complete`.
+      async: true,
+      payment: settlementTx
+        ? { status: 'pending_confirmation', transaction: settlementTx, verify: explorerTx(settlementTx) }
+        : null,
+      next_step: `Poll ${process.env.NEXT_PUBLIC_APP_URL ?? ''}/api/v1/tasks/${task.id} until "complete": true. It reports payment finality and proof verification separately.`,
     },
     { status: 201 }
   )

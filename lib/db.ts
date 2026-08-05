@@ -132,6 +132,25 @@ export async function recordPaymentRef(params: {
   return true
 }
 
+export interface PaymentRecord {
+  tx_hash: string | null
+  payer_address: string | null
+  amount_units: string | null
+}
+
+/** The settlement recorded for a task, so callers can poll payment finality. */
+export async function getPaymentByTaskId(taskId: string): Promise<PaymentRecord | null> {
+  const db = getServiceClient()
+  const { data, error } = await db
+    .from('payments')
+    .select('tx_hash,payer_address,amount_units')
+    .eq('task_id', taskId)
+    .limit(1)
+    .maybeSingle()
+  if (error) throw error
+  return (data as PaymentRecord | null) ?? null
+}
+
 export async function recordProofHash(taskId: string, phash: string): Promise<void> {
   const db = getServiceClient()
   await db.from('proof_hashes').insert({ task_id: taskId, phash })
