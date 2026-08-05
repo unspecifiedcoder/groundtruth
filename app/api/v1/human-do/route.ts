@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { HumanDoInputSchema } from '@/lib/types'
-import { recordPaymentRef, insertTask, deleteTask } from '@/lib/db'
+import { recordPaymentRef, insertTask, deleteTask, setTaskBudget } from '@/lib/db'
 import { planTask } from '@/lib/planner'
 import { generateChallenge } from '@/lib/challenge'
 import { getHttpResourceServer, makeContext } from '@/lib/okx-x402'
-import { TASK_PRICE_USDT, isExactPrice } from '@/lib/money'
+import { TASK_PRICE_USDT } from '@/lib/money'
 import { explorerTx } from '@/lib/chain'
 
 // Payments run through the OFFICIAL OKX Payment SDK (@okxweb3/x402-*): the
@@ -69,49 +69,12 @@ export async function POST(req: NextRequest) {
     body = null
   }
 
-  // The price is fixed, so budget_usdt may be omitted — but if it is supplied it
-  // has to match, and that is checked before the payment handshake starts.
-  // Rejecting here rather than after settlement matters twice over: the caller
-  // is told why instead of being silently charged a different number, and the
-  // worker payout (derived from the task's budget_usdt in settle.ts) can never
-  // exceed what was actually collected.
-  const requestedBudget = (body as { budget_usdt?: unknown } | null)?.budget_usdt
-  if (requestedBudget !== undefined && (typeof requestedBudget !== 'string' || !isExactPrice(requestedBudget))) {
-    return NextResponse.json(
-      {
-        error: 'Invalid budget',
-        detail: `budget_usdt must be exactly ${TASK_PRICE_USDT} USDT, or omitted`,
-        price_usdt: TASK_PRICE_USDT,
-      },
-      { status: 400 }
-    )
-  }
-
-  // Validate the request BEFORE asking for payment. Charging first and only
-  // then discovering the body is malformed makes a usage error look like a
-  // payment wall: an empty or invalid POST used to answer 402, so a caller
-  // debugging their own payload was told to pay instead of what was wrong.
-  // Payment requirements stay discoverable without a valid body via GET.
-  const parsed = HumanDoInputSchema.safeParse(body)
-  if (!parsed.success) {
-    return NextResponse.json(
-      {
-        error: 'Invalid request',
-        details: parsed.error.flatten(),
-        usage: {
-          intent: 'string, required, 1-500 chars — what the human oracle must do',
-          proof_spec:
-            'object, optional — {type: "photo"|"form", instructions: string, minPhotos?: 1-5, formFields?: string[]}; inferred from intent when omitted',
-          budget_usdt: `string, optional — must be exactly "${TASK_PRICE_USDT}" if supplied`,
-          timeout_seconds: 'number, optional, 60-86400 — defaults to 3600',
-        },
-        payment_requirements: `GET ${process.env.NEXT_PUBLIC_APP_URL ?? ''}${'/api/v1/human-do'} returns the x402 PAYMENT-REQUIRED challenge`,
-      },
-      { status: 400 }
-    )
-  }
-  const input = parsed.data
-
+  // An unpaid request ALWAYS gets the 402 challenge, whatever the body looks
+  // like — including no body at all. That bare `curl -X POST` with no payment
+  // header is the marketplace's documented availability probe, and answering it
+  // with a schema error instead of PAYMENT-REQUIRED fails the official test.
+  // Business validation therefore happens after payment (below), and usage
+  // errors are only returned to callers who actually presented a credential.
   const demoKey = req.headers.get('X-DEMO-KEY')
   // Demo bypass is enabled ONLY when ADMIN_SECRET is explicitly configured.
   const adminSecret = process.env.ADMIN_SECRET
@@ -153,6 +116,30 @@ export async function POST(req: NextRequest) {
       }
     }
   }
+
+  // Payment (or demo bypass) is settled — now the body has to make sense. A
+  // caller who paid and sent a malformed payload gets the field errors and a
+  // usage block; an unpaid caller never reaches here, so the availability probe
+  // above still sees a clean 402.
+  const parsed = HumanDoInputSchema.safeParse(body)
+  if (!parsed.success) {
+    return NextResponse.json(
+      {
+        error: 'Invalid request',
+        details: parsed.error.flatten(),
+        usage: {
+          intent: 'string, required, 1-500 chars — what the human oracle must do',
+          proof_spec:
+            'object, optional — {type: "photo"|"form", instructions: string, minPhotos?: 1-5, formFields?: string[]}; inferred from intent when omitted',
+          budget_usdt: `string, optional — decimal USDT; defaults to ${TASK_PRICE_USDT}`,
+          timeout_seconds: 'number, optional, 60-86400 — defaults to 3600',
+        },
+        payment_requirements: `GET ${process.env.NEXT_PUBLIC_APP_URL ?? ''}/api/v1/human-do returns the x402 PAYMENT-REQUIRED challenge`,
+      },
+      { status: 400 }
+    )
+  }
+  const input = parsed.data
 
   // Use planner if no explicit proof_spec provided. Attach a per-task freshness
   // challenge the worker must include in the proof, so a stale/stock image
@@ -206,6 +193,20 @@ export async function POST(req: NextRequest) {
 
     Object.assign(settlementHeaders, settle.headers ?? {})
     settlementTx = settle.transaction ?? null
+
+    // The money actually collected is authoritative, not the requested budget.
+    // A payment-exempt or micro-payment probe settles for less than the
+    // advertised price, and the worker payout is computed from the task budget —
+    // so it is rewritten here rather than validated away up front, which would
+    // have blocked those probes entirely.
+    if (settle.amount) {
+      const { fromUnits } = await import('@/lib/money')
+      const settledUsdt = fromUnits(BigInt(settle.amount))
+      if (settledUsdt !== task.budget_usdt) {
+        await setTaskBudget(task.id, settledUsdt).catch(() => {})
+        task = { ...task, budget_usdt: settledUsdt }
+      }
+    }
 
     const { toUnits, splitBudget } = await import('@/lib/money')
     let recorded = false

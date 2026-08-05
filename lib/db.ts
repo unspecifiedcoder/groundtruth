@@ -132,6 +132,20 @@ export async function recordPaymentRef(params: {
   return true
 }
 
+/**
+ * Overwrite a task's budget with the amount actually settled.
+ *
+ * The worker payout is derived from the task's budget, so leaving a
+ * caller-supplied figure there would let someone request a large budget, pay a
+ * small amount, and collect the difference out of the operator's wallet. The
+ * facilitator's settled amount is the only trustworthy number.
+ */
+export async function setTaskBudget(id: string, budgetUsdt: string): Promise<void> {
+  const db = getServiceClient()
+  const { error } = await db.from('tasks').update({ budget_usdt: budgetUsdt }).eq('id', id)
+  if (error) throw error
+}
+
 export interface PaymentRecord {
   tx_hash: string | null
   payer_address: string | null
