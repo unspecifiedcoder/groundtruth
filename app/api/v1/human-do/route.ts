@@ -28,6 +28,37 @@ function toNextResponse(instructions: {
   return res
 }
 
+/**
+ * Ensure a 402 carries a usable body.
+ *
+ * An unpaid request gets the SDK's challenge body; a *rejected* credential gets
+ * an empty one, which is indistinguishable from a server fault. Any reason the
+ * SDK surfaced is echoed, and the PAYMENT-REQUIRED header is left untouched so
+ * the response stays protocol-conformant either way.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function withReason(result: any) {
+  const response = result.response ?? { status: 402, headers: {}, body: undefined }
+  const body = response.body
+  const isEmpty = !body || (typeof body === 'object' && Object.keys(body).length === 0)
+  if (!isEmpty) return response
+
+  const reason = result.errorReason ?? result.reason ?? null
+  const message = result.errorMessage ?? result.message ?? null
+
+  return {
+    ...response,
+    body: {
+      error: 'Payment invalid',
+      x402Version: 2,
+      detail:
+        message ??
+        'The payment credential was rejected. Common causes: the authorization was already used (replay), the signed amount or payTo did not match the challenge, or it was signed for a different asset or chain. Request a fresh PAYMENT-REQUIRED challenge and sign it unmodified.',
+      ...(reason ? { reason } : {}),
+    },
+  }
+}
+
 export async function POST(req: NextRequest) {
   // Body is parsed up front: the SDK's dynamic price reads budget_usdt from it
   // to build the 402 challenge, so it must be available before payment handling.
@@ -82,8 +113,12 @@ export async function POST(req: NextRequest) {
 
     const result = await httpServer.processHTTPRequest(makeContext(req, body))
     if (result.type === 'payment-error') {
-      // 402 challenge (or a payment failure) built by the OKX SDK.
-      return toNextResponse(result.response)
+      // 402 challenge (or a payment failure) built by the OKX SDK. The SDK
+      // returns an empty body when it *rejects* a credential (replayed, wrong
+      // amount, wrong payTo, wrong chain), so a caller debugging a failed
+      // payment gets `402 {}` with nothing to go on. Fill it in without
+      // touching the protocol headers, which stay exactly as the SDK built them.
+      return toNextResponse(withReason(result))
     }
     if (result.type === 'payment-verified') {
       verified = {
