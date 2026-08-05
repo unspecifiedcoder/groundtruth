@@ -2,6 +2,7 @@ import { OKXFacilitatorClient } from '@okxweb3/x402-core'
 import { x402ResourceServer, x402HTTPResourceServer } from '@okxweb3/x402-core/server'
 import { ExactEvmScheme } from '@okxweb3/x402-evm/exact/server'
 import type { NextRequest } from 'next/server'
+import { TASK_PRICE_USDT } from './money'
 
 // ── Official OKX Payment SDK integration ────────────────────────────────────
 //
@@ -27,15 +28,10 @@ export const RESOURCE_PATH = '/api/v1/human-do'
 // Fallback advertised price when we can't read a budget off the request body
 // (e.g. the GET discovery probe). Buyers paying a larger budget are handled by
 // the dynamic price below.
-const DEFAULT_PRICE = process.env.X402_DEFAULT_PRICE ?? '$0.01'
-
-function priceFromBody(body: unknown): string {
-  const budget = (body as { budget_usdt?: unknown } | null)?.budget_usdt
-  if (typeof budget === 'string' && /^\d+(\.\d+)?$/.test(budget) && Number(budget) > 0) {
-    return `$${budget}`
-  }
-  return DEFAULT_PRICE
-}
+// One fixed price for every call, never read from the request body. This is the
+// exact figure registered on the OKX service listing, so a reviewer probing any
+// request — whatever budget they send — sees the advertised fee.
+const PRICE = `$${TASK_PRICE_USDT}`
 
 let cached: Promise<x402HTTPResourceServer> | null = null
 
@@ -64,9 +60,8 @@ export function getHttpResourceServer(): Promise<x402HTTPResourceServer> {
           scheme: 'exact',
           network: NETWORK,
           payTo: PAY_TO,
-          // Charge exactly the budget the caller asked for.
-          price: (ctx: { adapter: { getBody?: () => unknown } }) =>
-            priceFromBody(ctx.adapter.getBody?.()),
+          // Flat, request-independent price — matches the registered listing fee.
+          price: PRICE,
           maxTimeoutSeconds: 300,
         },
       ],

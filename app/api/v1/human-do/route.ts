@@ -4,6 +4,7 @@ import { recordPaymentRef, insertTask, deleteTask } from '@/lib/db'
 import { planTask } from '@/lib/planner'
 import { generateChallenge } from '@/lib/challenge'
 import { getHttpResourceServer, makeContext } from '@/lib/okx-x402'
+import { TASK_PRICE_USDT, isExactPrice } from '@/lib/money'
 
 // Payments run through the OFFICIAL OKX Payment SDK (@okxweb3/x402-*): the
 // challenge, the buyer-credential verification, and the on-chain settlement are
@@ -34,6 +35,24 @@ export async function POST(req: NextRequest) {
     body = await req.json()
   } catch {
     body = null
+  }
+
+  // The price is fixed, so budget_usdt may be omitted — but if it is supplied it
+  // has to match, and that is checked before the payment handshake starts.
+  // Rejecting here rather than after settlement matters twice over: the caller
+  // is told why instead of being silently charged a different number, and the
+  // worker payout (derived from the task's budget_usdt in settle.ts) can never
+  // exceed what was actually collected.
+  const requestedBudget = (body as { budget_usdt?: unknown } | null)?.budget_usdt
+  if (requestedBudget !== undefined && (typeof requestedBudget !== 'string' || !isExactPrice(requestedBudget))) {
+    return NextResponse.json(
+      {
+        error: 'Invalid budget',
+        detail: `budget_usdt must be exactly ${TASK_PRICE_USDT} USDT, or omitted`,
+        price_usdt: TASK_PRICE_USDT,
+      },
+      { status: 400 }
+    )
   }
 
   const demoKey = req.headers.get('X-DEMO-KEY')

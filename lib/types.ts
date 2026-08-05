@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { TASK_PRICE_USDT, isExactPrice } from './money'
 
 export type TaskStatus =
   | 'pending'
@@ -105,7 +106,14 @@ export const HumanDoInputSchema = z.object({
       formFields: z.array(z.string()).optional(),
     })
     .optional(),
-  budget_usdt: z.string().regex(/^\d+(\.\d{1,6})?$/, 'must be decimal string'),
+  // Optional: the price is fixed, so a caller may simply omit it. When supplied
+  // it must match exactly — see TASK_PRICE_USDT for why it can't float free.
+  budget_usdt: z
+    .string()
+    .regex(/^\d+(\.\d{1,6})?$/, 'must be decimal string')
+    .refine(isExactPrice, `must be exactly ${TASK_PRICE_USDT} USDT`)
+    .optional()
+    .default(TASK_PRICE_USDT),
   timeout_seconds: z.number().int().min(60).max(86400).optional().default(3600),
 })
 
