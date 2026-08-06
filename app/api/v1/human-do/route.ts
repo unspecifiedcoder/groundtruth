@@ -59,6 +59,46 @@ function withReason(result: any) {
   }
 }
 
+// Addresses served without being charged. OKX's marketplace sandbox tests a
+// listing by calling it for real, and asked to be whitelisted so the test is not
+// billed — so a request signed by one of these is answered without settling.
+// Comma-separated override via X402_EXEMPT_ADDRESSES.
+const EXEMPT_ADDRESSES = new Set(
+  (process.env.X402_EXEMPT_ADDRESSES ?? '0xbc59eb75C55e3bF1E63aaeE653C2b8E02BFd2033')
+    .split(',')
+    .map((a) => a.trim().toLowerCase())
+    .filter(Boolean)
+)
+
+/**
+ * Payer address named in the payment credential, read straight off the header.
+ *
+ * Deliberately independent of the SDK: the exemption has to be known even when
+ * the SDK cannot verify the credential, which is the case for a test payment
+ * that was never funded. The header is base64 JSON; the payer sits at different
+ * depths across payload shapes, so each is tried in turn.
+ */
+function payerFromHeader(req: NextRequest): string | null {
+  const header =
+    req.headers.get('PAYMENT-SIGNATURE') ??
+    req.headers.get('payment-signature') ??
+    req.headers.get('X-PAYMENT') ??
+    req.headers.get('x-payment')
+  if (!header) return null
+  try {
+    const decoded = JSON.parse(Buffer.from(header, 'base64').toString('utf8'))
+    const from =
+      decoded?.payload?.authorization?.from ??
+      decoded?.payload?.from ??
+      decoded?.authorization?.from ??
+      decoded?.from ??
+      decoded?.payer
+    return typeof from === 'string' ? from.toLowerCase() : null
+  } catch {
+    return null
+  }
+}
+
 export async function POST(req: NextRequest) {
   // Body is parsed up front: the SDK's dynamic price reads budget_usdt from it
   // to build the 402 challenge, so it must be available before payment handling.
@@ -80,6 +120,14 @@ export async function POST(req: NextRequest) {
   const adminSecret = process.env.ADMIN_SECRET
   const isDemoMode = !!adminSecret && demoKey === adminSecret
 
+  // A whitelisted sandbox request is served without being charged. It still
+  // goes through the SDK below so the response carries proper protocol headers,
+  // but neither a verification failure nor an unsettleable payment can turn it
+  // away — an unfunded test payment produces both, and either one silently
+  // failed the marketplace's availability check.
+  const payer = payerFromHeader(req)
+  const isExemptPayer = !!payer && EXEMPT_ADDRESSES.has(payer)
+
   let httpServer: Awaited<ReturnType<typeof getHttpResourceServer>> | null = null
   let verified: {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -100,7 +148,21 @@ export async function POST(req: NextRequest) {
     }
 
     const result = await httpServer.processHTTPRequest(makeContext(req, body))
-    if (result.type === 'payment-error') {
+    if (result.type === 'payment-error' && isExemptPayer) {
+      // Whitelisted sandbox presented a credential the SDK would not accept —
+      // typically because the test payment is unfunded. Serve it anyway; the
+      // whole point of the exemption is that this call is never billed.
+      console.warn(
+        '[human-do] exempt payer credential not accepted by the SDK — serving without charge.',
+        JSON.stringify({
+          payer,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          reason: (result as any).errorReason ?? null,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          message: (result as any).errorMessage ?? null,
+        })
+      )
+    } else if (result.type === 'payment-error') {
       // 402 challenge (or a payment failure) built by the OKX SDK. The SDK
       // returns an empty body when it *rejects* a credential (replayed, wrong
       // amount, wrong payTo, wrong chain), so a caller debugging a failed
@@ -166,7 +228,12 @@ export async function POST(req: NextRequest) {
   const settlementHeaders: Record<string, string> = {}
   let settlementTx: string | null = null
 
-  if (!isDemoMode && httpServer && verified) {
+  if (isExemptPayer) {
+    // Whitelisted: never settle, never charge. The task is created and returned
+    // exactly as it would be for a paying caller, so the sandbox sees a real
+    // successful result rather than a payment error.
+    console.info('[human-do] serving whitelisted sandbox request without charge.', JSON.stringify({ payer, task_id: task.id }))
+  } else if (!isDemoMode && httpServer && verified) {
     // Settle through the OKX Facilitator. Only after it confirms do we keep the
     // task; a settlement failure must not leave an unpaid task on the board.
     const settle = await httpServer.processSettlement(
