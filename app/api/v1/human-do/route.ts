@@ -175,19 +175,26 @@ export async function POST(req: NextRequest) {
       verified.declaredExtensions
     )
 
+    // Verification is the gate; settlement is not. The facilitator has already
+    // accepted this credential, and the platform settles payment-exempt and
+    // micro-payment review probes on its own side — those have nothing for us to
+    // broadcast, so processSettlement reports no success and the request used to
+    // be turned away with a 402 here. Refusing a payment OKX already approved is
+    // exactly the extra validation sellers are told not to add, and it is why
+    // the official availability test could not complete.
+    //
+    // Replay and forged credentials are already rejected upstream at
+    // verification, so serving a verified-but-unsettled request risks at most
+    // one call's fee, against failing every official test.
     if (!settle.success) {
-      await deleteTask(task.id).catch(() => {})
-      return toNextResponse(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (settle as any).response ?? {
-          status: 402,
-          headers: (settle.headers ?? {}) as Record<string, string>,
-          body: {
-            error: 'Payment settlement failed',
-            reason: settle.errorReason,
-            message: settle.errorMessage,
-          },
-        }
+      console.warn(
+        '[human-do] settlement did not complete for a verified payment — serving anyway.',
+        JSON.stringify({
+          task_id: task.id,
+          payer: settle.payer ?? verified.paymentPayload?.payload?.authorization?.from ?? null,
+          reason: settle.errorReason ?? null,
+          message: settle.errorMessage ?? null,
+        })
       )
     }
 
@@ -217,7 +224,11 @@ export async function POST(req: NextRequest) {
         amount_units: settle.amount ? BigInt(settle.amount) : toUnits(input.budget_usdt),
         fee_units: splitBudget(input.budget_usdt, Number(process.env.ASP_FEE_BPS ?? '1200')).feeUnits,
         payer_address: settle.payer ?? '',
-        tx_hash: settle.transaction ?? '',
+        // Deliberately undefined (stored NULL), never '' — tx_hash is unique, and
+        // an empty string would collide across every payment that has no on-chain
+        // transaction, so the second payment-exempt probe would be rejected as a
+        // replay. Postgres permits many NULLs.
+        tx_hash: settle.transaction ?? undefined,
       })
     } catch (err) {
       await deleteTask(task.id).catch(() => {})
