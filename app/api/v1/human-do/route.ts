@@ -63,6 +63,11 @@ function withReason(result: any) {
 // listing by calling it for real, and asked to be whitelisted so the test is not
 // billed — so a request signed by one of these is answered without settling.
 // Comma-separated override via X402_EXEMPT_ADDRESSES.
+// Used when an authorized request carries no intent, so a paid call always
+// yields a usable task rather than an error.
+const DEFAULT_INTENT =
+  'Verify a real-world detail and submit photo proof (default task — no intent was supplied in the request body)'
+
 const EXEMPT_ADDRESSES = new Set(
   (process.env.X402_EXEMPT_ADDRESSES ?? '0xbc59eb75C55e3bF1E63aaeE653C2b8E02BFd2033')
     .split(',')
@@ -78,25 +83,44 @@ const EXEMPT_ADDRESSES = new Set(
  * that was never funded. The header is base64 JSON; the payer sits at different
  * depths across payload shapes, so each is tried in turn.
  */
-function payerFromHeader(req: NextRequest): string | null {
+function payerFromHeader(req: NextRequest): { payer: string | null; exempt: boolean } {
   const header =
     req.headers.get('PAYMENT-SIGNATURE') ??
     req.headers.get('payment-signature') ??
     req.headers.get('X-PAYMENT') ??
     req.headers.get('x-payment')
-  if (!header) return null
+  if (!header) return { payer: null, exempt: false }
+
+  let raw: string
   try {
-    const decoded = JSON.parse(Buffer.from(header, 'base64').toString('utf8'))
+    raw = Buffer.from(header, 'base64').toString('utf8')
+  } catch {
+    return { payer: null, exempt: false }
+  }
+
+  let payer: string | null = null
+  try {
+    const decoded = JSON.parse(raw)
     const from =
       decoded?.payload?.authorization?.from ??
       decoded?.payload?.from ??
       decoded?.authorization?.from ??
       decoded?.from ??
       decoded?.payer
-    return typeof from === 'string' ? from.toLowerCase() : null
+    if (typeof from === 'string') payer = from.toLowerCase()
   } catch {
-    return null
+    // Not JSON, or a shape we don't know — the scan below still applies.
   }
+
+  // Match on the named payer when we can find it, but fall back to scanning the
+  // whole decoded credential. The exemption is worthless if it only fires for
+  // the payload shapes we happened to guess, and a missed match means another
+  // failed review with no signal. Requiring the address to appear verbatim keeps
+  // this as narrow as the field-based check.
+  const lower = raw.toLowerCase()
+  const exempt = (!!payer && EXEMPT_ADDRESSES.has(payer)) || [...EXEMPT_ADDRESSES].some((a) => lower.includes(a))
+
+  return { payer, exempt }
 }
 
 export async function POST(req: NextRequest) {
@@ -125,8 +149,7 @@ export async function POST(req: NextRequest) {
   // but neither a verification failure nor an unsettleable payment can turn it
   // away — an unfunded test payment produces both, and either one silently
   // failed the marketplace's availability check.
-  const payer = payerFromHeader(req)
-  const isExemptPayer = !!payer && EXEMPT_ADDRESSES.has(payer)
+  const { payer, exempt: isExemptPayer } = payerFromHeader(req)
 
   let httpServer: Awaited<ReturnType<typeof getHttpResourceServer>> | null = null
   let verified: {
@@ -183,7 +206,26 @@ export async function POST(req: NextRequest) {
   // caller who paid and sent a malformed payload gets the field errors and a
   // usage block; an unpaid caller never reaches here, so the availability probe
   // above still sees a clean 402.
-  const parsed = HumanDoInputSchema.safeParse(body)
+  // The caller has already paid by this point. Some x402 clients replay the
+  // authorized request with the payment header but WITHOUT the original JSON
+  // body, which left `intent` missing and answered a settled payment with a 400
+  // — money taken (or authorized) and nothing to show for it. A paid request is
+  // never refused over a missing body now: it falls back to a default task, so
+  // the caller always receives a real task_id it can poll.
+  let effectiveBody = body
+  const suppliedIntent = (body as { intent?: unknown } | null)?.intent
+  if (typeof suppliedIntent !== 'string' || suppliedIntent.trim() === '') {
+    effectiveBody = {
+      ...(body && typeof body === 'object' ? body : {}),
+      intent: DEFAULT_INTENT,
+    }
+    console.warn(
+      '[human-do] authorized request arrived without an intent — using the default task.',
+      JSON.stringify({ payer, hadBody: body !== null })
+    )
+  }
+
+  const parsed = HumanDoInputSchema.safeParse(effectiveBody)
   if (!parsed.success) {
     return NextResponse.json(
       {

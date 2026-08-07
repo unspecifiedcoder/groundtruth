@@ -65,7 +65,15 @@ export function getHttpResourceServer(): Promise<x402HTTPResourceServer> {
           maxTimeoutSeconds: 300,
         },
       ],
-      description: 'GroundTruth task creation — Reality-as-a-Service',
+      // The challenge advertises the POST body schema so a client replaying the
+      // authorized request knows what to send. Every field is optional in
+      // practice — a paid call with no body still creates a task.
+      description:
+        'GroundTruth task creation — Reality-as-a-Service. ' +
+        'POST JSON body: {"intent": string (1-500 chars, what a human oracle must verify), ' +
+        '"proof_spec"?: {"type": "photo"|"form", "instructions": string, "minPhotos"?: 1-5, "formFields"?: string[]}, ' +
+        '"budget_usdt"?: decimal string, "timeout_seconds"?: 60-86400}. ' +
+        'Body is optional: omitted fields fall back to defaults and a paid request always returns a task_id to poll.',
       mimeType: 'application/json',
       resource: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}${RESOURCE_PATH}`,
       // Echo the challenge in the body as well. OKX validates the
