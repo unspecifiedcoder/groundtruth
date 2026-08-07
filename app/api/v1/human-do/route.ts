@@ -63,10 +63,51 @@ function withReason(result: any) {
 // listing by calling it for real, and asked to be whitelisted so the test is not
 // billed — so a request signed by one of these is answered without settling.
 // Comma-separated override via X402_EXEMPT_ADDRESSES.
-// Used when an authorized request carries no intent, so a paid call always
-// yields a usable task rather than an error.
+// Used only when an authorized request carries no intent AND no earlier body
+// can be recovered for that caller — a last resort, not the normal path.
 const DEFAULT_INTENT =
   'Verify a real-world detail and submit photo proof (default task — no intent was supplied in the request body)'
+
+// ── Body preservation across the 402 → pay → replay cycle ───────────────────
+//
+// x402 is a two-call protocol: the caller POSTs, gets a 402 challenge, pays, and
+// replays the same request with a payment header. Some clients replay with only
+// the headers and drop the JSON body, which leaves the paid call with no intent.
+//
+// The body from the unpaid probe is therefore held briefly and re-attached when
+// a bodyless authorized replay arrives from the same caller, so the task created
+// is the one that was actually requested rather than a substitute.
+//
+// Keyed on caller IP because nothing else links the two calls: the payment nonce
+// is generated client-side after the challenge, so the server cannot know it at
+// probe time. Best-effort by nature — a different instance or a changed egress
+// IP simply misses and falls back to the default.
+const BODY_TTL_MS = 10 * 60 * 1000
+const pendingBodies = new Map<string, { body: unknown; at: number }>()
+
+function callerKey(req: NextRequest): string {
+  const fwd = req.headers.get('x-forwarded-for') ?? ''
+  const ip = fwd.split(',')[0]?.trim() || req.headers.get('x-real-ip') || 'unknown'
+  return ip
+}
+
+function rememberBody(req: NextRequest, body: unknown): void {
+  if (!body || typeof body !== 'object') return
+  // Opportunistic sweep — this map only ever holds a handful of live entries.
+  const now = Date.now()
+  for (const [k, v] of pendingBodies) if (now - v.at > BODY_TTL_MS) pendingBodies.delete(k)
+  pendingBodies.set(callerKey(req), { body, at: now })
+}
+
+function recallBody(req: NextRequest): unknown | null {
+  const hit = pendingBodies.get(callerKey(req))
+  if (!hit) return null
+  if (Date.now() - hit.at > BODY_TTL_MS) {
+    pendingBodies.delete(callerKey(req))
+    return null
+  }
+  return hit.body
+}
 
 const EXEMPT_ADDRESSES = new Set(
   (process.env.X402_EXEMPT_ADDRESSES ?? '0xbc59eb75C55e3bF1E63aaeE653C2b8E02BFd2033')
@@ -186,6 +227,10 @@ export async function POST(req: NextRequest) {
         })
       )
     } else if (result.type === 'payment-error') {
+      // Hold this request's body so the paid replay can be answered with the
+      // task the caller actually asked for, even if their client replays with
+      // headers only.
+      rememberBody(req, body)
       // 402 challenge (or a payment failure) built by the OKX SDK. The SDK
       // returns an empty body when it *rejects* a credential (replayed, wrong
       // amount, wrong payTo, wrong chain), so a caller debugging a failed
@@ -215,14 +260,27 @@ export async function POST(req: NextRequest) {
   let effectiveBody = body
   const suppliedIntent = (body as { intent?: unknown } | null)?.intent
   if (typeof suppliedIntent !== 'string' || suppliedIntent.trim() === '') {
-    effectiveBody = {
-      ...(body && typeof body === 'object' ? body : {}),
-      intent: DEFAULT_INTENT,
+    // First try to recover the body from this caller's unpaid probe, so the
+    // task matches the original request.
+    const remembered = recallBody(req)
+    const rememberedIntent = (remembered as { intent?: unknown } | null)?.intent
+
+    if (typeof rememberedIntent === 'string' && rememberedIntent.trim() !== '') {
+      effectiveBody = { ...(remembered as object), ...(body && typeof body === 'object' ? body : {}), intent: rememberedIntent }
+      console.info(
+        '[human-do] replay arrived without a body — restored the one sent with the unpaid probe.',
+        JSON.stringify({ payer })
+      )
+    } else {
+      effectiveBody = {
+        ...(body && typeof body === 'object' ? body : {}),
+        intent: DEFAULT_INTENT,
+      }
+      console.warn(
+        '[human-do] authorized request had no intent and no probe body to restore — using the default task.',
+        JSON.stringify({ payer, hadBody: body !== null })
+      )
     }
-    console.warn(
-      '[human-do] authorized request arrived without an intent — using the default task.',
-      JSON.stringify({ payer, hadBody: body !== null })
-    )
   }
 
   const parsed = HumanDoInputSchema.safeParse(effectiveBody)
