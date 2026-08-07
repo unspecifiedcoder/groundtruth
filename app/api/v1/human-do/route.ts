@@ -82,6 +82,63 @@ const DEFAULT_INTENT =
 // is generated client-side after the challenge, so the server cannot know it at
 // probe time. Best-effort by nature — a different instance or a changed egress
 // IP simply misses and falls back to the default.
+// The client echoes the challenge's `resource` object back inside
+// PAYMENT-SIGNATURE, verbatim. That makes `resource.description` a
+// server-controlled field which round-trips through the payment step, so the
+// original request body can ride along inside the challenge itself and come
+// back with the replay.
+//
+// This is what makes preservation reliable rather than best-effort: the body
+// travels with the payment, so it does not matter which egress IP the replay
+// comes from, which serverless instance handles it, or how many requests are in
+// flight at once — each challenge carries its own body and nothing is stored.
+// The EIP-3009 signature covers only from/to/value/validAfter/validBefore/nonce,
+// so extending the description does not affect signature validity.
+const BODY_TAG = 'x402-body'
+const MAX_EMBEDDED_BODY = 4000
+
+/** Ride the request body along inside the 402 challenge. */
+function embedBodyInChallenge(
+  response: { status: number; headers: Record<string, string>; body?: unknown; isHtml?: boolean },
+  body: unknown
+) {
+  if (!body || typeof body !== 'object') return response
+  const headers = { ...(response.headers ?? {}) }
+  const key = Object.keys(headers).find((k) => k.toLowerCase() === 'payment-required')
+  if (!key) return response
+  try {
+    const challenge = JSON.parse(Buffer.from(headers[key], 'base64').toString('utf8'))
+    const encoded = Buffer.from(JSON.stringify(body), 'utf8').toString('base64')
+    if (encoded.length > MAX_EMBEDDED_BODY) return response
+    challenge.resource = challenge.resource ?? {}
+    challenge.resource.description = `${challenge.resource.description ?? ''} [${BODY_TAG}:${encoded}]`
+    headers[key] = Buffer.from(JSON.stringify(challenge), 'utf8').toString('base64')
+    return { ...response, headers }
+  } catch {
+    return response
+  }
+}
+
+/** Recover the body the caller sent with the unpaid probe, off the credential. */
+function bodyFromCredential(req: NextRequest): unknown | null {
+  const header =
+    req.headers.get('PAYMENT-SIGNATURE') ??
+    req.headers.get('payment-signature') ??
+    req.headers.get('X-PAYMENT') ??
+    req.headers.get('x-payment')
+  if (!header) return null
+  try {
+    const decoded = JSON.parse(Buffer.from(header, 'base64').toString('utf8'))
+    const description: unknown = decoded?.resource?.description
+    if (typeof description !== 'string') return null
+    const match = description.match(new RegExp(`\\[${BODY_TAG}:([A-Za-z0-9+/=]+)\\]`))
+    if (!match) return null
+    return JSON.parse(Buffer.from(match[1], 'base64').toString('utf8'))
+  } catch {
+    return null
+  }
+}
+
 const BODY_TTL_MS = 10 * 60 * 1000
 const pendingBodies = new Map<string, { body: unknown; at: number }>()
 
@@ -234,9 +291,9 @@ export async function POST(req: NextRequest) {
       // 402 challenge (or a payment failure) built by the OKX SDK. The SDK
       // returns an empty body when it *rejects* a credential (replayed, wrong
       // amount, wrong payTo, wrong chain), so a caller debugging a failed
-      // payment gets `402 {}` with nothing to go on. Fill it in without
-      // touching the protocol headers, which stay exactly as the SDK built them.
-      return toNextResponse(withReason(result))
+      // payment gets `402 {}` with nothing to go on. Fill it in, and tuck the
+      // request body into the challenge so it comes back with the replay.
+      return toNextResponse(embedBodyInChallenge(withReason(result), body))
     }
     if (result.type === 'payment-verified') {
       verified = {
@@ -260,9 +317,9 @@ export async function POST(req: NextRequest) {
   let effectiveBody = body
   const suppliedIntent = (body as { intent?: unknown } | null)?.intent
   if (typeof suppliedIntent !== 'string' || suppliedIntent.trim() === '') {
-    // First try to recover the body from this caller's unpaid probe, so the
-    // task matches the original request.
-    const remembered = recallBody(req)
+    // Recover the original body: first from the credential itself (exact, and
+    // immune to IP, instance and concurrency), then from this caller's probe.
+    const remembered = bodyFromCredential(req) ?? recallBody(req)
     const rememberedIntent = (remembered as { intent?: unknown } | null)?.intent
 
     if (typeof rememberedIntent === 'string' && rememberedIntent.trim() !== '') {
