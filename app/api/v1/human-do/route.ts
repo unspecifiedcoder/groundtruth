@@ -97,11 +97,19 @@ const DEFAULT_INTENT =
 const BODY_TAG = 'x402-body'
 const MAX_EMBEDDED_BODY = 4000
 
+// Kill switch. Set X402_EMBED_BODY=off to stop touching the challenge and fall
+// straight back to the previous behaviour (recover from the per-IP cache, else
+// a default task). Worth keeping while the listing is under review: if embedding
+// ever upsets a client or the facilitator, this reverts it without a code
+// change, and the fallback path below is unchanged and already proven.
+const EMBED_BODY = (process.env.X402_EMBED_BODY ?? 'on').toLowerCase() !== 'off'
+
 /** Ride the request body along inside the 402 challenge. */
 function embedBodyInChallenge(
   response: { status: number; headers: Record<string, string>; body?: unknown; isHtml?: boolean },
   body: unknown
 ) {
+  if (!EMBED_BODY) return response
   if (!body || typeof body !== 'object') return response
   const headers = { ...(response.headers ?? {}) }
   const key = Object.keys(headers).find((k) => k.toLowerCase() === 'payment-required')
@@ -121,6 +129,7 @@ function embedBodyInChallenge(
 
 /** Recover the body the caller sent with the unpaid probe, off the credential. */
 function bodyFromCredential(req: NextRequest): unknown | null {
+  if (!EMBED_BODY) return null
   const header =
     req.headers.get('PAYMENT-SIGNATURE') ??
     req.headers.get('payment-signature') ??
