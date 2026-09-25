@@ -3,17 +3,18 @@ import { getCampaignWithTasks } from '@/lib/db'
 import { campaignTokenMatches } from '@/lib/campaign-auth'
 import { campaignCookieName, rateLimit, sameOrigin } from '@/lib/security'
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const routeParams = await params
   if (!sameOrigin(req)) return NextResponse.json({ error: 'Cross-site request rejected' }, { status: 403 })
   if (await rateLimit(req, 'campaign-session', 12)) return NextResponse.json({ error: 'Too many attempts' }, { status: 429 })
   let token = ''
   try { token = String((await req.json()).token ?? '') } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
-  const record = await getCampaignWithTasks(params.id)
+  const record = await getCampaignWithTasks(routeParams.id)
   if (!record) return NextResponse.json({ error: 'Campaign not found' }, { status: 404 })
   if (!token || !campaignTokenMatches(record.campaign.access_token_hash, token)) return NextResponse.json({ error: 'Invalid campaign access token' }, { status: 401 })
 
   const response = NextResponse.json({ authenticated: true })
-  response.cookies.set(campaignCookieName(params.id), token, {
+  response.cookies.set(campaignCookieName(routeParams.id), token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict',

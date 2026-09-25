@@ -61,7 +61,7 @@ export default async function TasksPage() {
                 Mission Board
               </h1>
               <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-                Do it on the ground. Collect proof. Get paid instantly in USDT.
+                Do it on the ground. Collect proof. Approved work is paid in USDT.
               </p>
             </div>
             <div className="text-right">

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getTask, transition, recordProofHash, recentProofHashes, bumpWorker, uploadProofFile, recordAuditEvent } from '@/lib/db'
-import { verifyProof } from '@/lib/verify'
+import { computePerceptualHash, inspectEvidenceImage, verifyProof } from '@/lib/verify'
 import { settleTask } from '@/lib/settle'
 import { notaryReview } from '@/lib/notary'
 import type { ProofPayload, ProofSpec, NotaryVerdict } from '@/lib/types'
@@ -19,12 +19,13 @@ function distanceMeters(aLat: number, aLng: number, bLat: number, bLng: number):
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const routeParams = await params
     if (!sameOrigin(req)) return NextResponse.json({ error: 'Cross-site request rejected' }, { status: 403 })
     if (await rateLimit(req, 'task-submit', 12)) return NextResponse.json({ error: 'Too many submissions' }, { status: 429 })
-    return await handleSubmit(req, params)
+    return await handleSubmit(req, routeParams)
   } catch (err) {
     console.error('[submit] unhandled error:', err)
     return NextResponse.json({ error: 'Submission failed' }, { status: 500 })
@@ -113,6 +114,11 @@ async function handleSubmit(req: NextRequest, params: { id: string }) {
       const webp = buf.length >= 12 && buf.subarray(0, 4).toString() === 'RIFF' && buf.subarray(8, 12).toString() === 'WEBP'
       const heif = buf.length >= 12 && buf.subarray(4, 8).toString() === 'ftyp'
       if (!jpeg && !png && !webp && !heif) return NextResponse.json({ error: 'Image contents do not match a supported format' }, { status: 400 })
+      try {
+        await inspectEvidenceImage(buf)
+      } catch (error) {
+        return NextResponse.json({ error: error instanceof Error ? error.message : 'Image could not be decoded' }, { status: 400 })
+      }
       imageBuffers.push(buf)
     }
     const storageKeys = await Promise.all(
@@ -183,8 +189,7 @@ async function handleSubmit(req: NextRequest, params: { id: string }) {
   if (proofType === 'photo') {
     for (const buf of imageBuffers) {
       try {
-        const { createHash } = await import('crypto')
-        const hash = createHash('sha256').update(buf).digest('hex')
+        const hash = await computePerceptualHash(buf)
         await recordProofHash(params.id, hash)
       } catch {}
     }

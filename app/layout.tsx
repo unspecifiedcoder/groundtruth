@@ -118,9 +118,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <ThemeToggle />
 
               <a
-                href={process.env.NEXT_PUBLIC_CONTACT_URL ?? 'https://x.com/0xBejini'}
-                target="_blank"
-                rel="noopener noreferrer"
+                href="/pilot"
                 className="btn btn-primary ml-1.5 px-4 py-1.5 text-sm"
               >
                 <span className="sm:hidden">Pilot</span><span className="hidden sm:inline">Run a pilot</span> <span className="btn-arrow">→</span>

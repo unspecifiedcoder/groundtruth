@@ -68,18 +68,27 @@ function sign(value: string): string {
   return createHmac('sha256', signingSecret()).update(value).digest('base64url')
 }
 
+function issueSignedPayload(payload: Record<string, unknown>): string {
+  const encoded = Buffer.from(JSON.stringify(payload)).toString('base64url')
+  return `${encoded}.${sign(encoded)}`
+}
+
+function readSignedPayload<T>(token: string): T | null {
+  try {
+    const [payload, signature, extra] = token.split('.')
+    if (!payload || !signature || extra || !constantTimeEqual(sign(payload), signature)) return null
+    return JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as T
+  } catch { return null }
+}
+
 export function issueClaimToken(taskId: string, wallet: string, ttlSeconds = 3600): string {
-  const payload = Buffer.from(JSON.stringify({ taskId, wallet: wallet.toLowerCase(), exp: Math.floor(Date.now() / 1000) + ttlSeconds })).toString('base64url')
-  return `${payload}.${sign(payload)}`
+  return issueSignedPayload({ taskId, wallet: wallet.toLowerCase(), exp: Math.floor(Date.now() / 1000) + ttlSeconds })
 }
 
 export function verifyClaimToken(token: string, taskId: string, wallet: string): boolean {
   try {
-    const [payload, signature, extra] = token.split('.')
-    if (!payload || !signature || extra) return false
-    const expected = sign(payload)
-    if (!constantTimeEqual(expected, signature)) return false
-    const decoded = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as { taskId?: string; wallet?: string; exp?: number }
+    const decoded = readSignedPayload<{ taskId?: string; wallet?: string; exp?: number }>(token)
+    if (!decoded) return false
     return decoded.taskId === taskId
       && decoded.wallet === wallet.toLowerCase()
       && typeof decoded.exp === 'number'
@@ -87,6 +96,38 @@ export function verifyClaimToken(token: string, taskId: string, wallet: string):
   } catch {
     return false
   }
+}
+
+export function issueWalletChallenge(wallet: string): { message: string; token: string } {
+  const nonce = crypto.randomUUID()
+  const exp = Math.floor(Date.now() / 1000) + 5 * 60
+  const message = `GroundTruth wallet verification\n\nWallet: ${wallet.toLowerCase()}\nNonce: ${nonce}\nExpires: ${new Date(exp * 1000).toISOString()}\n\nThis signature does not authorize a transaction.`
+  return { message, token: issueSignedPayload({ type: 'wallet_challenge', wallet: wallet.toLowerCase(), nonce, exp, message }) }
+}
+
+export function verifyWalletChallengeToken(token: string, wallet: string, message: string): boolean {
+  const payload = readSignedPayload<{ type?: string; wallet?: string; exp?: number; message?: string }>(token)
+  return !!payload && payload.type === 'wallet_challenge' && payload.wallet === wallet.toLowerCase() && payload.message === message && !!payload.exp && payload.exp >= Math.floor(Date.now() / 1000)
+}
+
+export function issueWalletSession(wallet: string): string {
+  return issueSignedPayload({ type: 'wallet_session', wallet: wallet.toLowerCase(), exp: Math.floor(Date.now() / 1000) + 12 * 60 * 60 })
+}
+
+export function verifyWalletSession(token: string | undefined, wallet: string): boolean {
+  if (!token) return false
+  const payload = readSignedPayload<{ type?: string; wallet?: string; exp?: number }>(token)
+  return !!payload && payload.type === 'wallet_session' && payload.wallet === wallet.toLowerCase() && !!payload.exp && payload.exp >= Math.floor(Date.now() / 1000)
+}
+
+export function issueAdminSession(): string {
+  return issueSignedPayload({ type: 'admin_session', exp: Math.floor(Date.now() / 1000) + 8 * 60 * 60 })
+}
+
+export function verifyAdminSession(token: string | undefined): boolean {
+  if (!token) return false
+  const payload = readSignedPayload<{ type?: string; exp?: number }>(token)
+  return !!payload && payload.type === 'admin_session' && !!payload.exp && payload.exp >= Math.floor(Date.now() / 1000)
 }
 
 export function campaignCookieName(campaignId: string): string {

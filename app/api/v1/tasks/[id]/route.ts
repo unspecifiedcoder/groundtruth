@@ -64,11 +64,12 @@ function describe(paymentState: 'confirmed' | 'pending' | 'none', taskStatus: Ta
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const routeParams = await params
     if (await rateLimit(req, 'task-status', 180)) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
-    const task = await getTask(params.id)
+    const task = await getTask(routeParams.id)
     if (!task) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
     const status = await expireIfDue(task)

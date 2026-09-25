@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { claimTask, recordAuditEvent } from '@/lib/db'
-import { issueClaimToken, rateLimit, sameOrigin } from '@/lib/security'
+import { issueClaimToken, rateLimit, sameOrigin, verifyWalletSession } from '@/lib/security'
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const routeParams = await params
   if (!sameOrigin(req)) return NextResponse.json({ error: 'Cross-site request rejected' }, { status: 403 })
   if (await rateLimit(req, 'task-claim', 20)) return NextResponse.json({ error: 'Too many claim attempts' }, { status: 429 })
   let body: { worker_wallet?: string }
@@ -19,9 +20,12 @@ export async function POST(
   if (!worker_wallet?.match(/^0x[0-9a-fA-F]{40}$/)) {
     return NextResponse.json({ error: 'Invalid wallet address' }, { status: 400 })
   }
+  if (process.env.REQUIRE_WALLET_SIGNATURE === 'true' && !verifyWalletSession(req.cookies.get('gt_worker')?.value, worker_wallet)) {
+    return NextResponse.json({ error: 'Verify control of this wallet before claiming a mission' }, { status: 401 })
+  }
 
   const claimExpiry = new Date(Date.now() + 30 * 60 * 1000) // 30 min to complete
-  const task = await claimTask(params.id, worker_wallet, claimExpiry)
+  const task = await claimTask(routeParams.id, worker_wallet, claimExpiry)
 
   if (!task) {
     return NextResponse.json(

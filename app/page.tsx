@@ -17,7 +17,7 @@ const CHECKS = [
 ]
 
 export default function Home() {
-  const contactUrl = process.env.NEXT_PUBLIC_CONTACT_URL ?? 'https://x.com/0xBejini'
+  const contactUrl = '/pilot'
 
   return (
     <main className="overflow-hidden" style={{ color: 'var(--text)' }}>
@@ -48,7 +48,7 @@ export default function Home() {
             </p>
 
             <div className="fade-up fade-up-4 flex flex-col sm:flex-row gap-3 justify-center lg:justify-start mb-7">
-              <a href={contactUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary px-7 py-3.5 text-[15px]">
+              <a href={contactUrl} className="btn btn-primary px-7 py-3.5 text-[15px]">
                 Run a field pilot <span className="btn-arrow">→</span>
               </a>
               <a href="#developers" className="btn btn-ghost px-7 py-3.5 text-[15px]">View the API flow</a>
@@ -156,7 +156,7 @@ export default function Home() {
 }
 
 → { "task_id": "...", "status": "pending" }
-→ verified evidence + settlement receipt`}</pre>
+→ screened evidence + settlement receipt`}</pre>
           </div>
         </div>
       </section>
@@ -168,7 +168,7 @@ export default function Home() {
           <p className="max-w-2xl mx-auto leading-relaxed mb-8" style={{ color: 'var(--text-muted)' }}>
             We are opening focused pilots for brands and commerce teams with recurring store-level questions. Coverage, pricing, and acceptance criteria are agreed before launch.
           </p>
-          <a href={contactUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary px-8 py-3.5">
+          <a href={contactUrl} className="btn btn-primary px-8 py-3.5">
             Discuss a pilot <span className="btn-arrow">→</span>
           </a>
         </div>

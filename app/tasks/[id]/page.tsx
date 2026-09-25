@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 
 const VERIFY_STEPS = [
   { label: 'Uploading proof to GroundTruth network...', duration: 700 },
@@ -114,7 +114,8 @@ interface Task {
   } | null
 }
 
-export default function TaskDetailPage({ params }: { params: { id: string } }) {
+export default function TaskDetailPage() {
+  const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const [task, setTask] = useState<Task | null>(null)
   const [phase, setPhase] = useState<'loading' | 'view' | 'claimed' | 'verifying' | 'awaiting' | 'done' | 'rejected' | 'error'>('loading')
@@ -128,10 +129,11 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
   const [error, setError] = useState('')
   const [vision, setVision] = useState<{ checked: boolean; match: boolean; confidence: number; reason: string } | null>(null)
   const [claimToken, setClaimToken] = useState('')
+  const [walletVerified, setWalletVerified] = useState(false)
 
   useEffect(() => {
-    setClaimToken(sessionStorage.getItem(`gt-claim-${params.id}`) ?? '')
-    fetch(`/api/v1/tasks/${params.id}`)
+    setClaimToken(sessionStorage.getItem(`gt-claim-${id}`) ?? '')
+    fetch(`/api/v1/tasks/${id}`)
       .then(r => r.json())
       .then(t => {
         setTask(t)
@@ -146,7 +148,7 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
         else setPhase('view') // pending / claimed / expired
       })
       .catch(() => setPhase('error'))
-  }, [params.id])
+  }, [id])
 
   // Poll for resolution: while awaiting an agent (manual mode), or on the done
   // screen until the background payout tx lands so its link can fill in.
@@ -155,7 +157,7 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
     if (task?.result?.settle?.tx_hash) return // already have the tx, nothing to poll
     const iv = setInterval(async () => {
       try {
-        const r = await fetch(`/api/v1/tasks/${params.id}`)
+        const r = await fetch(`/api/v1/tasks/${id}`)
         const t = await r.json()
         setTask(t)
         if (t.status === 'failed') { setPhase('rejected'); clearInterval(iv) }
@@ -166,7 +168,7 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
       } catch {}
     }, 1500)
     return () => clearInterval(iv)
-  }, [phase, params.id, task?.result?.settle?.tx_hash])
+  }, [phase, id, task?.result?.settle?.tx_hash])
 
   async function handleClaim() {
     if (!wallet.match(/^0x[0-9a-fA-F]{40}$/)) {
@@ -176,7 +178,7 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
     setLoading(true)
     setError('')
     try {
-      const res = await fetch(`/api/tasks/${params.id}/claim`, {
+      const res = await fetch(`/api/tasks/${id}/claim`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ worker_wallet: wallet }),
@@ -184,13 +186,34 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
       const body = await res.json().catch(() => ({}))
       if (!res.ok) { setError(body.error ?? 'Failed to claim — mission may already be taken'); return }
       setClaimToken(body.claim_token)
-      sessionStorage.setItem(`gt-claim-${params.id}`, body.claim_token)
+      sessionStorage.setItem(`gt-claim-${id}`, body.claim_token)
       setPhase('claimed')
     } catch {
       setError('Network error')
     } finally {
       setLoading(false)
     }
+  }
+
+  async function connectAndVerifyWallet() {
+    const provider = (window as typeof window & { ethereum?: { request(args: { method: string; params?: unknown[] }): Promise<unknown> } }).ethereum
+    if (!provider) { setError('Open this page in a wallet-enabled browser to verify your payout wallet'); return }
+    setLoading(true); setError('')
+    try {
+      const accounts = await provider.request({ method: 'eth_requestAccounts' }) as string[]
+      const address = accounts?.[0]
+      if (!address) throw new Error('No wallet account selected')
+      const challengeResponse = await fetch('/api/auth/wallet/challenge', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ wallet: address }) })
+      const challenge = await challengeResponse.json()
+      if (!challengeResponse.ok) throw new Error(challenge.error ?? 'Could not create wallet challenge')
+      const signature = await provider.request({ method: 'personal_sign', params: [challenge.message, address] }) as string
+      const verifyResponse = await fetch('/api/auth/wallet/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ wallet: address, message: challenge.message, challenge_token: challenge.token, signature }) })
+      const result = await verifyResponse.json()
+      if (!verifyResponse.ok) throw new Error(result.error ?? 'Wallet verification failed')
+      setWallet(address)
+      setWalletVerified(true)
+    } catch (err) { setError(err instanceof Error ? err.message : 'Wallet verification failed') }
+    finally { setLoading(false) }
   }
 
   async function handleSubmit() {
@@ -220,7 +243,7 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
       // Show the settling screen while the request runs — with auto-accept the
       // server verifies and settles on-chain inline, so this can take a few sec.
       setPhase('verifying')
-      const res = await fetch(`/api/tasks/${params.id}/submit`, {
+      const res = await fetch(`/api/tasks/${id}/submit`, {
         method: 'POST',
         body: fd,
       })
@@ -230,7 +253,7 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
       // Settlement is synchronous, so by now the result (notary verdict + settle
       // tx) is persisted — pull the fresh task so the done/rejected screens show
       // the full explainable verdict and the on-chain payout.
-      try { const t = await fetch(`/api/v1/tasks/${params.id}`).then(r => r.json()); setTask(t) } catch {}
+      try { const t = await fetch(`/api/v1/tasks/${id}`).then(r => r.json()); setTask(t) } catch {}
       if (data.status === 'failed') { setPhase('rejected'); return }
       // 'verified' → success (payout already settled). 'submitted' (manual mode) → awaiting.
       setPhase(data.status === 'verified' ? 'done' : 'awaiting')
@@ -525,6 +548,10 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
                 className="font-mono w-full rounded-xl px-4 py-3 text-sm outline-none transition-all"
                 style={{ background: 'var(--bg-elev)', border: '1px solid var(--border)', color: 'var(--text)' }}
               />
+              <button type="button" onClick={connectAndVerifyWallet} disabled={loading} className="btn btn-ghost w-full py-2.5 mt-3 text-sm disabled:opacity-40">
+                {walletVerified ? '✓ Wallet ownership verified' : 'Connect and verify wallet'}
+              </button>
+              <p className="text-xs mt-2" style={{ color: 'var(--text-faint)' }}>Signing proves wallet control. It does not authorize a transaction.</p>
             </div>
 
             {error && (

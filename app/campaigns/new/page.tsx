@@ -130,7 +130,7 @@ export default function NewCampaignPage() {
               <p className="text-xs mt-2" style={{ color: 'var(--text-faint)' }}>Campaign creation is restricted. The key is sent only to the server and is not saved by this page.</p>
             </div>
 
-            {error && <p className="text-sm" style={{ color: 'var(--accent)' }}>⚠ {error}</p>}
+            {error && <div className="text-sm rounded-xl p-4" style={{ color: 'var(--accent)', background: 'var(--warn-weak)' }}>⚠ {error} <a href="/pilot" className="underline font-semibold">Request a funded pilot</a></div>}
             <button type="button" onClick={createCampaign} disabled={creating || !stores.length} className="btn btn-primary w-full py-4 disabled:opacity-40">{creating ? 'Creating campaign…' : `Create ${stores.length || 0} field missions →`}</button>
           </div>
         )}

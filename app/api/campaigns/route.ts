@@ -33,6 +33,12 @@ function validPilotKey(req: NextRequest): boolean {
 export async function POST(req: NextRequest) {
   if (!sameOrigin(req)) return NextResponse.json({ error: 'Cross-site request rejected' }, { status: 403 })
   if (await rateLimit(req, 'campaign-create', 6)) return NextResponse.json({ error: 'Too many campaign requests' }, { status: 429 })
+  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_OPERATOR_FUNDED_CAMPAIGNS !== 'true') {
+    return NextResponse.json({
+      error: 'Campaign publication is paused until funding is confirmed',
+      detail: 'Request a funded pilot at /pilot. This safety gate prevents publishing missions without reserved payout funds.',
+    }, { status: 503 })
+  }
   if (!process.env.PILOT_ACCESS_KEY && !process.env.ADMIN_SECRET) return NextResponse.json({ error: 'Campaign creation is not configured' }, { status: 503 })
   if (!validPilotKey(req)) return NextResponse.json({ error: 'Invalid pilot access key' }, { status: 401 })
 

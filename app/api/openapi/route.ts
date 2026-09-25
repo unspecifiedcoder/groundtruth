@@ -31,6 +31,30 @@ export function GET() {
           responses: { '200': { description: 'Current mission state' }, '404': { description: 'Mission not found' }, '429': { description: 'Rate limited' } },
         },
       },
+      '/api/auth/wallet/challenge': {
+        post: {
+          operationId: 'createWalletChallenge',
+          summary: 'Create a short-lived wallet ownership challenge',
+          requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['wallet'], properties: { wallet: { $ref: '#/components/schemas/WalletAddress' } } } } } },
+          responses: { '200': { description: 'Message and signed challenge token' }, '400': { description: 'Invalid wallet' }, '429': { description: 'Rate limited' } },
+        },
+      },
+      '/api/auth/wallet/verify': {
+        post: {
+          operationId: 'verifyWalletOwnership',
+          summary: 'Verify a wallet signature and establish a secure worker session',
+          requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['wallet', 'message', 'challenge_token', 'signature'], properties: { wallet: { $ref: '#/components/schemas/WalletAddress' }, message: { type: 'string' }, challenge_token: { type: 'string' }, signature: { type: 'string' } } } } } },
+          responses: { '200': { description: 'Wallet verified; sets an HttpOnly session cookie' }, '401': { description: 'Challenge or signature rejected' }, '429': { description: 'Rate limited' } },
+        },
+      },
+      '/api/pilot-leads': {
+        post: {
+          operationId: 'requestFundedPilot',
+          summary: 'Apply for a scoped retail evidence pilot',
+          requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/PilotLead' } } } },
+          responses: { '201': { description: 'Application received' }, '400': { description: 'Invalid application' }, '429': { description: 'Rate limited' }, '503': { description: 'Lead intake unavailable' } },
+        },
+      },
       '/api/health': { get: { operationId: 'health', summary: 'Liveness and dependency readiness', responses: { '200': { description: 'Healthy' }, '503': { description: 'Not ready' } } } },
     },
     components: {
@@ -46,6 +70,19 @@ export function GET() {
           },
         },
         TaskCreated: { type: 'object', properties: { task_id: { type: 'string', format: 'uuid' }, status: { type: 'string' }, status_url: { type: 'string', format: 'uri' } } },
+        WalletAddress: { type: 'string', pattern: '^0x[0-9a-fA-F]{40}$', example: '0x1111111111111111111111111111111111111111' },
+        PilotLead: {
+          type: 'object', required: ['company_name', 'contact_name', 'work_email', 'use_case', 'launch_city', 'estimated_locations', 'timeline'], additionalProperties: false,
+          properties: {
+            company_name: { type: 'string', minLength: 2, maxLength: 120 },
+            contact_name: { type: 'string', minLength: 2, maxLength: 120 },
+            work_email: { type: 'string', format: 'email', maxLength: 200 },
+            use_case: { type: 'string', minLength: 20, maxLength: 1500 },
+            launch_city: { type: 'string', minLength: 2, maxLength: 120 },
+            estimated_locations: { type: 'integer', minimum: 1, maximum: 100000 },
+            timeline: { enum: ['this_month', 'this_quarter', 'exploring'] },
+          },
+        },
       },
     },
   }, { headers: { 'Cache-Control': 'public, max-age=3600', 'Access-Control-Allow-Origin': '*' } })

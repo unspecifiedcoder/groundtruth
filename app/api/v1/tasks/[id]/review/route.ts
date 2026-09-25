@@ -11,7 +11,8 @@ import { constantTimeEqual, rateLimit } from '@/lib/security'
 // Auth: the paying agent proves identity with either the task's payment_ref
 // (returned to it out-of-band) or the server ADMIN_SECRET (used by the MCP
 // server on the agent's behalf).
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const routeParams = await params
   if (await rateLimit(req, 'task-review', 30)) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
   let body: { decision?: string; reason?: string; payment_ref?: string }
   try {
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: 'decision must be "accept" or "reject"' }, { status: 400 })
   }
 
-  const task = await getTask(params.id)
+  const task = await getTask(routeParams.id)
   if (!task) {
     return NextResponse.json({ error: 'Task not found' }, { status: 404 })
   }
@@ -48,28 +49,28 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   // ── Reject ──
   if (decision === 'reject') {
-    const failed = await transition(params.id, 'submitted', 'failed', {
+    const failed = await transition(routeParams.id, 'submitted', 'failed', {
       resolved_at: new Date().toISOString(),
     })
     if (!failed) return NextResponse.json({ error: 'Transition failed' }, { status: 409 })
-    return NextResponse.json({ task_id: params.id, outcome: 'rejected', reason: body.reason ?? null })
+    return NextResponse.json({ task_id: routeParams.id, outcome: 'rejected', reason: body.reason ?? null })
   }
 
   // ── Accept → verify + on-chain payout ──
-  const verified = await transition(params.id, 'submitted', 'verified', {
+  const verified = await transition(routeParams.id, 'submitted', 'verified', {
     resolved_at: new Date().toISOString(),
   })
   if (!verified) return NextResponse.json({ error: 'Transition failed' }, { status: 409 })
 
   const settle = await settleTask(
-    params.id,
+    routeParams.id,
     task.worker_wallet ?? '',
     task.payment_ref ?? '',
     task.budget_usdt
   )
 
   return NextResponse.json({
-    task_id: params.id,
+    task_id: routeParams.id,
     outcome: 'accepted',
     worker: task.worker_wallet,
     settle,

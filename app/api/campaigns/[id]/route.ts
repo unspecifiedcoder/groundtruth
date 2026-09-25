@@ -5,10 +5,11 @@ import { campaignCookieName, rateLimit } from '@/lib/security'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const routeParams = await params
   if (await rateLimit(req, 'campaign-read', 120)) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
-  const token = req.cookies.get(campaignCookieName(params.id))?.value ?? ''
-  const record = await getCampaignWithTasks(params.id)
+  const token = req.cookies.get(campaignCookieName(routeParams.id))?.value ?? ''
+  const record = await getCampaignWithTasks(routeParams.id)
   if (!record) return NextResponse.json({ error: 'Campaign not found' }, { status: 404 })
   if (!token || !campaignTokenMatches(record.campaign.access_token_hash, token)) {
     return NextResponse.json({ error: 'Invalid campaign access token' }, { status: 401 })

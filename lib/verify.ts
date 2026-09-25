@@ -12,6 +12,23 @@ async function getSharp() {
   try { return (await import('sharp')).default } catch { return null }
 }
 
+export async function inspectEvidenceImage(buf: Buffer): Promise<{ width: number; height: number; format: string }> {
+  const sharp = await getSharp()
+  if (!sharp) throw new Error('Image verification is unavailable')
+  const meta = await sharp(buf, { limitInputPixels: 40_000_000 }).metadata()
+  const width = meta.width ?? 0
+  const height = meta.height ?? 0
+  if (!width || !height) throw new Error('Image could not be decoded')
+  if (width * height > 40_000_000) throw new Error('Image exceeds the 40-megapixel safety limit')
+  return { width, height, format: meta.format ?? 'unknown' }
+}
+
+export async function computePerceptualHash(buf: Buffer): Promise<string> {
+  const sharp = await getSharp()
+  if (!sharp) throw new Error('Image hashing is unavailable')
+  return computePHash(sharp, buf)
+}
+
 export async function verifyProof(
   spec: ProofSpec,
   payload: ProofPayload,
@@ -126,7 +143,7 @@ async function verifyPhoto(
 
         // Soft: perceptual hash dedup
         try {
-          const phash = await computePHash(sharp, buf)
+          const phash = await computePerceptualHash(buf)
           const isDupe = recentHashes.some(h => hammingDistance(h, phash) < 10)
           checks.push({
             name: `dedup_${i}`,

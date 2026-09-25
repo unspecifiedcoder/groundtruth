@@ -1,7 +1,8 @@
 import type { Metadata } from 'next'
 
-export function generateMetadata({ params }: { params: { id: string } }): Metadata {
-  if (params.id === 'demo') return {
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params
+  if (id === 'demo') return {
     title: 'Interactive retail audit demo',
     description: 'Explore a sample GroundTruth campaign with verified store observations and evidence receipts.',
     alternates: { canonical: '/campaigns/demo' },

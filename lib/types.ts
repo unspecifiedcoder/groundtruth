@@ -164,7 +164,7 @@ export const SubmitProofInputSchema = z.object({
   proof: z.object({
     type: z.enum(['photo', 'form']),
     storageKeys: z.array(z.string()).optional(),
-    formData: z.record(z.string()).optional(),
+    formData: z.record(z.string(), z.string()).optional(),
   }),
 })
 

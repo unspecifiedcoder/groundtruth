@@ -132,13 +132,35 @@ export async function recordAuditEvent(params: {
   event_type: string
   actor_type: 'buyer' | 'worker' | 'agent' | 'operator' | 'system'
   actor_ref?: string
-  resource_type: 'campaign' | 'task' | 'payment' | 'evidence'
+  resource_type: 'campaign' | 'task' | 'payment' | 'evidence' | 'pilot_lead'
   resource_id: string
   metadata?: Record<string, unknown>
 }): Promise<void> {
   const db = getServiceClient()
   const { error } = await db.from('audit_events').insert({ ...params, metadata: params.metadata ?? {} })
   if (error) throw error
+}
+
+export async function insertPilotLead(lead: {
+  company_name: string
+  contact_name: string
+  work_email: string
+  use_case: string
+  launch_city: string
+  estimated_locations: number
+  timeline: string
+}): Promise<{ id: string }> {
+  const db = getServiceClient()
+  const id = crypto.randomUUID()
+  const { error } = await db.from('audit_events').insert({
+    event_type: 'pilot_lead.created',
+    actor_type: 'buyer',
+    resource_type: 'pilot_lead',
+    resource_id: id,
+    metadata: lead,
+  })
+  if (error) throw error
+  return { id }
 }
 
 // CAS transition: only updates if current status matches `from`

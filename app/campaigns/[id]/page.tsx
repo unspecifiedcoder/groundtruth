@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useParams } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 import { DEMO_CAMPAIGN, DEMO_TASKS } from '@/lib/demo-campaign'
 
@@ -35,8 +36,9 @@ const STATUS_STYLE: Record<string, { label: string; color: string; bg: string }>
   expired: { label: 'Expired', color: 'var(--text-faint)', bg: 'var(--bg-subtle)' },
 }
 
-export default function CampaignDashboard({ params }: { params: { id: string } }) {
-  const isDemo = params.id === 'demo'
+export default function CampaignDashboard() {
+  const { id } = useParams<{ id: string }>()
+  const isDemo = id === 'demo'
   const [data, setData] = useState<CampaignData | null>(isDemo ? { campaign: DEMO_CAMPAIGN, tasks: DEMO_TASKS } : null)
   const [error, setError] = useState('')
 
@@ -47,20 +49,20 @@ export default function CampaignDashboard({ params }: { params: { id: string } }
       const legacyQuery = new URLSearchParams(window.location.search)
       const token = fragment.get('key') ?? legacyQuery.get('key') ?? ''
       if (token) {
-        const session = await fetch(`/api/campaigns/${params.id}/session`, {
+        const session = await fetch(`/api/campaigns/${id}/session`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }),
         })
         if (!session.ok) throw new Error('Invalid campaign access token')
-        window.history.replaceState(null, '', `/campaigns/${params.id}`)
+        window.history.replaceState(null, '', `/campaigns/${id}`)
       }
-      const response = await fetch(`/api/campaigns/${params.id}`, { cache: 'no-store' })
+      const response = await fetch(`/api/campaigns/${id}`, { cache: 'no-store' })
       const body = await response.json()
       if (!response.ok) throw new Error(body.error ?? 'Could not load campaign')
       setData(body)
     }
     loadCampaign()
       .catch(err => setError(err instanceof Error ? err.message : 'Could not load campaign'))
-  }, [isDemo, params.id])
+  }, [isDemo, id])
 
   const metrics = useMemo(() => {
     const tasks = data?.tasks ?? []
@@ -135,7 +137,7 @@ export default function CampaignDashboard({ params }: { params: { id: string } }
         </div>
 
         <div className="card overflow-hidden">
-          <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: 'var(--border)' }}><h2 className="font-display text-xl font-extrabold">Store evidence</h2><span className="font-mono text-[10px]" style={{ color: 'var(--text-faint)' }}>LIVE WORKFLOW</span></div>
+          <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: 'var(--border)' }}><h2 className="font-display text-xl font-extrabold">Store evidence</h2><span className="font-mono text-[10px]" style={{ color: 'var(--text-faint)' }}>{isDemo ? 'ILLUSTRATIVE WORKFLOW' : 'LIVE WORKFLOW'}</span></div>
           <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
             {data.tasks.map(task => {
               const style = STATUS_STYLE[task.status] ?? STATUS_STYLE.pending
@@ -146,7 +148,7 @@ export default function CampaignDashboard({ params }: { params: { id: string } }
               return (
                 <div key={task.id} className="grid sm:grid-cols-[1fr_auto_auto] gap-4 items-center px-5 py-4">
                   <div className="min-w-0"><div className="font-display font-bold truncate">{store}</div><div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{task.sku}{task.distance ? ` · ${task.distance} from target` : ''}</div></div>
-                  <div className="sm:text-right"><div className="text-sm font-bold">{availability ?? '—'}{price ? ` · ${price}` : ''}</div>{task.confidence != null && <div className="font-mono text-[10px]" style={{ color: 'var(--text-faint)' }}>{Math.round(task.confidence * 100)}% evidence confidence</div>}</div>
+                  <div className="sm:text-right"><div className="text-sm font-bold">{availability ?? '—'}{price ? ` · ${price}` : ''}</div>{task.confidence != null && <div className="font-mono text-[10px]" style={{ color: 'var(--text-faint)' }}>Model match score {Math.round(task.confidence * 100)}/100 · not a truth guarantee</div>}</div>
                   <div className="flex items-center justify-between sm:justify-end gap-3"><span className="chip text-[9px] px-2 py-1" style={{ color: style.color, background: style.bg }}>{style.label}</span>{['verified', 'failed', 'submitted'].includes(task.status) && <Link href={receipt} className="text-xs font-bold" style={{ color: 'var(--info)' }}>Receipt →</Link>}</div>
                 </div>
               )

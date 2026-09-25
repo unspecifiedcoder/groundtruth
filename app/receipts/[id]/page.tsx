@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { DEMO_TASKS } from '@/lib/demo-campaign'
 
@@ -14,8 +15,9 @@ type ReceiptData = {
   payment?: { status?: string; explorer?: string | null }
 }
 
-export default function ReceiptPage({ params }: { params: { id: string } }) {
-  const demo = DEMO_TASKS.find(task => task.id === params.id)
+export default function ReceiptPage() {
+  const { id } = useParams<{ id: string }>()
+  const demo = DEMO_TASKS.find(task => task.id === id)
   const [data, setData] = useState<ReceiptData | null>(demo ? {
     id: demo.id,
     intent: `Verify ${demo.sku} availability, shelf price, promotion, and display at ${demo.store}`,
@@ -29,12 +31,12 @@ export default function ReceiptPage({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     if (demo) return
-    fetch(`/api/v1/tasks/${params.id}`, { cache: 'no-store' }).then(async response => {
+    fetch(`/api/v1/tasks/${id}`, { cache: 'no-store' }).then(async response => {
       const body = await response.json()
       if (!response.ok) throw new Error(body.error ?? 'Receipt not found')
       setData(body)
     }).catch(err => setError(err instanceof Error ? err.message : 'Receipt not found'))
-  }, [demo, params.id])
+  }, [demo, id])
 
   if (error) return <main className="min-h-screen px-5 py-20 text-center"><h1 className="font-display text-3xl font-extrabold">Receipt unavailable</h1><p className="mt-2" style={{ color: 'var(--text-muted)' }}>{error}</p></main>
   if (!data) return <main className="min-h-screen flex items-center justify-center"><p className="font-mono text-sm">Loading receipt…</p></main>
@@ -65,13 +67,13 @@ export default function ReceiptPage({ params }: { params: { id: string } }) {
             <div className="border-t pt-6" style={{ borderColor: 'var(--border)' }}><h2 className="font-display text-lg font-extrabold mb-4">Verification checks</h2><div className="space-y-3">{allChecks.map((check, index) => <div key={`${check.name}-${index}`} className="flex gap-3"><span className="font-bold" style={{ color: check.passed ? 'var(--good)' : 'var(--accent)' }}>{check.passed ? '✓' : '×'}</span><div><div className="text-sm font-bold">{check.name.replaceAll('_', ' ')}</div>{check.detail && <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{check.detail}</p>}</div></div>)}</div></div>
 
             <div className="grid sm:grid-cols-3 gap-3 mt-7 pt-6 border-t" style={{ borderColor: 'var(--border)' }}>
-              <div><div className="font-mono text-[9px] uppercase" style={{ color: 'var(--text-faint)' }}>AI confidence</div><div className="font-display text-xl font-extrabold mt-1">{data.result?.notary?.confidence != null ? `${Math.round(data.result.notary.confidence * 100)}%` : '—'}</div></div>
+              <div><div className="font-mono text-[9px] uppercase" style={{ color: 'var(--text-faint)' }}>Model match score</div><div className="font-display text-xl font-extrabold mt-1">{data.result?.notary?.confidence != null ? `${Math.round(data.result.notary.confidence * 100)}/100` : '—'}</div></div>
               <div><div className="font-mono text-[9px] uppercase" style={{ color: 'var(--text-faint)' }}>Capture accuracy</div><div className="font-display text-xl font-extrabold mt-1">{data.proof_payload?.location?.accuracy_meters != null ? `±${Math.round(data.proof_payload.location.accuracy_meters)}m` : '—'}</div></div>
               <div><div className="font-mono text-[9px] uppercase" style={{ color: 'var(--text-faint)' }}>Payment</div><div className="font-display text-xl font-extrabold mt-1 capitalize">{data.payment?.status ?? 'none'}</div></div>
             </div>
 
             {data.result?.notary?.reason && <p className="text-sm mt-6 p-4 rounded-xl" style={{ background: 'var(--bg-subtle)', color: 'var(--text-muted)' }}>{data.result.notary.reason}</p>}
-            <p className="font-mono text-[9px] mt-6 text-center" style={{ color: 'var(--text-faint)' }}>Exact worker coordinates are redacted from public receipts.</p>
+            <p className="font-mono text-[9px] mt-6 text-center" style={{ color: 'var(--text-faint)' }}>Exact worker coordinates are redacted. Model scores indicate brief match, not factual certainty.</p>
           </div>
         </div>
       </div>

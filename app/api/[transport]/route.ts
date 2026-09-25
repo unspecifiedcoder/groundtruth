@@ -12,7 +12,7 @@ const handler = createMcpHandler(
       {
         title: 'GroundTruth Info',
         description: 'Get info about the GroundTruth ASP — what it does, pricing, and how to call it',
-        inputSchema: {},
+        inputSchema: z.object({}),
       },
       async () => ({
         content: [{
@@ -54,7 +54,7 @@ const handler = createMcpHandler(
       {
         title: 'Human Do',
         description: 'Create a task for a human oracle to complete in the real world. Requires x402 payment. Returns a task_id to poll with task_status.',
-        inputSchema: {
+        inputSchema: z.object({
           intent: z.string().min(1).max(500).describe('What you want the human to do'),
           proof_type: z.enum(['photo', 'form']).describe('Type of proof'),
           instructions: z.string().min(1).max(1000).describe('Detailed instructions for the human'),
@@ -66,7 +66,7 @@ const handler = createMcpHandler(
           }).optional().describe('Optional target location and allowed capture radius'),
           budget_usdt: z.string().regex(/^\d+(\.\d{1,6})?$/).optional().default('0.01'),
           timeout_seconds: z.number().int().min(60).max(86400).optional().default(3600),
-        },
+        }),
       },
       async ({ intent, proof_type, instructions, target_location, budget_usdt, timeout_seconds }: {
         intent: string
@@ -200,9 +200,9 @@ const handler = createMcpHandler(
       {
         title: 'Task Status',
         description: 'Check the status and result of a GroundTruth task by its task_id',
-        inputSchema: {
+        inputSchema: z.object({
           task_id: z.string().uuid().describe('The task ID returned by human_do'),
-        },
+        }),
       },
       async ({ task_id }: { task_id: string }) => {
         try {
@@ -243,11 +243,11 @@ const handler = createMcpHandler(
       {
         title: 'Review Task',
         description: 'Review a submitted proof and accept or reject it. Accept releases the on-chain payout to the human oracle; reject fails the task with no payout. Call this after task_status shows the proof.',
-        inputSchema: {
+        inputSchema: z.object({
           task_id: z.string().uuid().describe('The task ID to review'),
           decision: z.enum(['accept', 'reject']).describe('accept = pay the oracle; reject = no payout'),
           reason: z.string().max(300).optional().describe('Optional note explaining the decision'),
-        },
+        }),
       },
       async ({ task_id, decision, reason }: { task_id: string; decision: 'accept' | 'reject'; reason?: string }) => {
         try {
@@ -267,10 +267,8 @@ const handler = createMcpHandler(
       }
     )
   },
-  {},
   {
-    basePath: '/api',
-    maxDuration: 60,
+    serverInfo: { name: 'groundtruth', version: '1.0.0-beta' },
   }
 )
 

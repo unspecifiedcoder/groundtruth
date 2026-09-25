@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { constantTimeEqual, rateLimit } from '@/lib/security'
+import { constantTimeEqual, rateLimit, verifyAdminSession } from '@/lib/security'
+import { createProofUrls } from '@/lib/db'
 
 function isAuthorized(req: NextRequest): boolean {
   const secret = req.headers.get('x-admin-secret')
-  return constantTimeEqual(process.env.ADMIN_SECRET, secret)
+  return constantTimeEqual(process.env.ADMIN_SECRET, secret) || verifyAdminSession(req.cookies.get('gt_admin')?.value)
 }
 
 export async function GET(req: NextRequest) {
@@ -23,5 +24,10 @@ export async function GET(req: NextRequest) {
     .in('status', ['submitted', 'needs_review'])
     .order('submitted_at', { ascending: true })
 
-  return NextResponse.json(data ?? [], { headers: { 'Cache-Control': 'private, no-store' } })
+  const enriched = await Promise.all((data ?? []).map(async task => ({
+    ...task,
+    evidence_urls: await createProofUrls((task.proof_payload as { storageKeys?: string[] } | null)?.storageKeys ?? [], 900),
+    proof_payload: task.proof_payload ? { ...(task.proof_payload as object), storageKeys: undefined, location: undefined } : null,
+  })))
+  return NextResponse.json(enriched, { headers: { 'Cache-Control': 'private, no-store' } })
 }

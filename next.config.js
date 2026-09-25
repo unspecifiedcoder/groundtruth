@@ -2,6 +2,7 @@
 const nextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
+  outputFileTracingRoot: __dirname,
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: '*.supabase.co' },
