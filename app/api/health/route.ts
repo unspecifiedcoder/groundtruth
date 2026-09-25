@@ -13,10 +13,12 @@ export async function GET() {
   if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
     const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } })
     const [taskCheck, campaignCheck, auditCheck, limiterCheck, bucketCheck] = await Promise.all([
-      db.from('tasks').select('id', { head: true, count: 'exact' }).limit(1),
-      db.from('campaigns').select('id', { head: true, count: 'exact' }).limit(1),
-      db.from('audit_events').select('id', { head: true, count: 'exact' }).limit(1),
-      db.from('api_rate_limits').select('key', { head: true, count: 'exact' }).limit(1),
+      // Use normal GETs rather than HEAD: PostgREST can return a misleading
+      // success for a HEAD request when a table is absent from its schema cache.
+      db.from('tasks').select('id').limit(1),
+      db.from('campaigns').select('id').limit(1),
+      db.from('audit_events').select('id').limit(1),
+      db.from('api_rate_limits').select('key').limit(1),
       db.storage.getBucket('proofs'),
     ])
     database = taskCheck.error ? 'error' : 'ok'
