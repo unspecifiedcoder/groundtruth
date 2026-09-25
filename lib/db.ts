@@ -475,6 +475,10 @@ export async function getAdminOperationsOverview() {
       workers: workersRes.error,
     })
   }
+  const warningDetails: Record<string, { code: string; message: string }> = {}
+  for (const [key, error] of Object.entries({ tasks: tasksRes.error, payments: paymentsRes.error, campaigns: campaignsRes.error, leads: leadsRes.error, workers: workersRes.error })) {
+    if (error) warningDetails[key] = { code: error.code ?? 'unknown', message: error.message ?? 'Database query failed' }
+  }
   const tasks = (tasksRes.data ?? []) as Array<MetricTask & { id: string; intent: string; worker_wallet: string | null; payment_ref: string | null; campaign_id?: string | null }>
   const paymentVolume = (paymentsRes.data ?? []).reduce((sum, payment: { amount_units: string }) => sum + Number(payment.amount_units) / 1_000_000, 0)
   const taskCounts = new Map<string, Record<string, number>>()
@@ -488,6 +492,7 @@ export async function getAdminOperationsOverview() {
     generated_at: new Date().toISOString(),
     scope: 'prototype_and_pilot_activity',
     warnings,
+    warning_details: warningDetails,
     metrics: calculateOperationsMetrics(tasks, paymentVolume),
     settlement_exceptions: tasks.filter(task => task.status === 'verified' && !task.result?.settle).map(task => ({ id: task.id, intent: task.intent, worker_wallet: task.worker_wallet, budget_usdt: task.budget_usdt, resolved_at: task.resolved_at })),
     campaigns: (campaignsRes.data ?? []).map(campaign => ({ ...campaign, task_counts: taskCounts.get(campaign.id) ?? {} })),
