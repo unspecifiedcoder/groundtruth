@@ -453,10 +453,10 @@ export async function getAdminOperationsOverview() {
   // Parallel reads keep the console fast; each read independently retries a
   // transient serverless egress/TLS failure.
   const [tasksRes, paymentsRes, campaignsRes, leadsRes, workersRes] = await Promise.all([
-    withDbRetry(() => db.from('tasks').select('id,intent,status,budget_usdt,created_at,claimed_at,submitted_at,resolved_at,worker_wallet,payment_ref,result,campaign_id').order('created_at', { ascending: false }).limit(2000)),
+    withDbRetry(() => db.from('tasks').select('id,intent,status,budget_usdt,created_at,submitted_at,resolved_at,worker_wallet,payment_ref,result').order('created_at', { ascending: false }).limit(500)),
     withDbRetry(() => db.from('payments').select('amount_units')),
-    withDbRetry(() => db.from('campaigns').select('id,name,customer_name,status,created_at,expires_at').order('created_at', { ascending: false }).limit(100)),
-    withDbRetry(() => db.from('audit_events').select('resource_id,metadata,created_at').eq('event_type', 'pilot_lead.created').order('created_at', { ascending: false }).limit(100)),
+    withDbRetry(() => db.from('campaigns').select('*').order('created_at', { ascending: false }).limit(100)),
+    withDbRetry(() => db.from('audit_events').select('*').eq('event_type', 'pilot_lead.created').order('created_at', { ascending: false }).limit(100)),
     withDbRetry(() => db.from('workers').select('wallet,tasks_completed,tasks_failed,total_earned_units,last_seen').order('last_seen', { ascending: false }).limit(250)),
   ])
   const warnings = [
@@ -466,7 +466,7 @@ export async function getAdminOperationsOverview() {
     leadsRes.error ? 'leads' : null,
     workersRes.error ? 'workers' : null,
   ].filter((value): value is string => !!value)
-  const tasks = (tasksRes.data ?? []) as Array<MetricTask & { id: string; intent: string; worker_wallet: string | null; payment_ref: string | null; campaign_id: string | null }>
+  const tasks = (tasksRes.data ?? []) as Array<MetricTask & { id: string; intent: string; worker_wallet: string | null; payment_ref: string | null; campaign_id?: string | null }>
   const paymentVolume = (paymentsRes.data ?? []).reduce((sum, payment: { amount_units: string }) => sum + Number(payment.amount_units) / 1_000_000, 0)
   const taskCounts = new Map<string, Record<string, number>>()
   for (const task of tasks) {
