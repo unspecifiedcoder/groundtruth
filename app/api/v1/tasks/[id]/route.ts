@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getTask, getPaymentByTaskId, transition, createProofUrls } from '@/lib/db'
 import { getTxConfirmation, explorerTx } from '@/lib/chain'
 import { canTransition, type TaskStatus } from '@/lib/types'
+import { authorizedForCampaign } from '@/lib/campaign-auth'
+import { rateLimit } from '@/lib/security'
 
 // Never cache task reads — the UI polls this for live status (claimed →
 // submitted → verified). Without this, Next caches the first response (usually
@@ -61,10 +63,11 @@ function describe(paymentState: 'confirmed' | 'pending' | 'none', taskStatus: Ta
 }
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    if (await rateLimit(req, 'task-status', 180)) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
     const task = await getTask(params.id)
     if (!task) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
@@ -114,10 +117,13 @@ export async function GET(
     // Return a safe public view — no payment_ref, internal fields, or exact
     // worker coordinates. The location verdict remains visible in result.checks,
     // but a public task URL must not become a worker-location tracking endpoint.
-    const evidenceUrls = task.proof_payload?.storageKeys?.length
+    const evidenceAuthorized = task.campaign_id
+      ? await authorizedForCampaign(req, task.campaign_id)
+      : process.env.RECEIPTS_PUBLIC === 'true'
+    const evidenceUrls = evidenceAuthorized && task.proof_payload?.storageKeys?.length
       ? await createProofUrls(task.proof_payload.storageKeys, 3600)
       : []
-    const publicProof = task.proof_payload
+    const publicProof = task.proof_payload && evidenceAuthorized
       ? {
           ...task.proof_payload,
           ...(evidenceUrls.length ? { evidenceUrls, evidenceUrlsExpireIn: 3600 } : {}),
@@ -133,14 +139,27 @@ export async function GET(
         }
       : null
 
+    const publicSpec = {
+      ...task.proof_spec,
+      ...(task.proof_spec.location ? {
+        location: {
+          label: task.proof_spec.location.label,
+          radius_meters: task.proof_spec.location.radius_meters,
+          coordinates_redacted: true,
+        },
+      } : {}),
+      challenge: undefined,
+    }
+
     return NextResponse.json({
       id: task.id,
       intent: task.intent,
-      proof_spec: task.proof_spec,
+      proof_spec: evidenceAuthorized ? task.proof_spec : publicSpec,
       budget_usdt: task.budget_usdt,
       status,
       result: task.result,
       proof_payload: publicProof,
+      evidence_access: evidenceAuthorized ? 'authorized' : 'restricted',
       created_at: task.created_at,
       expires_at: task.expires_at,
 
@@ -149,7 +168,7 @@ export async function GET(
       proof: { status, final: TERMINAL_TASK_STATUSES.has(status) },
       complete,
       detail: describe(paymentState, status),
-    })
+    }, { headers: { 'Cache-Control': 'private, no-store' } })
   } catch {
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }

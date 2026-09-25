@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { createHash, randomBytes, timingSafeEqual } from 'crypto'
-import { createCampaignWithTasks } from '@/lib/db'
+import { createHash, randomBytes } from 'crypto'
+import { createCampaignWithTasks, recordAuditEvent } from '@/lib/db'
 import { generateChallenge } from '@/lib/challenge'
+import { constantTimeEqual, rateLimit, sameOrigin } from '@/lib/security'
 
 const StoreSchema = z.object({
   store_name: z.string().min(1).max(200),
@@ -23,16 +24,16 @@ const CampaignSchema = z.object({
 })
 
 function validPilotKey(req: NextRequest): boolean {
-  const expected = process.env.ADMIN_SECRET
+  const expected = process.env.PILOT_ACCESS_KEY ?? process.env.ADMIN_SECRET
   const supplied = req.headers.get('x-pilot-key')
   if (!expected || !supplied) return false
-  const a = Buffer.from(expected)
-  const b = Buffer.from(supplied)
-  return a.length === b.length && timingSafeEqual(a, b)
+  return constantTimeEqual(expected, supplied)
 }
 
 export async function POST(req: NextRequest) {
-  if (!process.env.ADMIN_SECRET) return NextResponse.json({ error: 'Campaign creation is not configured' }, { status: 503 })
+  if (!sameOrigin(req)) return NextResponse.json({ error: 'Cross-site request rejected' }, { status: 403 })
+  if (await rateLimit(req, 'campaign-create', 6)) return NextResponse.json({ error: 'Too many campaign requests' }, { status: 429 })
+  if (!process.env.PILOT_ACCESS_KEY && !process.env.ADMIN_SECRET) return NextResponse.json({ error: 'Campaign creation is not configured' }, { status: 503 })
   if (!validPilotKey(req)) return NextResponse.json({ error: 'Invalid pilot access key' }, { status: 401 })
 
   let body: unknown
@@ -79,13 +80,14 @@ export async function POST(req: NextRequest) {
     })
 
     const base = process.env.NEXT_PUBLIC_APP_URL ?? ''
+    await recordAuditEvent({ event_type: 'campaign.created', actor_type: 'buyer', actor_ref: input.customer_name, resource_type: 'campaign', resource_id: campaign.id, metadata: { task_count: input.stores.length } }).catch(() => {})
     return NextResponse.json({
       campaign_id: campaign.id,
       task_count: input.stores.length,
-      dashboard_url: `${base}/campaigns/${campaign.id}?key=${accessToken}`,
+      dashboard_url: `${base}/campaigns/${campaign.id}#key=${accessToken}`,
       access_token: accessToken,
       note: 'Save this capability link. The access token is returned only at creation time.',
-    }, { status: 201 })
+    }, { status: 201, headers: { 'Cache-Control': 'no-store' } })
   } catch (error) {
     return NextResponse.json({ error: 'Campaign creation failed', detail: error instanceof Error ? error.message : String(error) }, { status: 500 })
   }

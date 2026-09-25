@@ -1,0 +1,2 @@
+import Link from 'next/link'
+export default function NotFound() { return <main className="min-h-[70vh] px-5 flex items-center justify-center"><div className="text-center"><p className="font-mono text-sm" style={{ color: 'var(--accent)' }}>404</p><h1 className="font-display text-4xl font-extrabold mt-2">Nothing to verify here.</h1><p className="mt-3 mb-7" style={{ color: 'var(--text-muted)' }}>This link may be invalid, expired, or private.</p><Link href="/" className="btn btn-primary px-7 py-3">Return home</Link></div></main> }

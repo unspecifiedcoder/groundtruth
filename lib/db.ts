@@ -128,6 +128,19 @@ export async function createProofUrls(paths: string[], expiresIn = 3600): Promis
   return data.map(item => item.signedUrl).filter((url): url is string => !!url)
 }
 
+export async function recordAuditEvent(params: {
+  event_type: string
+  actor_type: 'buyer' | 'worker' | 'agent' | 'operator' | 'system'
+  actor_ref?: string
+  resource_type: 'campaign' | 'task' | 'payment' | 'evidence'
+  resource_id: string
+  metadata?: Record<string, unknown>
+}): Promise<void> {
+  const db = getServiceClient()
+  const { error } = await db.from('audit_events').insert({ ...params, metadata: params.metadata ?? {} })
+  if (error) throw error
+}
+
 // CAS transition: only updates if current status matches `from`
 export async function transition(
   id: string,

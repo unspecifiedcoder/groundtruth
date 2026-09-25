@@ -127,8 +127,10 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
   const [locating, setLocating] = useState(false)
   const [error, setError] = useState('')
   const [vision, setVision] = useState<{ checked: boolean; match: boolean; confidence: number; reason: string } | null>(null)
+  const [claimToken, setClaimToken] = useState('')
 
   useEffect(() => {
+    setClaimToken(sessionStorage.getItem(`gt-claim-${params.id}`) ?? '')
     fetch(`/api/v1/tasks/${params.id}`)
       .then(r => r.json())
       .then(t => {
@@ -179,7 +181,10 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ worker_wallet: wallet }),
       })
-      if (!res.ok) { setError('Failed to claim — mission may already be taken'); return }
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) { setError(body.error ?? 'Failed to claim — mission may already be taken'); return }
+      setClaimToken(body.claim_token)
+      sessionStorage.setItem(`gt-claim-${params.id}`, body.claim_token)
       setPhase('claimed')
     } catch {
       setError('Network error')
@@ -200,6 +205,7 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
       const fd = new FormData()
       fd.append('task_id', task.id)
       fd.append('worker_wallet', wallet)
+      fd.append('claim_token', claimToken)
       fd.append('proof_type', task.proof_spec.type)
       if (location) {
         fd.append('latitude', String(location.latitude))
@@ -218,7 +224,7 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
         method: 'POST',
         body: fd,
       })
-      if (!res.ok) { setError('Submission failed'); setPhase('claimed'); return }
+      if (!res.ok) { const failed = await res.json().catch(() => ({})); setError(failed.error ?? 'Submission failed'); setPhase('claimed'); return }
       const data = await res.json().catch(() => ({}))
       setVision(data.vision ?? null)
       // Settlement is synchronous, so by now the result (notary verdict + settle

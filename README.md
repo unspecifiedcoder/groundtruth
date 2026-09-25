@@ -17,6 +17,20 @@ An operations team or AI agent creates a funded task, a field operator completes
 
 The product is currently in focused-pilot mode. Coverage and turnaround are confirmed before a field campaign begins; the project does not claim universal geographic coverage.
 
+## Public-beta readiness
+
+The application includes crawler and agent discovery (`robots.txt`, `sitemap.xml`, JSON-LD, `llms.txt`, OpenAPI, MCP, and `/.well-known/agent.json`), private campaign sessions, redacted public task views, signed worker claims, upload validation, persistent rate limiting, audit events, legal/safety pages, hardened browser headers, and `/api/health` readiness reporting.
+
+Before enabling real public traffic:
+
+1. Apply every SQL file in `supabase/migrations` in order, including `004_campaigns.sql` and `005_production_hardening.sql`.
+2. Configure the environment documented in `.env.example` with separate high-entropy admin, pilot, and claim-signing secrets.
+3. Keep testnet faucet and public receipts disabled; keep auto-accept disabled until the review operation is staffed.
+4. Configure production monitoring to alert on a non-200 response from `/api/health`, and verify database backups and evidence retention.
+5. Replace the demo settlement signer with an approved production custody model and complete jurisdiction-specific customer/worker agreements.
+
+`/api/health` intentionally returns HTTP 503 until required configuration and migrations are present. A successful website build is not treated as proof of operational readiness.
+
 ```
 AI Agent  →  [MCP: human_do]  →  x402 Payment  →  Oracle Board
                                                           ↓

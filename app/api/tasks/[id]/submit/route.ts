@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getTask, transition, recordProofHash, recentProofHashes, bumpWorker, uploadProofFile } from '@/lib/db'
+import { getTask, transition, recordProofHash, recentProofHashes, bumpWorker, uploadProofFile, recordAuditEvent } from '@/lib/db'
 import { verifyProof } from '@/lib/verify'
 import { settleTask } from '@/lib/settle'
 import { notaryReview } from '@/lib/notary'
 import type { ProofPayload, ProofSpec, NotaryVerdict } from '@/lib/types'
+import { rateLimit, sameOrigin, verifyClaimToken } from '@/lib/security'
 
 function distanceMeters(aLat: number, aLng: number, bLat: number, bLng: number): number {
   const radians = (degrees: number) => (degrees * Math.PI) / 180
@@ -21,6 +22,8 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    if (!sameOrigin(req)) return NextResponse.json({ error: 'Cross-site request rejected' }, { status: 403 })
+    if (await rateLimit(req, 'task-submit', 12)) return NextResponse.json({ error: 'Too many submissions' }, { status: 429 })
     return await handleSubmit(req, params)
   } catch (err) {
     console.error('[submit] unhandled error:', err)
@@ -37,10 +40,14 @@ async function handleSubmit(req: NextRequest, params: { id: string }) {
   }
 
   const workerWallet = formData.get('worker_wallet') as string
+  const claimToken = formData.get('claim_token') as string
   const proofType = formData.get('proof_type') as 'photo' | 'form'
 
   if (!workerWallet?.match(/^0x[0-9a-fA-F]{40}$/) || !proofType) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
+  }
+  if (!claimToken || !verifyClaimToken(claimToken, params.id, workerWallet)) {
+    return NextResponse.json({ error: 'Invalid or expired claim token. Claim the mission again.' }, { status: 403 })
   }
 
   const task = await getTask(params.id)
@@ -90,14 +97,22 @@ async function handleSubmit(req: NextRequest, params: { id: string }) {
 
   if (proofType === 'photo') {
     const photos = formData.getAll('photos') as File[]
+    if (photos.length < (task.proof_spec.minPhotos ?? 1) || photos.length > 5) {
+      return NextResponse.json({ error: `Submit between ${task.proof_spec.minPhotos ?? 1} and 5 photos` }, { status: 400 })
+    }
     for (const photo of photos) {
-      if (!photo.type.startsWith('image/')) {
+      if (!['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'].includes(photo.type)) {
         return NextResponse.json({ error: 'Only image evidence is accepted' }, { status: 400 })
       }
       if (photo.size > 10 * 1024 * 1024) {
         return NextResponse.json({ error: 'Each image must be 10MB or smaller' }, { status: 400 })
       }
       const buf = Buffer.from(await photo.arrayBuffer())
+      const jpeg = buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff
+      const png = buf.length >= 8 && buf.subarray(0, 8).equals(Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a]))
+      const webp = buf.length >= 12 && buf.subarray(0, 4).toString() === 'RIFF' && buf.subarray(8, 12).toString() === 'WEBP'
+      const heif = buf.length >= 12 && buf.subarray(4, 8).toString() === 'ftyp'
+      if (!jpeg && !png && !webp && !heif) return NextResponse.json({ error: 'Image contents do not match a supported format' }, { status: 400 })
       imageBuffers.push(buf)
     }
     const storageKeys = await Promise.all(
@@ -218,6 +233,7 @@ async function handleSubmit(req: NextRequest, params: { id: string }) {
   if (!moved) {
     return NextResponse.json({ error: 'State transition failed' }, { status: 409 })
   }
+  await recordAuditEvent({ event_type: `task.${target}`, actor_type: 'worker', actor_ref: workerWallet.toLowerCase(), resource_type: 'task', resource_id: params.id, metadata: { proof_type: proofType, check_count: result.checks.length } }).catch(() => {})
 
   if (rejected) {
     await bumpWorker({ wallet: workerWallet, earned_units: BigInt(0), outcome: 'failed' }).catch(() => {})

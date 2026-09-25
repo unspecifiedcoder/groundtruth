@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { constantTimeEqual, rateLimit } from '@/lib/security'
 
 function isAuthorized(req: NextRequest): boolean {
   const secret = req.headers.get('x-admin-secret')
-  return secret === (process.env.ADMIN_SECRET ?? '')
+  return constantTimeEqual(process.env.ADMIN_SECRET, secret)
 }
 
 export async function GET(req: NextRequest) {
+  if (await rateLimit(req, 'admin-queue', 30)) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -18,8 +20,8 @@ export async function GET(req: NextRequest) {
   const { data } = await db
     .from('tasks')
     .select('id, intent, worker_wallet, budget_usdt, submitted_at, proof_payload')
-    .eq('status', 'needs_review')
+    .in('status', ['submitted', 'needs_review'])
     .order('submitted_at', { ascending: true })
 
-  return NextResponse.json(data ?? [])
+  return NextResponse.json(data ?? [], { headers: { 'Cache-Control': 'private, no-store' } })
 }

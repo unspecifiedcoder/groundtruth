@@ -48,6 +48,9 @@ function clientIp(req: NextRequest): string {
 
 export async function POST(req: NextRequest) {
   try {
+    if (process.env.NODE_ENV === 'production' && process.env.ENABLE_TESTNET_FAUCET !== 'true') {
+      return NextResponse.json({ error: 'Testnet faucet is disabled' }, { status: 404 })
+    }
     if (rateLimited(clientIp(req))) {
       return NextResponse.json(
         { error: 'Rate limit exceeded. Please wait a moment and try again.' },
@@ -107,6 +110,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
+  if (process.env.NODE_ENV === 'production' && process.env.ENABLE_TESTNET_FAUCET !== 'true') {
+    return NextResponse.json({ error: 'Testnet faucet is disabled' }, { status: 404 })
+  }
   const { searchParams } = new URL(req.url)
   const address = searchParams.get('address')
   if (!address || !isAddress(address)) {

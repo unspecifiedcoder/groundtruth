@@ -1,18 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getTask, transition } from '@/lib/db'
+import { getTask, transition, recordAuditEvent } from '@/lib/db'
 import { settleTask } from '@/lib/settle'
+import { constantTimeEqual, rateLimit, sameOrigin } from '@/lib/security'
 
 // Simple secret-based auth for admin endpoints
 function isAuthorized(req: NextRequest): boolean {
   const configured = process.env.ADMIN_SECRET
   if (!configured) return false // no admin secret set → admin endpoints are closed
-  return req.headers.get('x-admin-secret') === configured
+  return constantTimeEqual(configured, req.headers.get('x-admin-secret'))
 }
 
 export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  if (!sameOrigin(req)) return NextResponse.json({ error: 'Cross-site request rejected' }, { status: 403 })
+  if (await rateLimit(req, 'admin-review', 30)) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -30,24 +33,27 @@ export async function POST(
   }
 
   const task = await getTask(params.id)
-  if (!task || task.status !== 'needs_review') {
-    return NextResponse.json({ error: 'Task not in needs_review state' }, { status: 409 })
+  if (!task || !['submitted', 'needs_review'].includes(task.status)) {
+    return NextResponse.json({ error: 'Task not awaiting review' }, { status: 409 })
   }
+  const reviewStatus = task.status as 'submitted' | 'needs_review'
 
   if (action === 'reject') {
-    await transition(params.id, 'needs_review', 'failed', {
+    await transition(params.id, reviewStatus, 'failed', {
       resolved_at: new Date().toISOString(),
     })
+    await recordAuditEvent({ event_type: 'task.review_rejected', actor_type: 'operator', resource_type: 'task', resource_id: params.id }).catch(() => {})
     return NextResponse.json({ task_id: params.id, outcome: 'failed' })
   }
 
   // Approve — transition to verified then settle
-  const verified = await transition(params.id, 'needs_review', 'verified', {
+  const verified = await transition(params.id, reviewStatus, 'verified', {
     resolved_at: new Date().toISOString(),
   })
   if (!verified) {
     return NextResponse.json({ error: 'Transition failed' }, { status: 409 })
   }
+  await recordAuditEvent({ event_type: 'task.review_approved', actor_type: 'operator', resource_type: 'task', resource_id: params.id }).catch(() => {})
 
   const settleResult = await settleTask(
     params.id,

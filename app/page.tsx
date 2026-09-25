@@ -177,7 +177,7 @@ export default function Home() {
       <footer className="border-t px-5 py-8" style={{ borderColor: 'var(--border)' }}>
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs" style={{ color: 'var(--text-faint)' }}>
           <div className="flex items-center gap-2.5"><LogoMark size={22} ground={false} /><span>GroundTruth · Verified field evidence</span></div>
-          <div className="flex items-center gap-4 font-mono"><Link href="/campaigns/demo">Demo</Link><Link href="/trust">Trust</Link><Link href="/tasks">Mission board</Link><Link href="/pulse">Testnet activity</Link><a href="/api/mcp">MCP</a></div>
+          <div className="flex flex-wrap items-center justify-center gap-4 font-mono"><Link href="/campaigns/demo">Demo</Link><Link href="/developers">Developers</Link><Link href="/trust">Trust</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/acceptable-use">Acceptable use</Link></div>
         </div>
       </footer>
     </main>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getTask, transition } from '@/lib/db'
 import { settleTask } from '@/lib/settle'
+import { constantTimeEqual, rateLimit } from '@/lib/security'
 
 // Agent verification: the calling agent reviews the submitted proof and
 // accepts or rejects it. Accept → task verified + on-chain payout to the
@@ -11,6 +12,7 @@ import { settleTask } from '@/lib/settle'
 // (returned to it out-of-band) or the server ADMIN_SECRET (used by the MCP
 // server on the agent's behalf).
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+  if (await rateLimit(req, 'task-review', 30)) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
   let body: { decision?: string; reason?: string; payment_ref?: string }
   try {
     body = await req.json()
@@ -31,8 +33,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const adminSecret = process.env.ADMIN_SECRET
   const demoKey = req.headers.get('X-DEMO-KEY')
   const authed =
-    (!!adminSecret && demoKey === adminSecret) ||
-    (!!task.payment_ref && !!body.payment_ref && body.payment_ref === task.payment_ref)
+    constantTimeEqual(adminSecret, demoKey) ||
+    constantTimeEqual(task.payment_ref ?? undefined, body.payment_ref)
   if (!authed) {
     return NextResponse.json({ error: 'Unauthorized — provide the task payment_ref or admin key' }, { status: 401 })
   }

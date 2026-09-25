@@ -28,9 +28,32 @@ const inter = Inter({
 const faviconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="M20 3.5c-6.35 0-11.5 5.05-11.5 11.28 0 7.9 8.9 15.3 10.86 17.86.34.45.94.45 1.28 0C22.6 30.08 31.5 22.68 31.5 14.78 31.5 8.55 26.35 3.5 20 3.5Z" fill="%23FF5A3C"/><path d="M14.8 15.1l3.6 3.6 6.8-6.9" stroke="white" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`
 
 export const metadata: Metadata = {
-  title: 'GroundTruth — Verified field evidence',
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'https://groundtruth-oracle.vercel.app'),
+  title: {
+    default: 'GroundTruth — Verified retail field evidence',
+    template: '%s · GroundTruth',
+  },
   description:
     'Dispatch retail field checks and receive fresh photographic evidence, structured observations, and an auditable verification receipt.',
+  applicationName: 'GroundTruth',
+  keywords: ['retail field audit', 'shelf availability', 'price intelligence', 'display compliance', 'field evidence API', 'AI agent tools'],
+  alternates: { canonical: '/' },
+  openGraph: {
+    type: 'website',
+    url: '/',
+    siteName: 'GroundTruth',
+    title: 'GroundTruth — Verified retail field evidence',
+    description: 'Dispatch real-world retail checks from software and receive verified photographic evidence and structured observations.',
+    images: [{ url: '/opengraph-image', width: 1200, height: 630, alt: 'GroundTruth verified field evidence' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'GroundTruth — Verified retail field evidence',
+    description: 'Dispatch real-world retail checks from software.',
+    images: ['/opengraph-image'],
+  },
+  category: 'technology',
+  creator: 'GroundTruth',
   manifest: '/manifest.json',
   icons: { icon: `data:image/svg+xml,${faviconSvg}` },
 }
@@ -48,6 +71,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         className="min-h-screen"
         style={{ fontFamily: 'var(--font-body), Inter, sans-serif' }}
       >
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'SoftwareApplication',
+            name: 'GroundTruth',
+            applicationCategory: 'BusinessApplication',
+            operatingSystem: 'Web',
+            url: process.env.NEXT_PUBLIC_APP_URL ?? 'https://groundtruth-oracle.vercel.app',
+            description: 'An API and MCP service for dispatching verified retail field evidence missions.',
+            offers: { '@type': 'Offer', priceCurrency: 'USDT', availability: 'https://schema.org/LimitedAvailability' },
+          }).replace(/</g, '\\u003c') }}
+        />
         <nav
           className="fixed top-0 left-0 right-0 z-50 border-b backdrop-blur-md"
           style={{ borderColor: 'var(--border)', background: 'color-mix(in srgb, var(--bg) 82%, transparent)' }}
@@ -62,7 +98,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <div className="flex items-center gap-1.5">
               <div className="hidden md:flex items-center gap-1">
                 {[
-                  { href: '/#developers', label: 'Developers' },
+                  { href: '/developers', label: 'Developers' },
                   { href: '/campaigns/demo', label: 'Demo' },
                   { href: '/trust', label: 'Trust' },
                   { href: '/tasks', label: 'Missions' },

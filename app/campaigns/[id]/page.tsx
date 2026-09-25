@@ -35,22 +35,32 @@ const STATUS_STYLE: Record<string, { label: string; color: string; bg: string }>
   expired: { label: 'Expired', color: 'var(--text-faint)', bg: 'var(--bg-subtle)' },
 }
 
-export default function CampaignDashboard({ params, searchParams }: { params: { id: string }; searchParams: { key?: string } }) {
+export default function CampaignDashboard({ params }: { params: { id: string } }) {
   const isDemo = params.id === 'demo'
   const [data, setData] = useState<CampaignData | null>(isDemo ? { campaign: DEMO_CAMPAIGN, tasks: DEMO_TASKS } : null)
   const [error, setError] = useState('')
 
   useEffect(() => {
     if (isDemo) return
-    const key = searchParams.key ?? ''
-    fetch(`/api/campaigns/${params.id}?key=${encodeURIComponent(key)}`, { cache: 'no-store' })
-      .then(async response => {
-        const body = await response.json()
-        if (!response.ok) throw new Error(body.error ?? 'Could not load campaign')
-        setData(body)
-      })
+    async function loadCampaign() {
+      const fragment = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+      const legacyQuery = new URLSearchParams(window.location.search)
+      const token = fragment.get('key') ?? legacyQuery.get('key') ?? ''
+      if (token) {
+        const session = await fetch(`/api/campaigns/${params.id}/session`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }),
+        })
+        if (!session.ok) throw new Error('Invalid campaign access token')
+        window.history.replaceState(null, '', `/campaigns/${params.id}`)
+      }
+      const response = await fetch(`/api/campaigns/${params.id}`, { cache: 'no-store' })
+      const body = await response.json()
+      if (!response.ok) throw new Error(body.error ?? 'Could not load campaign')
+      setData(body)
+    }
+    loadCampaign()
       .catch(err => setError(err instanceof Error ? err.message : 'Could not load campaign'))
-  }, [isDemo, params.id, searchParams.key])
+  }, [isDemo, params.id])
 
   const metrics = useMemo(() => {
     const tasks = data?.tasks ?? []

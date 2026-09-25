@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { rateLimit } from '@/lib/security'
 import { HumanDoInputSchema } from '@/lib/types'
 import { recordPaymentRef, insertTask, deleteTask, setTaskBudget } from '@/lib/db'
 import { planTask } from '@/lib/planner'
@@ -231,6 +232,7 @@ function payerFromHeader(req: NextRequest): { payer: string | null; exempt: bool
 }
 
 export async function POST(req: NextRequest) {
+  if (await rateLimit(req, 'human-do', 30)) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
   // Body is parsed up front: the SDK's dynamic price reads budget_usdt from it
   // to build the 402 challenge, so it must be available before payment handling.
   let body: unknown = null

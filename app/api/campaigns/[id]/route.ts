@@ -1,21 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createHash, timingSafeEqual } from 'crypto'
 import { getCampaignWithTasks } from '@/lib/db'
+import { campaignTokenMatches } from '@/lib/campaign-auth'
+import { campaignCookieName, rateLimit } from '@/lib/security'
 
 export const dynamic = 'force-dynamic'
 
-function equalHash(expected: string, token: string): boolean {
-  const actual = createHash('sha256').update(token).digest('hex')
-  const a = Buffer.from(expected)
-  const b = Buffer.from(actual)
-  return a.length === b.length && timingSafeEqual(a, b)
-}
-
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  const token = req.nextUrl.searchParams.get('key') ?? ''
+  if (await rateLimit(req, 'campaign-read', 120)) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+  const token = req.cookies.get(campaignCookieName(params.id))?.value ?? ''
   const record = await getCampaignWithTasks(params.id)
   if (!record) return NextResponse.json({ error: 'Campaign not found' }, { status: 404 })
-  if (!token || !equalHash(record.campaign.access_token_hash, token)) {
+  if (!token || !campaignTokenMatches(record.campaign.access_token_hash, token)) {
     return NextResponse.json({ error: 'Invalid campaign access token' }, { status: 401 })
   }
 
@@ -38,5 +33,5 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   }, {})
 
   const { access_token_hash: _private, ...campaign } = record.campaign
-  return NextResponse.json({ campaign, counts, tasks })
+  return NextResponse.json({ campaign, counts, tasks }, { headers: { 'Cache-Control': 'private, no-store', 'Referrer-Policy': 'no-referrer' } })
 }

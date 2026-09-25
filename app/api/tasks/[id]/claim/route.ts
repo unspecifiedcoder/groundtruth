@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { claimTask } from '@/lib/db'
+import { claimTask, recordAuditEvent } from '@/lib/db'
+import { issueClaimToken, rateLimit, sameOrigin } from '@/lib/security'
 
 export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  if (!sameOrigin(req)) return NextResponse.json({ error: 'Cross-site request rejected' }, { status: 403 })
+  if (await rateLimit(req, 'task-claim', 20)) return NextResponse.json({ error: 'Too many claim attempts' }, { status: 429 })
   let body: { worker_wallet?: string }
   try {
     body = await req.json()
@@ -27,5 +30,7 @@ export async function POST(
     )
   }
 
-  return NextResponse.json({ task_id: task.id, status: task.status, expires_at: task.expires_at })
+  const ttl = Math.max(60, Math.min(3600, Math.floor((new Date(task.expires_at).getTime() - Date.now()) / 1000)))
+  await recordAuditEvent({ event_type: 'task.claimed', actor_type: 'worker', actor_ref: worker_wallet.toLowerCase(), resource_type: 'task', resource_id: task.id }).catch(() => {})
+  return NextResponse.json({ task_id: task.id, status: task.status, expires_at: task.expires_at, claim_token: issueClaimToken(task.id, worker_wallet, ttl) }, { headers: { 'Cache-Control': 'no-store' } })
 }
