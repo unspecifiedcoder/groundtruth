@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
-import type { Task, TaskStatus, TaskResult, ProofPayload } from './types'
+import type { Task, TaskStatus, TaskResult, ProofPayload, Campaign } from './types'
 
 // Service-role client — used server-side only, never exposed to browser
 function getServiceClient(): SupabaseClient {
@@ -41,6 +41,50 @@ export async function insertTask(params: {
   return data as Task
 }
 
+export async function createCampaignWithTasks(params: {
+  campaign: {
+    name: string
+    customer_name: string
+    brief: string
+    access_token_hash: string
+    budget_per_task_usdt: string
+    expires_at: string
+  }
+  tasks: Array<{
+    intent: string
+    proof_spec: object
+    budget_usdt: string
+    expires_at: string
+    payment_ref: string
+  }>
+}): Promise<Campaign> {
+  const db = getServiceClient()
+  const { data: campaign, error: campaignError } = await db
+    .from('campaigns')
+    .insert({ ...params.campaign, status: 'active' })
+    .select('id,name,customer_name,brief,status,budget_per_task_usdt,created_at,expires_at')
+    .single()
+  if (campaignError) throw campaignError
+
+  const taskRows = params.tasks.map(task => ({ ...task, campaign_id: campaign.id, status: 'pending' }))
+  const { error: tasksError } = await db.from('tasks').insert(taskRows)
+  if (tasksError) {
+    await db.from('campaigns').delete().eq('id', campaign.id)
+    throw tasksError
+  }
+  return campaign as Campaign
+}
+
+export async function getCampaignWithTasks(id: string): Promise<{ campaign: Campaign & { access_token_hash: string }; tasks: Task[] } | null> {
+  const db = getServiceClient()
+  const [{ data: campaign, error: campaignError }, { data: tasks, error: tasksError }] = await Promise.all([
+    db.from('campaigns').select().eq('id', id).single(),
+    db.from('tasks').select().eq('campaign_id', id).order('created_at', { ascending: true }),
+  ])
+  if (campaignError || tasksError || !campaign) return null
+  return { campaign: campaign as Campaign & { access_token_hash: string }, tasks: (tasks ?? []) as Task[] }
+}
+
 // Best-effort delete — used to clean up an orphan task when payment recording
 // fails (e.g. a replayed payment) so no unpaid task lingers on the board.
 export async function deleteTask(id: string): Promise<void> {
@@ -57,6 +101,31 @@ export async function getTask(id: string): Promise<Task | null> {
     .single()
   if (error) return null
   return data as Task
+}
+
+export async function uploadProofFile(params: {
+  taskId: string
+  fileName: string
+  bytes: Buffer
+  contentType: string
+}): Promise<string> {
+  const db = getServiceClient()
+  const extension = params.fileName.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
+  const path = `${params.taskId}/${crypto.randomUUID()}.${extension}`
+  const { error } = await db.storage.from('proofs').upload(path, params.bytes, {
+    contentType: params.contentType || 'application/octet-stream',
+    upsert: false,
+  })
+  if (error) throw error
+  return path
+}
+
+export async function createProofUrls(paths: string[], expiresIn = 3600): Promise<string[]> {
+  if (!paths.length) return []
+  const db = getServiceClient()
+  const { data, error } = await db.storage.from('proofs').createSignedUrls(paths, expiresIn)
+  if (error) return []
+  return data.map(item => item.signedUrl).filter((url): url is string => !!url)
 }
 
 // CAS transition: only updates if current status matches `from`

@@ -26,12 +26,20 @@ export function canTransition(from: TaskStatus, to: TaskStatus): boolean {
 
 export type ProofType = 'photo' | 'form'
 
+export interface FieldLocation {
+  label: string
+  latitude: number
+  longitude: number
+  radius_meters: number
+}
+
 export interface ProofSpec {
   type: ProofType
   instructions: string
   minPhotos?: number
   formFields?: string[]
   challenge?: string   // per-task freshness code the worker must include in the proof
+  location?: FieldLocation
 }
 
 export interface ProofPayload {
@@ -39,6 +47,12 @@ export interface ProofPayload {
   storageKeys?: string[]   // for photo
   formData?: Record<string, string>  // for form
   submittedAt: string      // ISO timestamp
+  location?: {
+    latitude: number
+    longitude: number
+    accuracy_meters: number
+    capturedAt: string
+  }
 }
 
 export interface VerificationCheck {
@@ -93,10 +107,30 @@ export interface Task {
   claimed_at: string | null
   submitted_at: string | null
   resolved_at: string | null
+  campaign_id?: string | null
+}
+
+export interface Campaign {
+  id: string
+  name: string
+  customer_name: string
+  brief: string
+  status: 'draft' | 'active' | 'completed' | 'cancelled'
+  budget_per_task_usdt: string
+  created_at: string
+  expires_at: string
 }
 
 export const HumanDoInputSchema = z.object({
   intent: z.string().min(1).max(500),
+  target_location: z
+    .object({
+      label: z.string().min(1).max(200),
+      latitude: z.number().min(-90).max(90),
+      longitude: z.number().min(-180).max(180),
+      radius_meters: z.number().int().min(25).max(5000).optional().default(150),
+    })
+    .optional(),
   // Optional: when omitted, the planner infers a proof_spec from the intent.
   proof_spec: z
     .object({

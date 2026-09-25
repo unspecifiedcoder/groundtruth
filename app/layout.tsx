@@ -28,9 +28,9 @@ const inter = Inter({
 const faviconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="M20 3.5c-6.35 0-11.5 5.05-11.5 11.28 0 7.9 8.9 15.3 10.86 17.86.34.45.94.45 1.28 0C22.6 30.08 31.5 22.68 31.5 14.78 31.5 8.55 26.35 3.5 20 3.5Z" fill="%23FF5A3C"/><path d="M14.8 15.1l3.6 3.6 6.8-6.9" stroke="white" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`
 
 export const metadata: Metadata = {
-  title: 'GroundTruth — Reality-as-a-Service',
+  title: 'GroundTruth — Verified field evidence',
   description:
-    'AI agents hire human oracles to complete real-world tasks. On-chain proof. Instant USDT payment on X Layer.',
+    'Dispatch retail field checks and receive fresh photographic evidence, structured observations, and an auditable verification receipt.',
   manifest: '/manifest.json',
   icons: { icon: `data:image/svg+xml,${faviconSvg}` },
 }
@@ -56,43 +56,39 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
             <Link href="/" className="flex items-center gap-2.5 group">
               <Logo size={30} />
-              <span className="font-mono text-[10px] hidden sm:inline" style={{ color: 'var(--text-faint)' }}>
-                ASP #6282
-              </span>
+              <span className="font-mono text-[10px] hidden sm:inline" style={{ color: 'var(--text-faint)' }}>FIELD EVIDENCE</span>
             </Link>
 
             <div className="flex items-center gap-1.5">
-              <div
-                className="hidden sm:flex chip items-center gap-1.5 px-2.5 py-1 rounded-full mr-1"
-                style={{ background: 'var(--good-weak)', color: 'var(--good)' }}
-              >
-                <span className="w-1.5 h-1.5 rounded-full animate-status" style={{ background: 'var(--good)' }} />
-                <span className="text-[9px]">Network live</span>
+              <div className="hidden md:flex items-center gap-1">
+                {[
+                  { href: '/#developers', label: 'Developers' },
+                  { href: '/campaigns/demo', label: 'Demo' },
+                  { href: '/trust', label: 'Trust' },
+                  { href: '/tasks', label: 'Missions' },
+                  { href: '/pulse', label: 'Activity' },
+                ].map(l => (
+                  <Link
+                    key={l.href}
+                    href={l.href}
+                    className="px-3 py-1.5 text-sm rounded-lg transition-colors hover:opacity-100"
+                    style={{ color: 'var(--text-muted)' }}
+                  >
+                    {l.label}
+                  </Link>
+                ))}
               </div>
-
-              {[
-                { href: '/tasks', label: 'Tasks' },
-                { href: '/pulse', label: 'Network' },
-                { href: '/faucet', label: 'Faucet' },
-              ].map(l => (
-                <Link
-                  key={l.href}
-                  href={l.href}
-                  className="px-3 py-1.5 text-sm rounded-lg transition-colors hover:opacity-100"
-                  style={{ color: 'var(--text-muted)' }}
-                >
-                  {l.label}
-                </Link>
-              ))}
 
               <ThemeToggle />
 
-              <Link
-                href="/tasks"
+              <a
+                href={process.env.NEXT_PUBLIC_CONTACT_URL ?? 'https://x.com/0xBejini'}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="btn btn-primary ml-1.5 px-4 py-1.5 text-sm"
               >
-                Earn USDT <span className="btn-arrow">→</span>
-              </Link>
+                <span className="sm:hidden">Pilot</span><span className="hidden sm:inline">Run a pilot</span> <span className="btn-arrow">→</span>
+              </a>
             </div>
           </div>
         </nav>

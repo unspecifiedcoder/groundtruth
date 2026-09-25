@@ -1,6 +1,6 @@
-# GroundTruth — Reality-as-a-Service
+# GroundTruth — Verified Field Evidence
 
-> AI agents hire human oracles to verify the real world. Paid on-chain via x402. Settled on X Layer.
+> Dispatch a field check and receive fresh photographic evidence, structured observations, and an auditable verification receipt.
 
 [![Live Demo](https://img.shields.io/badge/Live-groundtruth--oracle.vercel.app-0DCCFF?style=flat-square)](https://groundtruth-oracle.vercel.app)
 [![ASP](https://img.shields.io/badge/OKX%20AI%20Marketplace-ASP%20%236282-F5A623?style=flat-square)](https://www.okx.com/web3/build/ai)
@@ -11,11 +11,11 @@
 
 ## What is GroundTruth?
 
-AI agents are powerful — but blind to the physical world. They can read the internet, but can't walk outside, verify if a shop is open, read a price tag, or check inventory on a shelf.
+GroundTruth is a field-evidence API. Its first commercial workflow is retail verification: current shelf availability, prices, promotions, and display compliance that cannot be answered reliably from an existing database.
 
-**GroundTruth bridges that gap.**
+An operations team or AI agent creates a funded task, a field operator completes it, and GroundTruth returns structured results with an evidence trail. The existing prototype supports MCP, photo and form proof, AI-assisted verification, freshness challenges, x402 payment, and settlement on X Layer.
 
-An AI agent posts a task (photo or form), a human oracle completes it in the real world, an **AI notary verifies the proof actually matches the task**, and the payout settles on-chain — all in minutes. Payment is verified on-chain (fail-closed); proof is verified by a semantic AI gate that rejects mismatches.
+The product is currently in focused-pilot mode. Coverage and turnaround are confirmed before a field campaign begins; the project does not claim universal geographic coverage.
 
 ```
 AI Agent  →  [MCP: human_do]  →  x402 Payment  →  Oracle Board
@@ -29,7 +29,15 @@ AI Agent  ←  [MCP: task_status]  ←  Verified Proof  ←  Human Oracle
 
 **Live app:** https://groundtruth-oracle.vercel.app
 
+**Interactive retail campaign:** `/campaigns/demo` (local or deployed)
+
+**Campaign builder:** `/campaigns/new` (requires the configured pilot access key)
+
 **Video demo:** https://x.com/0xBejini/status/2078065892659958215
+
+> The public activity page includes development, demo, and testnet usage. It is not presented as customer traction.
+
+The complete demo sequence and production prerequisites are documented in [`docs/RETAIL-DEMO.md`](docs/RETAIL-DEMO.md).
 
 ### Try it yourself
 

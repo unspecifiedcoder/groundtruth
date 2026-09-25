@@ -90,7 +90,7 @@ export default async function TasksPage() {
                 id: string
                 intent: string
                 budget_usdt: string
-                proof_spec: { type: string }
+                proof_spec: { type: string; location?: { label: string } }
                 expires_at: string
               }) => {
                 const isPhoto = task.proof_spec.type === 'photo'
@@ -132,6 +132,10 @@ export default async function TasksPage() {
                         <p className="font-medium leading-snug line-clamp-2 mb-3" style={{ color: 'var(--text)' }}>
                           {task.intent}
                         </p>
+
+                        {task.proof_spec.location?.label && (
+                          <p className="text-xs mb-3" style={{ color: 'var(--info)' }}>◎ {task.proof_spec.location.label}</p>
+                        )}
 
                         <div className="flex items-center justify-between">
                           <span className="font-mono text-xs" style={{ color: urgent ? 'var(--warn)' : 'var(--text-faint)' }}>

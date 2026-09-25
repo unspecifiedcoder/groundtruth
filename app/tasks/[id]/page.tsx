@@ -86,6 +86,12 @@ interface Task {
     minPhotos?: number
     formFields?: string[]
     challenge?: string
+    location?: {
+      label: string
+      latitude: number
+      longitude: number
+      radius_meters: number
+    }
   }
   budget_usdt: string
   status: string
@@ -117,6 +123,8 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
   const [files, setFiles] = useState<File[]>([])
   const [dragActive, setDragActive] = useState(false)
   const [formData, setFormData] = useState<Record<string, string>>({})
+  const [location, setLocation] = useState<{ latitude: number; longitude: number; accuracy: number; capturedAt: string } | null>(null)
+  const [locating, setLocating] = useState(false)
   const [error, setError] = useState('')
   const [vision, setVision] = useState<{ checked: boolean; match: boolean; confidence: number; reason: string } | null>(null)
 
@@ -182,6 +190,10 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
 
   async function handleSubmit() {
     if (!task) return
+    if (task.proof_spec.location && !location) {
+      setError('Confirm your location before submitting this mission')
+      return
+    }
     setLoading(true)
     setError('')
     try {
@@ -189,11 +201,16 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
       fd.append('task_id', task.id)
       fd.append('worker_wallet', wallet)
       fd.append('proof_type', task.proof_spec.type)
+      if (location) {
+        fd.append('latitude', String(location.latitude))
+        fd.append('longitude', String(location.longitude))
+        fd.append('accuracy_meters', String(location.accuracy))
+        fd.append('location_captured_at', location.capturedAt)
+      }
       if (task.proof_spec.type === 'photo') {
         for (const f of files) fd.append('photos', f)
-      } else {
-        fd.append('form_data', JSON.stringify(formData))
       }
+      if (task.proof_spec.formFields?.length) fd.append('form_data', JSON.stringify(formData))
       // Show the settling screen while the request runs — with auto-accept the
       // server verifies and settles on-chain inline, so this can take a few sec.
       setPhase('verifying')
@@ -217,6 +234,31 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
     } finally {
       setLoading(false)
     }
+  }
+
+  function captureLocation() {
+    if (!navigator.geolocation) {
+      setError('Location is not supported by this browser')
+      return
+    }
+    setLocating(true)
+    setError('')
+    navigator.geolocation.getCurrentPosition(
+      position => {
+        setLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+          capturedAt: new Date(position.timestamp).toISOString(),
+        })
+        setLocating(false)
+      },
+      () => {
+        setError('Location could not be confirmed. Allow location access and try again.')
+        setLocating(false)
+      },
+      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 }
+    )
   }
 
   /* ── Loading ── */
@@ -393,9 +435,12 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
             </p>
           )
         })()}
-        <button onClick={() => router.push('/tasks')} className="btn btn-primary w-full py-3">
-          Find more missions →
-        </button>
+        <div className="space-y-3">
+          <button onClick={() => router.push(`/receipts/${task.id}`)} className="btn btn-primary w-full py-3">
+            View evidence receipt →
+          </button>
+          <button onClick={() => router.push('/tasks')} className="btn btn-ghost w-full py-3">Find more missions</button>
+        </div>
       </div>
     </div>
   )
@@ -443,6 +488,14 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
 
           <p className="text-sm leading-relaxed mb-4" style={{ color: 'var(--text-muted)' }}>{task.proof_spec.instructions}</p>
 
+          {task.proof_spec.location && (
+            <div className="rounded-xl px-4 py-3 mb-4" style={{ background: 'var(--info-weak)', border: '1px solid var(--info)' }}>
+              <div className="font-mono text-[9px] uppercase tracking-wider mb-1" style={{ color: 'var(--info)' }}>Target location</div>
+              <div className="text-sm font-bold">{task.proof_spec.location.label}</div>
+              <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Evidence must be captured within {task.proof_spec.location.radius_meters}m of this site.</div>
+            </div>
+          )}
+
           <div className="font-mono flex items-center gap-2 text-xs" style={{ color: urgent ? 'var(--warn)' : 'var(--text-faint)' }}>
             <span>{urgent ? '⚡' : '⏱'}</span>
             <span>
@@ -484,7 +537,7 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
             </button>
 
             <p className="font-mono text-xs text-center" style={{ color: 'var(--text-faint)' }}>
-              Once accepted, complete before the timer expires
+              Once accepted, complete before the timer expires · <a href="/trust" className="underline">Safety rules</a>
             </p>
           </div>
         )}
@@ -511,6 +564,23 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
                     ? 'Write this code on paper and include it in your photo. It proves the photo is fresh (not a stock image), and the AI notary checks for it.'
                     : 'Include this exact code in one of your answers. It proves the proof was made for this task.'}
                 </p>
+              </div>
+            )}
+
+            {task.proof_spec.location && (
+              <div className="rounded-xl p-4" style={{ background: 'var(--info-weak)', border: '1px solid var(--info)' }}>
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="chip text-[10px] font-bold mb-1" style={{ color: 'var(--info)' }}>On-site check required</p>
+                    <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                      Confirm your browser-reported location at {task.proof_spec.location.label}. It is stored with this submission only.
+                    </p>
+                    {location && <p className="font-mono text-xs mt-2" style={{ color: 'var(--good)' }}>✓ Captured with ±{Math.round(location.accuracy)}m accuracy</p>}
+                  </div>
+                  <button type="button" onClick={captureLocation} disabled={locating} className="btn btn-ghost px-4 py-2 text-xs flex-shrink-0 disabled:opacity-40">
+                    {locating ? 'Locating…' : location ? 'Refresh' : 'Confirm'}
+                  </button>
+                </div>
               </div>
             )}
 
@@ -558,8 +628,12 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
                 </label>
               </div>
             ) : (
+              <></>
+            )}
+
+            {!!task.proof_spec.formFields?.length && (
               <div className="space-y-3">
-                {(task.proof_spec.formFields ?? []).map((field: string) => (
+                {task.proof_spec.formFields.map((field: string) => (
                   <div key={field}>
                     <label className="chip block text-xs font-bold mb-2 capitalize" style={{ color: 'var(--text-muted)' }}>
                       {field}
@@ -585,7 +659,7 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
 
             <button
               onClick={handleSubmit}
-              disabled={loading || (isPhoto && files.length === 0)}
+              disabled={loading || (isPhoto && files.length === 0) || (!!task.proof_spec.location && !location)}
               className="btn w-full py-4 disabled:opacity-40"
               style={{ background: 'var(--info-weak)', border: '1px solid var(--info)', color: 'var(--info)' }}
             >

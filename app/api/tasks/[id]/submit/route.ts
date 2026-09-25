@@ -1,9 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getTask, transition, recordProofHash, recentProofHashes, bumpWorker } from '@/lib/db'
+import { getTask, transition, recordProofHash, recentProofHashes, bumpWorker, uploadProofFile } from '@/lib/db'
 import { verifyProof } from '@/lib/verify'
 import { settleTask } from '@/lib/settle'
 import { notaryReview } from '@/lib/notary'
 import type { ProofPayload, ProofSpec, NotaryVerdict } from '@/lib/types'
+
+function distanceMeters(aLat: number, aLng: number, bLat: number, bLng: number): number {
+  const radians = (degrees: number) => (degrees * Math.PI) / 180
+  const earthRadius = 6_371_000
+  const dLat = radians(bLat - aLat)
+  const dLng = radians(bLng - aLng)
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(radians(aLat)) * Math.cos(radians(bLat)) * Math.sin(dLng / 2) ** 2
+  return 2 * earthRadius * Math.asin(Math.sqrt(h))
+}
 
 export async function POST(
   req: NextRequest,
@@ -46,33 +57,70 @@ async function handleSubmit(req: NextRequest, params: { id: string }) {
   }
   const fromStatus = task.status // 'claimed' or 'failed' (retry)
 
+  const latitude = Number(formData.get('latitude'))
+  const longitude = Number(formData.get('longitude'))
+  const accuracy = Number(formData.get('accuracy_meters'))
+  const capturedAt = formData.get('location_captured_at') as string | null
+  const capturedTime = capturedAt ? Date.parse(capturedAt) : NaN
+  const locationAge = Number.isFinite(capturedTime) ? Date.now() - capturedTime : Infinity
+  const submittedLocation =
+    Number.isFinite(latitude) && latitude >= -90 && latitude <= 90 &&
+    Number.isFinite(longitude) && longitude >= -180 && longitude <= 180 &&
+    Number.isFinite(accuracy) && accuracy >= 0 && accuracy <= 5_000 &&
+    capturedAt && locationAge >= -120_000 && locationAge <= 10 * 60 * 1000
+      ? { latitude, longitude, accuracy_meters: Math.max(0, accuracy), capturedAt }
+      : undefined
+
   // Build proof payload
   const imageBuffers: Buffer[] = []
   let proofPayload: ProofPayload
+  let submittedForm: Record<string, string> = {}
+  const rawForm = formData.get('form_data') as string | null
+  if (rawForm) {
+    try {
+      const decoded: unknown = JSON.parse(rawForm)
+      if (!decoded || typeof decoded !== 'object' || Array.isArray(decoded) || Object.values(decoded).some(value => typeof value !== 'string')) {
+        return NextResponse.json({ error: 'Form answers must be strings' }, { status: 400 })
+      }
+      submittedForm = decoded as Record<string, string>
+    } catch {
+      return NextResponse.json({ error: 'Invalid form_data JSON' }, { status: 400 })
+    }
+  }
 
   if (proofType === 'photo') {
     const photos = formData.getAll('photos') as File[]
     for (const photo of photos) {
+      if (!photo.type.startsWith('image/')) {
+        return NextResponse.json({ error: 'Only image evidence is accepted' }, { status: 400 })
+      }
+      if (photo.size > 10 * 1024 * 1024) {
+        return NextResponse.json({ error: 'Each image must be 10MB or smaller' }, { status: 400 })
+      }
       const buf = Buffer.from(await photo.arrayBuffer())
       imageBuffers.push(buf)
     }
+    const storageKeys = await Promise.all(
+      photos.map((photo, index) => uploadProofFile({
+        taskId: params.id,
+        fileName: photo.name || `evidence-${index + 1}.jpg`,
+        bytes: imageBuffers[index],
+        contentType: photo.type,
+      }))
+    )
     proofPayload = {
       type: 'photo',
-      storageKeys: photos.map(p => `${params.id}/${p.name}`),
+      storageKeys,
+      ...(Object.keys(submittedForm).length ? { formData: submittedForm } : {}),
       submittedAt: new Date().toISOString(),
+      ...(submittedLocation ? { location: submittedLocation } : {}),
     }
   } else {
-    const rawForm = formData.get('form_data') as string
-    let parsedForm: Record<string, string>
-    try {
-      parsedForm = JSON.parse(rawForm ?? '{}')
-    } catch {
-      return NextResponse.json({ error: 'Invalid form_data JSON' }, { status: 400 })
-    }
     proofPayload = {
       type: 'form',
-      formData: parsedForm,
+      formData: submittedForm,
       submittedAt: new Date().toISOString(),
+      ...(submittedLocation ? { location: submittedLocation } : {}),
     }
   }
 
@@ -81,7 +129,40 @@ async function handleSubmit(req: NextRequest, params: { id: string }) {
   // the 'submitted' state first — we resolve straight to the final status in a
   // single write below, saving several cold DB round-trips.
   const recentHashes = proofType === 'photo' ? await recentProofHashes(60) : []
-  const result = await verifyProof(task.proof_spec as any, proofPayload, imageBuffers, recentHashes, task.intent)
+  const spec = task.proof_spec as ProofSpec
+  const result = await verifyProof(spec, proofPayload, imageBuffers, recentHashes, task.intent)
+
+  if (spec.formFields?.length) {
+    const answers = proofPayload.formData ?? {}
+    const missing = spec.formFields.filter(field => !answers[field]?.trim())
+    result.checks.push({
+      name: 'required_observations',
+      passed: missing.length === 0,
+      severity: 'hard',
+      detail: missing.length ? `Missing: ${missing.join(', ')}` : `${spec.formFields.length} required observations supplied.`,
+    })
+    if (missing.length) result.outcome = 'failed'
+  }
+
+  if (spec.location) {
+    const distance = submittedLocation
+      ? distanceMeters(spec.location.latitude, spec.location.longitude, submittedLocation.latitude, submittedLocation.longitude)
+      : null
+    const reportedAccuracy = submittedLocation?.accuracy_meters ?? Infinity
+    const allowed = spec.location.radius_meters + Math.min(reportedAccuracy, 100)
+    const passed = distance !== null && reportedAccuracy <= 200 && distance <= allowed
+    result.checks.push({
+      name: 'target_location',
+      passed,
+      severity: 'hard',
+      detail: distance === null
+        ? 'Location was required but not submitted.'
+        : reportedAccuracy > 200
+          ? `Location accuracy was too low (±${Math.round(reportedAccuracy)}m; maximum ±200m).`
+          : `${Math.round(distance)}m from target; ${spec.location.radius_meters}m task radius with ${Math.round(reportedAccuracy)}m reported accuracy.`,
+    })
+    if (!passed) result.outcome = 'failed'
+  }
 
   // Store proof hashes for dedup (photos only)
   if (proofType === 'photo') {

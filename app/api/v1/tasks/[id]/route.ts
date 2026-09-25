@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getTask, getPaymentByTaskId, transition } from '@/lib/db'
+import { getTask, getPaymentByTaskId, transition, createProofUrls } from '@/lib/db'
 import { getTxConfirmation, explorerTx } from '@/lib/chain'
 import { canTransition, type TaskStatus } from '@/lib/types'
 
@@ -111,8 +111,28 @@ export async function GET(
     // the proof alone; otherwise both halves must be final.
     const complete = paymentState === 'none' ? status === 'verified' : paymentState === 'confirmed' && status === 'verified'
 
-    // Return safe public view — no payment_ref, no internal fields.
-    // proof_payload IS the deliverable, so the paying agent can review it.
+    // Return a safe public view — no payment_ref, internal fields, or exact
+    // worker coordinates. The location verdict remains visible in result.checks,
+    // but a public task URL must not become a worker-location tracking endpoint.
+    const evidenceUrls = task.proof_payload?.storageKeys?.length
+      ? await createProofUrls(task.proof_payload.storageKeys, 3600)
+      : []
+    const publicProof = task.proof_payload
+      ? {
+          ...task.proof_payload,
+          ...(evidenceUrls.length ? { evidenceUrls, evidenceUrlsExpireIn: 3600 } : {}),
+          ...(task.proof_payload.location
+            ? {
+                location: {
+                  accuracy_meters: task.proof_payload.location.accuracy_meters,
+                  capturedAt: task.proof_payload.location.capturedAt,
+                  coordinates_redacted: true,
+                },
+              }
+            : {}),
+        }
+      : null
+
     return NextResponse.json({
       id: task.id,
       intent: task.intent,
@@ -120,7 +140,7 @@ export async function GET(
       budget_usdt: task.budget_usdt,
       status,
       result: task.result,
-      proof_payload: task.proof_payload ?? null,
+      proof_payload: publicProof,
       created_at: task.created_at,
       expires_at: task.expires_at,
 

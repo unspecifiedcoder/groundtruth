@@ -58,11 +58,24 @@ const handler = createMcpHandler(
           intent: z.string().min(1).max(500).describe('What you want the human to do'),
           proof_type: z.enum(['photo', 'form']).describe('Type of proof'),
           instructions: z.string().min(1).max(1000).describe('Detailed instructions for the human'),
+          target_location: z.object({
+            label: z.string().min(1).max(200).describe('Human-readable store or site name'),
+            latitude: z.number().min(-90).max(90),
+            longitude: z.number().min(-180).max(180),
+            radius_meters: z.number().int().min(25).max(5000).optional().default(150),
+          }).optional().describe('Optional target location and allowed capture radius'),
           budget_usdt: z.string().regex(/^\d+(\.\d{1,6})?$/).optional().default('0.01'),
           timeout_seconds: z.number().int().min(60).max(86400).optional().default(3600),
         },
       },
-      async ({ intent, proof_type, instructions, budget_usdt, timeout_seconds }: { intent: string; proof_type: 'photo' | 'form'; instructions: string; budget_usdt?: string; timeout_seconds?: number }) => {
+      async ({ intent, proof_type, instructions, target_location, budget_usdt, timeout_seconds }: {
+        intent: string
+        proof_type: 'photo' | 'form'
+        instructions: string
+        target_location?: { label: string; latitude: number; longitude: number; radius_meters?: number }
+        budget_usdt?: string
+        timeout_seconds?: number
+      }) => {
         const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
         const amount = budget_usdt ?? '0.01'
 
@@ -86,6 +99,7 @@ const handler = createMcpHandler(
                   instructions,
                   ...(proof_type === 'photo' ? { minPhotos: 1 } : {}),
                 },
+                ...(target_location ? { target_location } : {}),
                 budget_usdt: amount,
                 timeout_seconds: timeout_seconds ?? 3600,
               },
@@ -137,6 +151,7 @@ const handler = createMcpHandler(
               body: JSON.stringify({
                 intent,
                 proof_spec: { type: proof_type, instructions, ...(proof_type === 'photo' ? { minPhotos: 1 } : {}) },
+                ...(target_location ? { target_location } : {}),
                 budget_usdt: amount,
                 timeout_seconds: timeout_seconds ?? 3600,
               }),

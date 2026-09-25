@@ -373,7 +373,11 @@ export async function POST(req: NextRequest) {
   // challenge the worker must include in the proof, so a stale/stock image
   // (which can't contain this code) is rejected.
   const baseSpec = input.proof_spec ?? (await planTask(input.intent)).proof_spec
-  const proofSpec = { ...baseSpec, challenge: generateChallenge() }
+  const proofSpec = {
+    ...baseSpec,
+    challenge: generateChallenge(),
+    ...(input.target_location ? { location: input.target_location } : {}),
+  }
 
   const expiresAt = new Date(Date.now() + (input.timeout_seconds ?? 3600) * 1000)
   let task

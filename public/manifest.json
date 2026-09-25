@@ -1,7 +1,7 @@
 {
   "name": "GroundTruth",
   "short_name": "GroundTruth",
-  "description": "Earn USDT completing tasks for AI agents",
+  "description": "Capture and verify fresh retail field evidence",
   "start_url": "/tasks",
   "display": "standalone",
   "background_color": "#FBF6EF",
