@@ -101,6 +101,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   { href: '/developers', label: 'Developers' },
                   { href: '/campaigns/demo', label: 'Demo' },
                   { href: '/trust', label: 'Trust' },
+                  { href: '/diligence', label: 'Diligence' },
                   { href: '/tasks', label: 'Missions' },
                   { href: '/pulse', label: 'Activity' },
                 ].map(l => (

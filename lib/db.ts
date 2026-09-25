@@ -1,5 +1,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import type { Task, TaskStatus, TaskResult, ProofPayload, Campaign } from './types'
+import { assessWorkerRisk, type WorkerRiskDecision } from './risk'
+import { calculateOperationsMetrics, type MetricTask } from './metrics'
 
 // Service-role client — used server-side only, never exposed to browser
 function getServiceClient(): SupabaseClient {
@@ -7,6 +9,15 @@ function getServiceClient(): SupabaseClient {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!url || !key) throw new Error('Supabase env vars missing')
   return createClient(url, key, { auth: { persistSession: false } })
+}
+
+async function withDbRetry<T extends { error: unknown }>(operation: () => PromiseLike<T>, attempts = 2): Promise<T> {
+  let result = await operation()
+  for (let attempt = 1; result.error && attempt < attempts; attempt++) {
+    await new Promise(resolve => setTimeout(resolve, attempt * 200))
+    result = await operation()
+  }
+  return result
 }
 
 // Anon client — safe for browser use, read-only via RLS
@@ -101,6 +112,20 @@ export async function getTask(id: string): Promise<Task | null> {
     .single()
   if (error) return null
   return data as Task
+}
+
+export async function getWorkerClaimEligibility(wallet: string): Promise<WorkerRiskDecision> {
+  const db = getServiceClient()
+  const normalized = wallet.toLowerCase()
+  const [{ data: worker }, { count: activeClaims }] = await Promise.all([
+    db.from('workers').select('tasks_completed,tasks_failed').ilike('wallet', normalized).maybeSingle(),
+    db.from('tasks').select('id', { head: true, count: 'exact' }).ilike('worker_wallet', normalized).in('status', ['claimed', 'submitted', 'needs_review']),
+  ])
+  return assessWorkerRisk({
+    completed: Number(worker?.tasks_completed ?? 0),
+    failed: Number(worker?.tasks_failed ?? 0),
+    activeClaims: activeClaims ?? 0,
+  })
 }
 
 export async function uploadProofFile(params: {
@@ -421,4 +446,62 @@ export async function pulseStats(): Promise<{
     total_paid_usdt: fromUnits(totalUnits),
     active_workers: workersRes.count ?? 0,
   }
+}
+
+export async function getAdminOperationsOverview() {
+  const db = getServiceClient()
+  // Parallel reads keep the console fast; each read independently retries a
+  // transient serverless egress/TLS failure.
+  const [tasksRes, paymentsRes, campaignsRes, leadsRes, workersRes] = await Promise.all([
+    withDbRetry(() => db.from('tasks').select('id,intent,status,budget_usdt,created_at,claimed_at,submitted_at,resolved_at,worker_wallet,payment_ref,result,campaign_id').order('created_at', { ascending: false }).limit(2000)),
+    withDbRetry(() => db.from('payments').select('amount_units')),
+    withDbRetry(() => db.from('campaigns').select('id,name,customer_name,status,created_at,expires_at').order('created_at', { ascending: false }).limit(100)),
+    withDbRetry(() => db.from('audit_events').select('resource_id,metadata,created_at').eq('event_type', 'pilot_lead.created').order('created_at', { ascending: false }).limit(100)),
+    withDbRetry(() => db.from('workers').select('wallet,tasks_completed,tasks_failed,total_earned_units,last_seen').order('last_seen', { ascending: false }).limit(250)),
+  ])
+  const warnings = [
+    tasksRes.error ? 'tasks' : null,
+    paymentsRes.error ? 'payments' : null,
+    campaignsRes.error ? 'campaigns' : null,
+    leadsRes.error ? 'leads' : null,
+    workersRes.error ? 'workers' : null,
+  ].filter((value): value is string => !!value)
+  const tasks = (tasksRes.data ?? []) as Array<MetricTask & { id: string; intent: string; worker_wallet: string | null; payment_ref: string | null; campaign_id: string | null }>
+  const paymentVolume = (paymentsRes.data ?? []).reduce((sum, payment: { amount_units: string }) => sum + Number(payment.amount_units) / 1_000_000, 0)
+  const taskCounts = new Map<string, Record<string, number>>()
+  for (const task of tasks) {
+    if (!task.campaign_id) continue
+    const counts = taskCounts.get(task.campaign_id) ?? {}
+    counts[task.status] = (counts[task.status] ?? 0) + 1
+    taskCounts.set(task.campaign_id, counts)
+  }
+  return {
+    generated_at: new Date().toISOString(),
+    scope: 'prototype_and_pilot_activity',
+    warnings,
+    metrics: calculateOperationsMetrics(tasks, paymentVolume),
+    settlement_exceptions: tasks.filter(task => task.status === 'verified' && !task.result?.settle).map(task => ({ id: task.id, intent: task.intent, worker_wallet: task.worker_wallet, budget_usdt: task.budget_usdt, resolved_at: task.resolved_at })),
+    campaigns: (campaignsRes.data ?? []).map(campaign => ({ ...campaign, task_counts: taskCounts.get(campaign.id) ?? {} })),
+    leads: (leadsRes.data ?? []).map(row => ({ id: row.resource_id, created_at: row.created_at, ...(row.metadata as object) })),
+    workers: (workersRes.data ?? []).map(worker => {
+      const completed = Number(worker.tasks_completed ?? 0)
+      const failed = Number(worker.tasks_failed ?? 0)
+      const attempts = completed + failed
+      return { ...worker, success_rate_pct: attempts ? Number(((completed / attempts) * 100).toFixed(1)) : null }
+    }),
+  }
+}
+
+export async function controlCampaign(id: string, action: 'cancel' | 'complete'): Promise<{ changed: boolean; open_tasks: number }> {
+  const db = getServiceClient()
+  const { data: tasks, error: taskError } = await db.from('tasks').select('id,status').eq('campaign_id', id)
+  if (taskError) throw taskError
+  const open = (tasks ?? []).filter(task => ['pending', 'claimed', 'submitted', 'needs_review'].includes(task.status))
+  if (action === 'complete' && open.length) return { changed: false, open_tasks: open.length }
+  if (action === 'cancel') {
+    await db.from('tasks').update({ status: 'expired', resolved_at: new Date().toISOString() }).eq('campaign_id', id).eq('status', 'pending').throwOnError()
+  }
+  const { error } = await db.from('campaigns').update({ status: action === 'cancel' ? 'cancelled' : 'completed' }).eq('id', id)
+  if (error) throw error
+  return { changed: true, open_tasks: open.length }
 }

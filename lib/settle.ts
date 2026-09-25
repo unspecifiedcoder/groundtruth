@@ -28,12 +28,21 @@ export async function settleTask(
 ): Promise<SettleResult> {
   // Derive idempotent task key
   const taskKey = keccak256(toBytes(taskId)) as `0x${string}`
+  const { payoutUnits, feeUnits } = splitBudget(budgetUsdt ?? PRICE_USDT, FEE_BPS)
+  const { fromUnits } = await import('./money')
+  const payoutUsdt = fromUnits(payoutUnits)
 
   // Check if already settled on-chain (idempotency)
   try {
     const alreadySettled = await isSettled(CONTRACT_ADDRESS, taskKey)
     if (alreadySettled) {
-      return { success: true, error: 'already_settled' }
+      const existing = ((await getTask(taskId))?.result as unknown as Record<string, unknown>) ?? {}
+      if (!existing.settle) {
+        await transition(taskId, 'verified', 'verified', {
+          result: { checks: [], ...existing, outcome: 'verified', settle: { worker: workerWallet, token: PAYOUT_TOKEN, payout_usdt: payoutUsdt, fee_usdt: fromUnits(feeUnits), tx_hash: null, explorer: null, settled_at: new Date().toISOString(), recovered_from_chain: true } } as unknown as TaskResult,
+        }).catch(() => {})
+      }
+      return { success: true, payout_usdt: payoutUsdt, error: 'already_settled' }
     }
   } catch {
     // Chain unavailable — fall through to off-chain settle
@@ -41,8 +50,6 @@ export async function settleTask(
 
   // Split the task's actual budget (falls back to the configured price only if
   // no budget was recorded), so payouts reflect what the task advertised.
-  const { payoutUnits, feeUnits } = splitBudget(budgetUsdt ?? PRICE_USDT, FEE_BPS)
-
   // Try on-chain settlement first
   let txHash: string | undefined
   try {
@@ -77,9 +84,6 @@ export async function settleTask(
     earned_units: payoutUnits,
     outcome: 'completed',
   }).catch(() => {})
-
-  const { fromUnits } = await import('./money')
-  const payoutUsdt = fromUnits(payoutUnits)
 
   // Preserve the verification result (checks + notary verdict + vision) that the
   // submit step wrote — merge the settle info in rather than overwriting it, so

@@ -159,3 +159,8 @@ export async function isSettled(
     args: [taskKey],
   })
 }
+
+export async function hasSettlementContract(contractAddress: `0x${string}`): Promise<boolean> {
+  if (contractAddress === '0x0000000000000000000000000000000000000000') return false
+  return !!(await getPublicClient().getBytecode({ address: contractAddress }).catch(() => undefined))
+}

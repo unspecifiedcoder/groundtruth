@@ -117,6 +117,7 @@ async function verifyPhoto(
 
   const sharp = await getSharp()
   const exifr = await getExifr()
+  const submissionHashes: string[] = []
 
   for (let i = 0; i < buffers.length; i++) {
     const buf = buffers[i]
@@ -151,6 +152,16 @@ async function verifyPhoto(
             severity: 'soft',
             detail: isDupe ? 'duplicate image detected' : 'unique',
           })
+          if (i > 0) {
+            const repeatedInSubmission = submissionHashes.some(hash => hammingDistance(hash, phash) < 8)
+            checks.push({
+              name: `distinct_photo_${i}`,
+              passed: !repeatedInSubmission,
+              severity: 'hard',
+              detail: repeatedInSubmission ? 'A different angle or detail photo is required.' : 'Distinct from the other submitted photos.',
+            })
+          }
+          submissionHashes.push(phash)
         } catch {
           // hash computation failed — soft pass (don't fail on our own error)
           checks.push({ name: `dedup_${i}`, passed: true, severity: 'soft', detail: 'hash unavailable' })
@@ -160,19 +171,22 @@ async function verifyPhoto(
       }
     }
 
-    // Soft: EXIF timestamp exists (proof was taken recently, not stock photo)
+    // Soft: EXIF timestamp is plausible and recent. Many messaging and camera
+    // apps strip EXIF, so absence triggers review pressure rather than rejection.
     if (exifr) {
       try {
         const exif = await exifr.parse(buf, ['DateTimeOriginal', 'GPSLatitude'])
-        const hasTimestamp = !!exif?.DateTimeOriginal
+        const captured = exif?.DateTimeOriginal ? new Date(exif.DateTimeOriginal).getTime() : NaN
+        const age = Date.now() - captured
+        const recent = Number.isFinite(captured) && age >= -10 * 60_000 && age <= 72 * 60 * 60_000
         checks.push({
-          name: `exif_timestamp_${i}`,
-          passed: hasTimestamp,
+          name: `exif_recency_${i}`,
+          passed: recent,
           severity: 'soft',
-          detail: hasTimestamp ? exif.DateTimeOriginal.toString() : 'no EXIF timestamp',
+          detail: recent ? `Captured ${exif.DateTimeOriginal.toString()}` : exif?.DateTimeOriginal ? 'EXIF timestamp is outside the 72-hour evidence window' : 'No EXIF capture timestamp',
         })
       } catch {
-        checks.push({ name: `exif_timestamp_${i}`, passed: true, severity: 'soft', detail: 'exif parse skipped' })
+        checks.push({ name: `exif_recency_${i}`, passed: false, severity: 'soft', detail: 'EXIF timestamp unavailable' })
       }
     }
   }

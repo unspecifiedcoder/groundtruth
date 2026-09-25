@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { claimTask, recordAuditEvent } from '@/lib/db'
+import { claimTask, getWorkerClaimEligibility, recordAuditEvent } from '@/lib/db'
 import { issueClaimToken, rateLimit, sameOrigin, verifyWalletSession } from '@/lib/security'
 
 export async function POST(
@@ -22,6 +22,12 @@ export async function POST(
   }
   if (process.env.REQUIRE_WALLET_SIGNATURE === 'true' && !verifyWalletSession(req.cookies.get('gt_worker')?.value, worker_wallet)) {
     return NextResponse.json({ error: 'Verify control of this wallet before claiming a mission' }, { status: 401 })
+  }
+
+  const eligibility = await getWorkerClaimEligibility(worker_wallet)
+  if (!eligibility.allowed) {
+    await recordAuditEvent({ event_type: 'task.claim_blocked', actor_type: 'worker', actor_ref: worker_wallet.toLowerCase(), resource_type: 'task', resource_id: routeParams.id, metadata: { risk_score: eligibility.score, reason: eligibility.reason } }).catch(() => {})
+    return NextResponse.json({ error: eligibility.reason, risk_score: eligibility.score }, { status: 403 })
   }
 
   const claimExpiry = new Date(Date.now() + 30 * 60 * 1000) // 30 min to complete

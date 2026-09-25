@@ -16,4 +16,16 @@ describe('image evidence integrity', () => {
   it('rejects bytes that are not a decodable image', async () => {
     await expect(inspectEvidenceImage(Buffer.from('not-an-image'))).rejects.toThrow()
   })
+
+  it('rejects repeated photos within one multi-photo submission', async () => {
+    const image = await sharp({ create: { width: 800, height: 600, channels: 3, background: '#336699' } }).jpeg().toBuffer()
+    const result = await verifyProof(
+      { type: 'photo', instructions: 'Submit a shelf overview and detail', minPhotos: 2 },
+      { type: 'photo', submittedAt: new Date().toISOString() },
+      [image, image],
+      []
+    )
+    expect(result.outcome).toBe('failed')
+    expect(result.checks.find(check => check.name === 'distinct_photo_1')).toMatchObject({ passed: false, severity: 'hard' })
+  })
 })
