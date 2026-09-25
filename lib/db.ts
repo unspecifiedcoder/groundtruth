@@ -455,8 +455,8 @@ export async function getAdminOperationsOverview() {
   const [tasksRes, paymentsRes, campaignsRes, leadsRes, workersRes] = await Promise.all([
     withDbRetry(() => db.from('tasks').select('id,intent,status,budget_usdt,created_at,submitted_at,resolved_at,worker_wallet,payment_ref,result').order('created_at', { ascending: false }).limit(500)),
     withDbRetry(() => db.from('payments').select('amount_units')),
-    withDbRetry(() => db.from('campaigns').select('*').order('created_at', { ascending: false }).limit(100)),
-    withDbRetry(() => db.from('audit_events').select('*').eq('event_type', 'pilot_lead.created').order('created_at', { ascending: false }).limit(100)),
+    withDbRetry(() => db.from('campaigns').select('*').limit(100)),
+    withDbRetry(() => db.from('audit_events').select('*').eq('event_type', 'pilot_lead.created').limit(100)),
     withDbRetry(() => db.from('workers').select('wallet,tasks_completed,tasks_failed,total_earned_units,last_seen').order('last_seen', { ascending: false }).limit(250)),
   ])
   const warnings = [
@@ -466,6 +466,15 @@ export async function getAdminOperationsOverview() {
     leadsRes.error ? 'leads' : null,
     workersRes.error ? 'workers' : null,
   ].filter((value): value is string => !!value)
+  if (warnings.length) {
+    console.warn('[operations-overview] partial telemetry', {
+      tasks: tasksRes.error,
+      payments: paymentsRes.error,
+      campaigns: campaignsRes.error,
+      leads: leadsRes.error,
+      workers: workersRes.error,
+    })
+  }
   const tasks = (tasksRes.data ?? []) as Array<MetricTask & { id: string; intent: string; worker_wallet: string | null; payment_ref: string | null; campaign_id?: string | null }>
   const paymentVolume = (paymentsRes.data ?? []).reduce((sum, payment: { amount_units: string }) => sum + Number(payment.amount_units) / 1_000_000, 0)
   const taskCounts = new Map<string, Record<string, number>>()
