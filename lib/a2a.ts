@@ -1,5 +1,15 @@
 const DEFAULT_BASE = 'https://groundtruth-oracle.vercel.app'
 
+const BUYER_INTENT = /\b(?:need|want|seeking|looking for|interested in|request(?:ing)?|ready to|would like|can you (?:cover|verify|quote)|buyer (?:needs|wants|request)|procurement request|matched (?:buyer|demand))\b/i
+const COMMERCIAL_SCOPE = /\b(?:pilot|quote|proposal|coverage|campaign|field evidence|retail verification|store(?:s)?|location(?:s)?|shelf|sku(?:s)?|price verification|availability verification)\b/i
+const NEGATED_INTENT = /\b(?:not|isn't|aren't|no longer)\s+(?:interested|looking|seeking|ready)\b/i
+
+export function isQualifiedAgentLead(text: string): boolean {
+  const compact = text.replace(/\s+/g, ' ').trim()
+  if (compact.length < 20 || NEGATED_INTENT.test(compact)) return false
+  return BUYER_INTENT.test(compact) && COMMERCIAL_SCOPE.test(compact)
+}
+
 export function groundTruthAgentCard(base = process.env.NEXT_PUBLIC_APP_URL ?? DEFAULT_BASE) {
   return {
     name: 'GroundTruth Field Evidence Agent',
@@ -44,6 +54,9 @@ export function groundTruthAgentCard(base = process.env.NEXT_PUBLIC_APP_URL ?? D
 
 export function respondToAgentMessage(text: string, base = process.env.NEXT_PUBLIC_APP_URL ?? DEFAULT_BASE): string {
   const normalized = text.toLowerCase()
+  if (isQualifiedAgentLead(text)) {
+    return `GroundTruth can scope this as a human-reviewed retail evidence pilot. Your inquiry can be routed to the operator for coverage and pricing review; no purchase, worker dispatch, or payment is created by this message. For direct follow-up, submit the pilot brief at ${base}/pilot or inspect integration options at ${base}/developers.`
+  }
   if (/review|evaluate|diligence|demo|try/.test(normalized)) {
     return [
       'GroundTruth evaluation kit:',

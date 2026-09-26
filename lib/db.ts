@@ -1,4 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import { createHash } from 'crypto'
 import type { Task, TaskStatus, TaskResult, ProofPayload, Campaign } from './types'
 import { assessWorkerRisk, type WorkerRiskDecision } from './risk'
 import { calculateOperationsMetrics, type MetricTask } from './metrics'
@@ -186,6 +187,45 @@ export async function insertPilotLead(lead: {
   })
   if (error) throw error
   return { id }
+}
+
+export async function insertAgentPilotLead(lead: {
+  message_id: string
+  context_id: string
+  source_agent?: string
+  reply_url?: string
+  use_case: string
+}): Promise<{ id: string; created: boolean }> {
+  const db = getServiceClient()
+  const resourceId = `a2a:${createHash('sha256').update(`${lead.context_id}:${lead.message_id}`).digest('hex')}`
+  const { data: existing, error: lookupError } = await db
+    .from('audit_events')
+    .select('resource_id')
+    .eq('event_type', 'pilot_lead.created')
+    .eq('resource_id', resourceId)
+    .maybeSingle()
+  if (lookupError) throw lookupError
+  if (existing) return { id: resourceId, created: false }
+
+  const { error } = await db.from('audit_events').insert({
+    event_type: 'pilot_lead.created',
+    actor_type: 'agent',
+    actor_ref: lead.source_agent ?? null,
+    resource_type: 'pilot_lead',
+    resource_id: resourceId,
+    metadata: {
+      source: 'a2a',
+      company_name: lead.source_agent ?? 'A2A buyer agent',
+      contact_name: lead.source_agent ?? 'Agent inquiry',
+      use_case: lead.use_case,
+      timeline: 'agent inquiry',
+      agent_message_id: lead.message_id,
+      agent_context_id: lead.context_id,
+      reply_url: lead.reply_url,
+    },
+  })
+  if (error) throw error
+  return { id: resourceId, created: true }
 }
 
 // CAS transition: only updates if current status matches `from`

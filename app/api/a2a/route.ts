@@ -1,8 +1,11 @@
 import { randomUUID } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { respondToAgentMessage } from '@/lib/a2a'
+import { isQualifiedAgentLead, respondToAgentMessage } from '@/lib/a2a'
+import { insertAgentPilotLead } from '@/lib/db'
 import { rateLimit } from '@/lib/security'
+
+const HttpUrl = z.string().url().max(1000).refine(value => value.startsWith('https://') || value.startsWith('http://'))
 
 const RequestSchema = z.object({
   jsonrpc: z.literal('2.0'),
@@ -14,6 +17,11 @@ const RequestSchema = z.object({
       role: z.enum(['ROLE_USER', 'user']),
       parts: z.array(z.object({ text: z.string().min(1).max(4000) }).passthrough()).min(1).max(10),
       contextId: z.string().max(200).optional(),
+      metadata: z.object({
+        agentName: z.string().trim().min(1).max(120).optional(),
+        sourceAgent: z.string().trim().min(1).max(120).optional(),
+        replyUrl: HttpUrl.optional(),
+      }).passthrough().optional(),
     }).passthrough(),
   }).passthrough(),
 })
@@ -37,6 +45,25 @@ export async function POST(req: NextRequest) {
   const requestMessage = parsed.data.params.message
   const text = requestMessage.parts.map(part => part.text).join('\n')
   const contextId = requestMessage.contextId ?? randomUUID()
+  let leadReference: string | undefined
+  if (isQualifiedAgentLead(text)) {
+    try {
+      const captured = await insertAgentPilotLead({
+        message_id: requestMessage.messageId,
+        context_id: contextId,
+        source_agent: requestMessage.metadata?.agentName ?? requestMessage.metadata?.sourceAgent,
+        reply_url: requestMessage.metadata?.replyUrl,
+        use_case: text.slice(0, 4000),
+      })
+      leadReference = captured.id
+    } catch (error) {
+      console.error('[a2a] qualified lead capture failed', error)
+    }
+  }
+  const responseText = [
+    respondToAgentMessage(text),
+    leadReference ? `Operator follow-up reference: ${leadReference}.` : undefined,
+  ].filter((value): value is string => !!value).join('\n')
   return NextResponse.json({
     jsonrpc: '2.0',
     id: parsed.data.id,
@@ -45,7 +72,7 @@ export async function POST(req: NextRequest) {
         messageId: randomUUID(),
         contextId,
         role: 'ROLE_AGENT',
-        parts: [{ text: respondToAgentMessage(text) }],
+        parts: [{ text: responseText }],
       },
     },
   }, {
