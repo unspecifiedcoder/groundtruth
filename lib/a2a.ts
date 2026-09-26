@@ -2,12 +2,13 @@ const DEFAULT_BASE = 'https://groundtruth-oracle.vercel.app'
 
 const BUYER_INTENT = /\b(?:need|want|seeking|looking for|interested in|request(?:ing)?|ready to|would like|can you (?:cover|verify|quote)|buyer (?:needs|wants|request)|procurement request|matched (?:buyer|demand))\b/i
 const COMMERCIAL_SCOPE = /\b(?:pilot|quote|proposal|coverage|campaign|field evidence|retail verification|store(?:s)?|location(?:s)?|shelf|sku(?:s)?|price verification|availability verification)\b/i
+const TRIAL_COMMITMENT = /\b(?:start|begin|enroll|commit|ready|want|would like|interested)\b.{0,60}\b(?:product evaluation|integration trial|integration test|pilot)\b/i
 const NEGATED_INTENT = /\b(?:not|isn't|aren't|no longer)\s+(?:interested|looking|seeking|ready)\b/i
 
 export function isQualifiedAgentLead(text: string): boolean {
   const compact = text.replace(/\s+/g, ' ').trim()
   if (compact.length < 20 || NEGATED_INTENT.test(compact)) return false
-  return BUYER_INTENT.test(compact) && COMMERCIAL_SCOPE.test(compact)
+  return TRIAL_COMMITMENT.test(compact) || (BUYER_INTENT.test(compact) && COMMERCIAL_SCOPE.test(compact))
 }
 
 export function groundTruthAgentCard(base = process.env.NEXT_PUBLIC_APP_URL ?? DEFAULT_BASE) {

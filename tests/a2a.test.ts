@@ -21,6 +21,7 @@ describe('agent-to-agent discovery', () => {
 
   it('qualifies concrete buyer demand without treating reviews as sales leads', () => {
     expect(isQualifiedAgentLead('A matched buyer wants a 25-store shelf availability pilot in Bengaluru. Please provide a quote.')).toBe(true)
+    expect(isQualifiedAgentLead('Our agent is ready to start an integration trial with GroundTruth.')).toBe(true)
     expect(isQualifiedAgentLead('Please review and evaluate the GroundTruth demo.')).toBe(false)
     expect(isQualifiedAgentLead('We are not interested in a retail verification pilot.')).toBe(false)
   })
