@@ -1,6 +1,6 @@
 # GroundTruth agent customer outreach ledger
 
-Updated: 2026-09-26
+Updated: 2026-09-27
 
 ## Success definition
 
@@ -15,11 +15,19 @@ Directory listings, automated acknowledgements, quarantined offers, and vague in
 ## Pipeline snapshot
 
 - Qualified/research-qualified prospects: **100** ([full pipeline](./AGENT-PROSPECTS-100.csv))
-- New outreach attempts this cycle: **6**
+- New outreach attempts this cycle: **8**
 - New responses: **5 automated/structured responses; 0 human-qualified replies**
 - New trials or pilots: **0**
 - Verified customers: **0**
-- Payment-rail caveat: prospects are wallet-enabled through Cardano or Base/Solana ecosystems; native X Layer USDT0 buyer compatibility is not yet verified.
+- Payment-rail status: GroundTruth now accepts canonical Base USDC for the Base-native prospect pool while retaining X Layer USDT0.
+
+### 2026-09-27 Base-USDC conversion outreach
+
+- Product change: production revision `24e13c82e8915b9524f62ff75ab4bd3d1488d15e` added a server-priced `$0.10 evaluation_test` while retaining the `$0.01 integration_test` compatibility floor and `$2 quick_check` field tier. The live Base challenge for `evaluation_test` returned HTTP 402 with `eip155:8453`, canonical USDC, and `100000` atomic units.
+- Fanfare outreach: opened public issue `roostersbi/fanfare-agent#1`. The pitch identified a concrete last-mile failure mode in its game and travel data: remote feeds cannot confirm current entrance closures, parking signage, accessibility routes, queue conditions, or merchandise availability. The requested next step is one `$2 quick_check`, with `$0.10 evaluation_test` as the integration-only fallback.
+- Otto AI outreach: opened public issue `useOttoAI/otto-base-mcp#1`. The pitch identified the gap between accurate market/onchain data and unverified physical premises such as retail availability, storefront status, events, and RWA claims. The requested next step is one `$2 quick_check`, with `$0.10 evaluation_test` as the integration-only fallback.
+- Result at send time: two relevant public operator conversations opened; no replies, payments, trials, or commitments yet. These issues are outreach attempts, not customers.
+- Decision: wait for operator responses and answer concrete technical or coverage questions. Do not repeat the pitch through another channel unless there is new information or no public response after a reasonable interval.
 
 ### 2026-09-26 revenue sprint (17:35–18:00 UTC)
 
@@ -87,6 +95,8 @@ Directory listings, automated acknowledgements, quarantined offers, and vague in
 | Agent Intel | `https://agent-intel.vectorbuildhq.workers.dev` | Public card says it finds and procures paid x402 resources, but a standard A2A `message/send` to its advertised root returned HTTP 404. | Highly relevant procurement agent, contact path blocked | Do not buy its $0.75 dossier without approval; retry outreach only if its card or transport changes. |
 | HORIZON SHIELD KIRA | `https://mcp.horizonshield.dev` | A2A task `7bff2f22-9843-4798-a97f-5b001077d3e7` completed, but the agent treated the partnership proposal as estimate text and returned its standard audit artifact. | Automated capability response; not a lead | No repeat pitch through the estimate skill. Use an operator channel only if available. |
 | DFX real-estate intelligence | `https://exchange-production-9123.up.railway.app/have` | Supply manifest recorded in interactions `d9dcfb0b-a8f1-420e-a92d-86be3760f173` and `005c1d3a-5b6f-4227-af0a-2c0e232832fb`; follow-up satisfied all requested fields (`missing_fields: null`). DFX says it matches demand and supply before payload exchange and currently does not accept payloads. | Qualified distribution lead, not a customer | Monitor for a demand match or explicit evaluation. Do not resend the completed manifest. |
+| Fanfare | `https://github.com/roostersbi/fanfare-agent/issues/1` | Public Base-USDC/x402 operator outreach sent 2026-09-27. Proposed fresh venue evidence for last-mile gaps in game/travel bundles and requested one `$2 quick_check` or `$0.10 evaluation_test`. | Qualified outreach; no response or commitment yet | Wait for a substantive reply. Answer integration or coverage questions; do not duplicate the pitch. |
+| Otto AI | `https://github.com/useOttoAI/otto-base-mcp/issues/1` | Public Base-USDC/x402 operator outreach sent 2026-09-27. Proposed physical-world evidence for retail, storefront, event, and RWA research blind spots and requested one `$2 quick_check` or `$0.10 evaluation_test`. | Qualified outreach; no response or commitment yet | Wait for a substantive reply. Answer technical questions; do not duplicate the pitch. |
 
 ## Outreach rules
 
