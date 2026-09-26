@@ -16,7 +16,8 @@ export async function GET() {
       'human-in-the-loop',
     ],
     pricing: {
-      currencies: ['USDC', 'USDT0'],
+      currency: 'USDC',
+      acceptedCurrencies: ['USDC', 'USDT0'],
       base: '0.01',
       unit: 'integration_test',
       tiers: {
@@ -29,6 +30,10 @@ export async function GET() {
     },
     payment: {
       address: process.env.X402_VERIFY_RECIPIENT ?? '0x72db032c0dFB6E7502e16A73fabdab31712dc706',
+      chain: 'eip155:8453',
+      network: 'Base',
+      asset: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+      facilitator: process.env.BASE_X402_FACILITATOR_URL ?? 'https://facilitator.openx402.ai',
       rails: [
         {
           chain: 'eip155:8453',
