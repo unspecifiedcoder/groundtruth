@@ -19,7 +19,7 @@ The product is currently in focused-pilot mode. Coverage and turnaround are conf
 
 ## Public-beta readiness
 
-The application includes crawler and agent discovery (`robots.txt`, `sitemap.xml`, JSON-LD, `llms.txt`, OpenAPI, MCP, and `/.well-known/agent.json`), private campaign sessions, redacted public task views, signed worker claims, upload validation, persistent rate limiting, audit events, legal/safety pages, hardened browser headers, and `/api/health` readiness reporting.
+The application includes crawler and agent discovery (`robots.txt`, `sitemap.xml`, JSON-LD, `llms.txt`, OpenAPI, MCP, A2A, `/.well-known/agent.json`, and `/.well-known/agent-card.json`), private campaign sessions, redacted public task views, signed worker claims, upload validation, persistent rate limiting, audit events, legal/safety pages, hardened browser headers, and `/api/health` readiness reporting.
 
 Before enabling real public traffic:
 
