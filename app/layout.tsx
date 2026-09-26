@@ -98,7 +98,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <div className="flex items-center gap-1.5">
               <div className="hidden md:flex items-center gap-1">
                 {[
-                  { href: '/try', label: 'Test $0.01' },
+                  { href: '/try', label: 'Evaluate $0.10' },
                   { href: '/developers', label: 'Developers' },
                   { href: '/campaigns/demo', label: 'Demo' },
                   { href: '/trust', label: 'Trust' },
@@ -123,7 +123,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 href="/try"
                 className="btn btn-primary ml-1.5 px-4 py-1.5 text-sm"
               >
-                <span className="sm:hidden">Test</span><span className="hidden sm:inline">Run $0.01 test</span> <span className="btn-arrow">→</span>
+                <span className="sm:hidden">Try</span><span className="hidden sm:inline">Run $0.10 evaluation</span> <span className="btn-arrow">→</span>
               </a>
             </div>
           </div>

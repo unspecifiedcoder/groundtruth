@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 
 export const metadata: Metadata = {
-  title: '$0.01 paid agent integration test',
-  description: 'Test GroundTruth end to end with a real $0.01 x402 payment in Base USDC or X Layer USDT0 and receive a pollable task ID.',
+  title: '$0.10 paid agent evaluation',
+  description: 'Evaluate GroundTruth end to end with a real $0.10 x402 payment in Base USDC or X Layer USDT0, or launch a basic $2 field mission.',
   alternates: { canonical: '/try' },
 }
 
@@ -12,8 +12,8 @@ const base = process.env.NEXT_PUBLIC_APP_URL ?? 'https://groundtruth-oracle.verc
 const prompt = `Use GroundTruth to run an integration test.
 Endpoint: ${base}/api/v1/human-do
 Method: POST
-JSON body: {"intent":"GroundTruth external integration test","service_tier":"integration_test","proof_spec":{"type":"form","instructions":"Return a short integration receipt","formFields":["result"]}}
-Follow the x402 payment challenge. Prefer 0.01 USDC on Base; X Layer USDT0 is also accepted. Spend no more than $0.01. Return the task_id and poll_url. Do not claim that a physical field visit occurred.`
+JSON body: {"intent":"Evaluate GroundTruth's paid task contract and return a product review","service_tier":"evaluation_test","proof_spec":{"type":"form","instructions":"Return a short evaluation receipt","formFields":["result"]}}
+Follow the x402 payment challenge. Prefer 0.10 USDC on Base; X Layer USDT0 is also accepted. Spend no more than $0.10. Return the task_id and poll_url. Do not claim that a physical field visit occurred. For a real basic field mission, use service_tier quick_check at $2.`
 
 export default function TryPage() {
   return (
@@ -23,9 +23,9 @@ export default function TryPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify({
           '@context': 'https://schema.org',
           '@type': 'Offer',
-          name: 'GroundTruth paid agent integration test',
-          price: '0.01',
-          priceCurrency: 'USDT',
+          name: 'GroundTruth paid agent evaluation',
+          price: '0.10',
+          priceCurrency: 'USDC',
           url: `${base}/try`,
           availability: 'https://schema.org/InStock',
         }).replace(/</g, '\\u003c') }}
@@ -34,7 +34,7 @@ export default function TryPage() {
       <div className="max-w-5xl mx-auto">
         <section className="grid lg:grid-cols-[1fr_0.9fr] gap-10 items-start mb-16">
           <div>
-            <p className="chip text-[10px] mb-3" style={{ color: 'var(--good)' }}>Paid compatibility test · $0.01 USDC or USDT0</p>
+            <p className="chip text-[10px] mb-3" style={{ color: 'var(--good)' }}>Paid agent evaluation · $0.10 USDC or USDT0</p>
             <h1 className="font-display text-4xl sm:text-6xl font-extrabold leading-tight mb-5">
               Find out if your agent can buy real-world evidence.
             </h1>
@@ -52,7 +52,7 @@ export default function TryPage() {
             <div className="space-y-4 text-sm">
               {[
                 ['1', 'Discover', 'Your agent reaches the live endpoint and reads the machine-priced challenge.'],
-                ['2', 'Pay', 'It authorizes exactly $0.01 in Base USDC or X Layer USDT0.'],
+                ['2', 'Pay', 'It authorizes exactly $0.10 in Base USDC or X Layer USDT0.'],
                 ['3', 'Create', 'GroundTruth returns a real task ID and poll URL.'],
                 ['4', 'Inspect', 'You verify the asynchronous status and evidence contract.'],
               ].map(([number, title, body]) => (

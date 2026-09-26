@@ -14,7 +14,7 @@ export function GET() {
         post: {
           operationId: 'createFieldMission',
           summary: 'Create a paid asynchronous field mission',
-          description: 'Select a server-priced service tier. An unpaid request returns HTTP 402 with the exact machine-readable payment requirement. During the MVP, paid integration_test tasks are offered publicly at 0.01 USDT.',
+          description: 'Select a server-priced service tier. An unpaid request returns HTTP 402 with the exact machine-readable payment requirement. Use evaluation_test for a $0.10 paid review or quick_check for a basic $2 field mission; integration_test remains a $0.01 machine-compatibility probe.',
           requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/HumanDoInput' } } } },
           responses: {
             '201': { description: 'Mission created', content: { 'application/json': { schema: { $ref: '#/components/schemas/TaskCreated' } } } },
@@ -65,7 +65,7 @@ export function GET() {
             intent: { type: 'string', maxLength: 500, example: 'Check shelf availability and price for Brand A at Store 42' },
             target_location: { type: 'object', required: ['label', 'latitude', 'longitude'], properties: { label: { type: 'string' }, latitude: { type: 'number', minimum: -90, maximum: 90 }, longitude: { type: 'number', minimum: -180, maximum: 180 }, radius_meters: { type: 'integer', minimum: 25, maximum: 5000, default: 150 } } },
             proof_spec: { type: 'object', properties: { type: { enum: ['photo', 'form'] }, instructions: { type: 'string' }, minPhotos: { type: 'integer', minimum: 1, maximum: 5 }, formFields: { type: 'array', items: { type: 'string' } } } },
-            service_tier: { enum: ['integration_test', 'quick_check', 'photo_visit', 'urgent_visit', 'complex_visit'], default: 'integration_test', description: 'Prices: 0.01, 2.00, 5.00, 15.00, and 50.00 USDT respectively. Every paid tier is public during the MVP.' },
+            service_tier: { enum: ['integration_test', 'evaluation_test', 'quick_check', 'photo_visit', 'urgent_visit', 'complex_visit'], default: 'integration_test', description: 'Prices: 0.01, 0.10, 2.00, 5.00, 15.00, and 50.00 USDC or USDT0 respectively. Use evaluation_test for a paid product review and quick_check for the smallest field mission.' },
             budget_usdt: { type: 'string', pattern: '^\\d+(\\.\\d{1,6})?$', deprecated: true, description: 'Legacy compatibility. Only exact canonical tier prices are recognized.' },
             timeout_seconds: { type: 'integer', minimum: 60, maximum: 86400, default: 3600 },
           },

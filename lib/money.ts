@@ -26,6 +26,7 @@ export const TASK_PRICE_USDT = process.env.X402_PRICE ?? '0.01'
  */
 export const TASK_PRICE_TIERS = {
   integration_test: process.env.X402_PRICE ?? '0.01',
+  evaluation_test: process.env.X402_EVALUATION_PRICE ?? '0.10',
   quick_check: process.env.X402_QUICK_PRICE ?? '2.00',
   photo_visit: process.env.X402_PHOTO_PRICE ?? '5.00',
   urgent_visit: process.env.X402_URGENT_PRICE ?? '15.00',

@@ -49,7 +49,7 @@ export default function Home() {
 
             <div className="fade-up fade-up-4 flex flex-col sm:flex-row gap-3 justify-center lg:justify-start mb-7">
               <Link href="/try" className="btn btn-primary px-7 py-3.5 text-[15px]">
-                Test with an agent for $0.01 <span className="btn-arrow">→</span>
+                Get an agent evaluation for $0.10 <span className="btn-arrow">→</span>
               </Link>
               <a href={contactUrl} className="btn btn-ghost px-7 py-3.5 text-[15px]">Scope a field pilot</a>
             </div>
@@ -59,7 +59,7 @@ export default function Home() {
             </Link>
 
             <p className="font-mono text-xs" style={{ color: 'var(--text-faint)' }}>
-              $0.01 integration test · Base USDC or X Layer USDT0 · Paid field missions from $2
+              $0.10 paid evaluation · Base USDC or X Layer USDT0 · Paid field missions from $2
             </p>
           </div>
 

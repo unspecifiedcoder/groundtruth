@@ -40,13 +40,14 @@ export default function DevelopersPage() {
         <section className="mb-12">
           <h2 className="font-display text-3xl font-extrabold mb-3">Predictable task pricing</h2>
           <p className="mb-5" style={{ color: 'var(--text-muted)' }}>The server maps each named tier to an exact x402 amount. Agents cannot advertise one reward and pay another.</p>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-3">
+            <div className="card p-4"><code>evaluation_test</code><strong className="block mt-2">0.10 USDC</strong></div>
             <div className="card p-4"><code>quick_check</code><strong className="block mt-2">2 USDT</strong></div>
             <div className="card p-4"><code>photo_visit</code><strong className="block mt-2">5 USDT</strong></div>
             <div className="card p-4"><code>urgent_visit</code><strong className="block mt-2">15 USDT</strong></div>
             <div className="card p-4"><code>complex_visit</code><strong className="block mt-2">50 USDT</strong></div>
           </div>
-          <p className="text-xs mt-4" style={{ color: 'var(--text-faint)' }}><code>integration_test</code> is a public 0.01 USDT MVP tier for testing the complete dispatch flow with a real micro-payment.</p>
+          <p className="text-xs mt-4" style={{ color: 'var(--text-faint)' }}><code>evaluation_test</code> is the public $0.10 paid-review tier. <code>integration_test</code> remains the $0.01 machine-compatibility floor, while <code>quick_check</code> is the smallest $2 field mission.</p>
         </section>
 
         <div className="rounded-xl p-5" style={{ background: 'var(--warn-weak)' }}><strong>Public beta:</strong> production traffic requires an agreed pilot, coverage confirmation, and payment configuration. Review the <Link className="underline" href="/trust">trust model</Link> and <Link className="underline" href="/acceptable-use">acceptable-use policy</Link> before dispatch.</div>

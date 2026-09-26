@@ -140,7 +140,7 @@ export const HumanDoInputSchema = z.object({
     })
     .optional(),
   service_tier: z
-    .enum(['integration_test', 'quick_check', 'photo_visit', 'urgent_visit', 'complex_visit'])
+    .enum(['integration_test', 'evaluation_test', 'quick_check', 'photo_visit', 'urgent_visit', 'complex_visit'])
     .optional(),
   // Legacy compatibility only. Server-owned pricing tiers determine the x402
   // quote; arbitrary caller-controlled budgets are never trusted.

@@ -22,6 +22,7 @@ export async function GET() {
       unit: 'integration_test',
       tiers: {
         integration_test: '0.01',
+        evaluation_test: '0.10',
         quick_check: '2.00',
         photo_visit: '5.00',
         urgent_visit: '15.00',

@@ -66,7 +66,7 @@ export default async function TasksPage() {
         <div className="pt-12 pb-8 border-b" style={{ borderColor: 'var(--border)' }}>
           <div className="chip flex items-center gap-2 mb-4" style={{ color: 'var(--good)' }}>
             <span className="w-1.5 h-1.5 rounded-full animate-status" style={{ background: 'var(--good)' }} />
-            <span className="text-[10px]">Live · paid missions from $0.01</span>
+            <span className="text-[10px]">Live · paid field missions from $2</span>
           </div>
           <div className="flex items-end justify-between">
             <div>

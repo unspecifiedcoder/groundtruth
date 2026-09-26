@@ -5,6 +5,7 @@ import { BASE_FACILITATOR_URL, BASE_NETWORK, BASE_USDC, BAZAAR_EXTENSION } from 
 
 describe('server-owned task pricing', () => {
   it('maps named tiers to useful exact rewards', () => {
+    expect(resolveTaskPricing({ service_tier: 'evaluation_test' })).toEqual({ tier: 'evaluation_test', priceUsdt: '0.10' })
     expect(resolveTaskPricing({ service_tier: 'quick_check' })).toEqual({ tier: 'quick_check', priceUsdt: '2.00' })
     expect(resolveTaskPricing({ service_tier: 'photo_visit' })).toEqual({ tier: 'photo_visit', priceUsdt: '5.00' })
     expect(resolveTaskPricing({ service_tier: 'urgent_visit' })).toEqual({ tier: 'urgent_visit', priceUsdt: '15.00' })
@@ -72,11 +73,11 @@ describe('paid endpoint discovery metadata', () => {
       type: 'http',
       method: 'POST',
       bodyType: 'json',
-      body: { service_tier: 'integration_test' },
+      body: { service_tier: 'evaluation_test' },
     })
     expect(info.output).toMatchObject({
       type: 'json',
-      example: { status: 'pending', budget_usdt: '0.01', async: true },
+      example: { status: 'pending', budget_usdt: '0.10', async: true },
     })
     expect(BAZAAR_EXTENSION.bazaar.schema.required).toEqual(['input', 'output'])
   })
