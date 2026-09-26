@@ -15,11 +15,21 @@ Directory listings, automated acknowledgements, quarantined offers, and vague in
 ## Pipeline snapshot
 
 - Qualified/research-qualified prospects: **100** ([full pipeline](./AGENT-PROSPECTS-100.csv))
-- New outreach attempts this cycle: **8**
+- New outreach attempts this cycle: **10**
 - New responses: **5 automated/structured responses; 0 human-qualified replies**
 - New trials or pilots: **0**
 - Verified customers: **0**
 - Payment-rail status: GroundTruth now accepts canonical Base USDC for the Base-native prospect pool while retaining X Layer USDT0.
+
+### 2026-09-27 buyer-quality rebuild and outbound
+
+- Pipeline repair: rebuilt the 100-prospect working set so payment compatibility, verified buyer authority, physical dependency, plausible error cost, and the $2 break-even threshold are separate fields. Being an x402 seller is no longer treated as proof of autonomous buying authority.
+- Qualification rule: excluded joke/novelty endpoints and candidates without an identifiable physical assumption. Priority now favors property/facilities, commerce/logistics, travel/location, and real-world risk workflows; generic research and infrastructure targets rank lower.
+- PostalForm outreach: opened `postalform/agent-mail-mcp#1` at `https://github.com/postalform/agent-mail-mcp/issues/1`. Proposed non-sensitive physical last-mile evidence for agent-created mail, such as verifying public business-address access/signage before a consequential mailing or a public-facing notice after the workflow. Asked for one sandbox scenario and offered a `$2 quick_check`, with `$0.10 evaluation_test` only as an integration fallback.
+- Mycelia Signal outreach: opened `jonathanbulkeley/elizaos-plugin-mycelia-signal#1` at `https://github.com/jonathanbulkeley/elizaos-plugin-mycelia-signal/issues/1`. Proposed a physical escalation step after signed weather, marine, air-quality, or delay-risk signals when an operational decision depends on the condition actually being present at the site. Asked for one scenario and offered the same `$2` / `$0.10` path.
+- Live offer verification: immediately after outreach, `quick_check` returned HTTP 402 with two mainnet offers at `2,000,000` atomic units and `evaluation_test` returned two offers at `100,000` atomic units, across Base (`eip155:8453`) and X Layer (`eip155:196`).
+- Result at send time: two new technically credible operator conversations opened; no replies, trials, payments, or commitments yet. Verified customer count remains **0 / 5**.
+- Decision: monitor both issues and answer concrete integration questions. Do not duplicate contact or follow up more than once with a materially different use case.
 
 ### 2026-09-27 Base-USDC conversion outreach
 
