@@ -1,9 +1,9 @@
 import { OKXFacilitatorClient } from '@okxweb3/x402-core'
-import { x402ResourceServer, x402HTTPResourceServer } from '@okxweb3/x402-core/server'
+import { HTTPFacilitatorClient, x402ResourceServer, x402HTTPResourceServer } from '@okxweb3/x402-core/server'
 import type { HTTPRequestContext } from '@okxweb3/x402-core/server'
 import { ExactEvmScheme } from '@okxweb3/x402-evm/exact/server'
 import type { NextRequest } from 'next/server'
-import { resolveTaskPricing, TASK_PRICE_TIERS } from './money'
+import { resolveTaskPricing, TASK_PRICE_TIERS, toUnits } from './money'
 
 // ── Official OKX Payment SDK integration ────────────────────────────────────
 //
@@ -13,11 +13,15 @@ import { resolveTaskPricing, TASK_PRICE_TIERS } from './money'
 // module does: we build the 402 challenge, verify the buyer's credential, and
 // settle — all through OKXFacilitatorClient, never ourselves.
 //
-// Scheme: `exact` on X Layer. USD₮0 natively supports EIP-3009, so buyers sign
-// transferWithAuthorization (the default, zero-approve path the OKX Agentic
-// Wallet produces). The facilitator broadcasts the transfer to `payTo`.
+// Two production rails are advertised for the same product:
+// - Base mainnet USDC through a public x402 v2 facilitator, for broad agent-wallet compatibility.
+// - X Layer USD₮0 through the authenticated OKX facilitator.
+// Both use exact EIP-3009 authorization and settle directly to PAY_TO.
 
-const NETWORK = (process.env.X402_NETWORK ?? 'eip155:196') as `eip155:${string}`
+export const X_LAYER_NETWORK = (process.env.X402_NETWORK ?? 'eip155:196') as `eip155:${string}`
+export const BASE_NETWORK = 'eip155:8453' as const
+export const BASE_USDC = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as const
+export const BASE_FACILITATOR_URL = process.env.BASE_X402_FACILITATOR_URL ?? 'https://facilitator.openx402.ai'
 const PAY_TO = (process.env.X402_VERIFY_RECIPIENT ??
   '0x72db032c0dFB6E7502e16A73fabdab31712dc706') as string
 const ROUTE_PATTERN = 'POST /api/v1/human-do'
@@ -114,22 +118,51 @@ export function getHttpResourceServer(): Promise<x402HTTPResourceServer> {
       ...(process.env.OKX_BASE_URL ? { baseUrl: process.env.OKX_BASE_URL } : {}),
     } as ConstructorParameters<typeof OKXFacilitatorClient>[0])
 
-    const resourceServer = new x402ResourceServer(facilitator)
-    resourceServer.register(NETWORK, new ExactEvmScheme())
+    const baseFacilitator = new HTTPFacilitatorClient({ url: BASE_FACILITATOR_URL })
+
+    // Earlier clients win only when two facilitators advertise the same rail.
+    // OKX remains authoritative for X Layer; OpenX402 handles Base mainnet.
+    const resourceServer = new x402ResourceServer([facilitator, baseFacilitator])
+    resourceServer.register('eip155:*', new ExactEvmScheme())
+
+    const price = (context: HTTPRequestContext) => `$${resolveTaskPricing(context.adapter.getBody?.()).priceUsdt}`
+    const basePrice = (context: HTTPRequestContext) => ({
+      asset: BASE_USDC,
+      amount: toUnits(resolveTaskPricing(context.adapter.getBody?.()).priceUsdt).toString(),
+      extra: {
+        name: 'USD Coin',
+        version: '2',
+        assetTransferMethod: 'eip3009',
+      },
+    })
+
+    // Load both facilitators before building the advertised options. A temporary
+    // outage on one rail must not take the other rail down with it.
+    await resourceServer.initialize()
+    const accepts = [
+      {
+        scheme: 'exact' as const,
+        network: BASE_NETWORK,
+        payTo: PAY_TO,
+        price: basePrice,
+        maxTimeoutSeconds: 300,
+      },
+      {
+        scheme: 'exact' as const,
+        network: X_LAYER_NETWORK,
+        payTo: PAY_TO,
+        price,
+        maxTimeoutSeconds: 300,
+      },
+    ].filter(option => resourceServer.getSupportedKind(2, option.network, option.scheme))
+
+    if (accepts.length === 0) throw new Error('No configured x402 payment rail is currently available')
 
     const routeConfig = {
-      accepts: [
-        {
-          scheme: 'exact',
-          network: NETWORK,
-          payTo: PAY_TO,
-          // The server—not the caller—maps a named product tier to its exact
-          // price. A missing tier remains the low-cost integration probe for
-          // marketplace compatibility; real field tiers pay useful rewards.
-          price: (context: HTTPRequestContext) => `$${resolveTaskPricing(context.adapter.getBody?.()).priceUsdt}`,
-          maxTimeoutSeconds: 300,
-        },
-      ],
+      // The server—not the caller—maps a named product tier to its exact price.
+      // A missing tier remains the low-cost integration probe; real field tiers
+      // pay useful rewards.
+      accepts,
       // The challenge advertises the POST body schema so a client replaying the
       // authorized request knows what to send. Every field is optional in
       // practice — a paid call with no body still creates a task.
@@ -138,7 +171,7 @@ export function getHttpResourceServer(): Promise<x402HTTPResourceServer> {
         'POST JSON body: {"intent": string (1-500 chars, what a human oracle must verify), ' +
         '"proof_spec"?: {"type": "photo"|"form", "instructions": string, "minPhotos"?: 1-5, "formFields"?: string[]}, ' +
         `"service_tier"?: ${Object.keys(TASK_PRICE_TIERS).join('|')}, "timeout_seconds"?: 60-86400}. ` +
-        'The integration_test tier is a public 0.01 USDT MVP test mission. ' +
+        'The integration_test tier is a public $0.01 USDC or USDT0 MVP test mission. ' +
         'Body is optional: omitted fields create a paid test task and return a task_id to poll.',
       mimeType: 'application/json',
       resource: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}${RESOURCE_PATH}`,
@@ -158,8 +191,8 @@ export function getHttpResourceServer(): Promise<x402HTTPResourceServer> {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any)
 
-    // Loads the facilitator's supported kinds; required before serving.
-    await httpServer.initialize()
+    // resourceServer was initialized above so the route contains only healthy,
+    // facilitator-backed rails.
     return httpServer
   })()
   // A failed init must not be cached forever — let the next request retry.

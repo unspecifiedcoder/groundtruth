@@ -3,7 +3,7 @@ import Link from 'next/link'
 
 export const metadata: Metadata = {
   title: '$0.01 paid agent integration test',
-  description: 'Test GroundTruth end to end with a real 0.01 USDT0 x402 payment and receive a pollable field-mission task ID.',
+  description: 'Test GroundTruth end to end with a real $0.01 x402 payment in Base USDC or X Layer USDT0 and receive a pollable task ID.',
   alternates: { canonical: '/try' },
 }
 
@@ -13,7 +13,7 @@ const prompt = `Use GroundTruth to run an integration test.
 Endpoint: ${base}/api/v1/human-do
 Method: POST
 JSON body: {"intent":"GroundTruth external integration test","service_tier":"integration_test","proof_spec":{"type":"form","instructions":"Return a short integration receipt","formFields":["result"]}}
-Follow the x402 payment challenge. Spend no more than 0.01 USDT0 on X Layer. Return the task_id and poll_url. Do not claim that a physical field visit occurred.`
+Follow the x402 payment challenge. Prefer 0.01 USDC on Base; X Layer USDT0 is also accepted. Spend no more than $0.01. Return the task_id and poll_url. Do not claim that a physical field visit occurred.`
 
 export default function TryPage() {
   return (
@@ -34,7 +34,7 @@ export default function TryPage() {
       <div className="max-w-5xl mx-auto">
         <section className="grid lg:grid-cols-[1fr_0.9fr] gap-10 items-start mb-16">
           <div>
-            <p className="chip text-[10px] mb-3" style={{ color: 'var(--good)' }}>Paid compatibility test · 0.01 USDT0</p>
+            <p className="chip text-[10px] mb-3" style={{ color: 'var(--good)' }}>Paid compatibility test · $0.01 USDC or USDT0</p>
             <h1 className="font-display text-4xl sm:text-6xl font-extrabold leading-tight mb-5">
               Find out if your agent can buy real-world evidence.
             </h1>
@@ -52,7 +52,7 @@ export default function TryPage() {
             <div className="space-y-4 text-sm">
               {[
                 ['1', 'Discover', 'Your agent reaches the live endpoint and reads the machine-priced challenge.'],
-                ['2', 'Pay', 'It authorizes exactly 0.01 USDT0 on X Layer.'],
+                ['2', 'Pay', 'It authorizes exactly $0.01 in Base USDC or X Layer USDT0.'],
                 ['3', 'Create', 'GroundTruth returns a real task ID and poll URL.'],
                 ['4', 'Inspect', 'You verify the asynchronous status and evidence contract.'],
               ].map(([number, title, body]) => (
@@ -73,7 +73,7 @@ export default function TryPage() {
               The spending limit is explicit. A compatible wallet agent should stop for approval under its own policy, pay the challenge, and return the created task.
             </p>
             <p className="text-sm" style={{ color: 'var(--text-faint)' }}>
-              Requires X Layer and USDT0. GroundTruth never asks for a private key or seed phrase.
+              Works with Base USDC or X Layer USDT0. GroundTruth never asks for a private key or seed phrase.
             </p>
           </div>
           <div className="card overflow-hidden font-mono">

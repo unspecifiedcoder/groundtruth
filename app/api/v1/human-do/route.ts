@@ -402,6 +402,7 @@ export async function POST(req: NextRequest) {
 
   const settlementHeaders: Record<string, string> = {}
   let settlementTx: string | null = null
+  let settlementNetwork: string | null = null
   let paymentRecorded = false
 
   if (isExemptPayer) {
@@ -418,18 +419,26 @@ export async function POST(req: NextRequest) {
       verified.declaredExtensions
     )
 
-    // Verification is the gate; settlement is not. The facilitator has already
-    // accepted this credential, and the platform settles payment-exempt and
-    // micro-payment review probes on its own side — those have nothing for us to
-    // broadcast, so processSettlement reports no success and the request used to
-    // be turned away with a 402 here. Refusing a payment OKX already approved is
-    // exactly the extra validation sellers are told not to add, and it is why
-    // the official availability test could not complete.
+    // OKX settles some payment-exempt and marketplace review probes without a
+    // broadcastable transaction, so X Layer preserves the verified-probe
+    // compatibility behavior. Base is a normal public-money rail and fails
+    // closed: no successful settlement means no task and no service delivery.
     //
     // Replay and forged credentials are already rejected upstream at
     // verification, so serving a verified-but-unsettled request risks at most
     // one call's fee, against failing every official test.
     if (!settle.success) {
+      if (verified.paymentRequirements.network === 'eip155:8453') {
+        await deleteTask(task.id).catch(() => {})
+        return NextResponse.json(
+          {
+            error: 'Base USDC settlement failed',
+            reason: settle.errorReason ?? 'settlement_failed',
+            detail: settle.errorMessage ?? undefined,
+          },
+          { status: 402, headers: settle.headers ?? {} }
+        )
+      }
       console.warn(
         '[human-do] settlement did not complete for a verified payment — serving anyway.',
         JSON.stringify({
@@ -443,6 +452,7 @@ export async function POST(req: NextRequest) {
 
     Object.assign(settlementHeaders, settle.headers ?? {})
     settlementTx = settle.transaction ?? null
+    settlementNetwork = settle.network ?? verified.paymentRequirements.network ?? null
 
     // The money actually collected is authoritative, not the requested budget.
     // A payment-exempt or micro-payment probe settles for less than the
@@ -509,7 +519,14 @@ export async function POST(req: NextRequest) {
       // confirming the payment, not a failure. Poll `poll_url` until `complete`.
       async: true,
       payment: settlementTx
-        ? { status: 'pending_confirmation', transaction: settlementTx, verify: explorerTx(settlementTx) }
+        ? {
+            status: 'pending_confirmation',
+            transaction: settlementTx,
+            network: settlementNetwork,
+            verify: settlementNetwork === 'eip155:8453'
+              ? `https://basescan.org/tx/${settlementTx}`
+              : explorerTx(settlementTx),
+          }
         : null,
       funded: paymentRecorded,
       dispatch: paymentRecorded ? 'public_worker_board' : 'unfunded_not_claimable',

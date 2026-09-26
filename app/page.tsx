@@ -59,7 +59,7 @@ export default function Home() {
             </Link>
 
             <p className="font-mono text-xs" style={{ color: 'var(--text-faint)' }}>
-              $0.01 integration test · Paid field missions from $2 · X Layer USDT0
+              $0.01 integration test · Base USDC or X Layer USDT0 · Paid field missions from $2
             </p>
           </div>
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { resolveTaskPricing } from '../lib/money'
 import { isTaskFundedForDispatch } from '../lib/funding'
-import { BAZAAR_EXTENSION } from '../lib/okx-x402'
+import { BASE_FACILITATOR_URL, BASE_NETWORK, BASE_USDC, BAZAAR_EXTENSION } from '../lib/okx-x402'
 
 describe('server-owned task pricing', () => {
   it('maps named tiers to useful exact rewards', () => {
@@ -79,5 +79,11 @@ describe('paid endpoint discovery metadata', () => {
       example: { status: 'pending', budget_usdt: '0.01', async: true },
     })
     expect(BAZAAR_EXTENSION.bazaar.schema.required).toEqual(['input', 'output'])
+  })
+
+  it('advertises canonical Base mainnet USDC through a configured facilitator', () => {
+    expect(BASE_NETWORK).toBe('eip155:8453')
+    expect(BASE_USDC).toBe('0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913')
+    expect(BASE_FACILITATOR_URL).toMatch(/^https:\/\//)
   })
 })
