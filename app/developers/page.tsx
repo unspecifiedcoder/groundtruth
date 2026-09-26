@@ -46,7 +46,7 @@ export default function DevelopersPage() {
             <div className="card p-4"><code>urgent_visit</code><strong className="block mt-2">15 USDT</strong></div>
             <div className="card p-4"><code>complex_visit</code><strong className="block mt-2">50 USDT</strong></div>
           </div>
-          <p className="text-xs mt-4" style={{ color: 'var(--text-faint)' }}><code>integration_test</code> remains a 0.01 USDT compatibility probe and is never published to the worker board.</p>
+          <p className="text-xs mt-4" style={{ color: 'var(--text-faint)' }}><code>integration_test</code> is a public 0.01 USDT MVP tier for testing the complete dispatch flow with a real micro-payment.</p>
         </section>
 
         <div className="rounded-xl p-5" style={{ background: 'var(--warn-weak)' }}><strong>Public beta:</strong> production traffic requires an agreed pilot, coverage confirmation, and payment configuration. Review the <Link className="underline" href="/trust">trust model</Link> and <Link className="underline" href="/acceptable-use">acceptable-use policy</Link> before dispatch.</div>

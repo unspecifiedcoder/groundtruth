@@ -10,7 +10,7 @@ describe('server-owned task pricing', () => {
     expect(resolveTaskPricing({ service_tier: 'complex_visit' })).toEqual({ tier: 'complex_visit', priceUsdt: '50.00' })
   })
 
-  it('keeps missing and arbitrary legacy prices in the private integration tier', () => {
+  it('keeps missing and arbitrary legacy prices in the MVP integration tier', () => {
     expect(resolveTaskPricing({})).toEqual({ tier: 'integration_test', priceUsdt: '0.01' })
     expect(resolveTaskPricing({ budget_usdt: '999.00' })).toEqual({ tier: 'integration_test', priceUsdt: '0.01' })
   })
@@ -31,11 +31,19 @@ describe('worker-board funding boundary', () => {
     })).toBe(true)
   })
 
-  it('keeps micro-payment probes private even when payment succeeded', () => {
+  it('publishes paid MVP micro-tasks at the 0.01 USDT floor', () => {
     expect(isTaskFundedForDispatch({ ...paidTask, budget_usdt: '0.01' }, {
       hasRecordedPayment: true,
       allowOperatorFundedCampaigns: false,
-      minimumRewardUsdt: '2.00',
+      minimumRewardUsdt: '0.01',
+    })).toBe(true)
+  })
+
+  it('still blocks values below the MVP floor', () => {
+    expect(isTaskFundedForDispatch({ ...paidTask, budget_usdt: '0.009999' }, {
+      hasRecordedPayment: true,
+      allowOperatorFundedCampaigns: false,
+      minimumRewardUsdt: '0.01',
     })).toBe(false)
   })
 

@@ -291,6 +291,36 @@ export async function listOpenTasks(): Promise<Task[]> {
   }))
 }
 
+/**
+ * Keep unfunded legacy/demo requests visible for transparency without making
+ * them claimable or implying that a worker reward exists.
+ */
+export async function listUnfundedOpenTasks(): Promise<Task[]> {
+  const db = getServiceClient()
+  const { data, error } = await db
+    .from('tasks')
+    .select()
+    .eq('status', 'pending')
+    .gt('expires_at', new Date().toISOString())
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  const tasks = (data ?? []) as Task[]
+  if (!tasks.length) return []
+
+  const { data: payments, error: paymentError } = await db
+    .from('payments')
+    .select('task_id')
+    .in('task_id', tasks.map(task => task.id))
+  if (paymentError) throw paymentError
+  const paidTaskIds = new Set((payments ?? []).map(row => row.task_id as string))
+  const allowOperatorFundedCampaigns = process.env.ALLOW_OPERATOR_FUNDED_CAMPAIGNS === 'true'
+
+  return tasks.filter(task => !isTaskFundedForDispatch(task, {
+    hasRecordedPayment: paidTaskIds.has(task.id),
+    allowOperatorFundedCampaigns,
+  }))
+}
+
 export async function isTaskDispatchable(taskId: string): Promise<boolean> {
   const db = getServiceClient()
   const [{ data: task, error: taskError }, { data: payment, error: paymentError }] = await Promise.all([

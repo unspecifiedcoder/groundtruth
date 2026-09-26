@@ -512,7 +512,7 @@ export async function POST(req: NextRequest) {
         ? { status: 'pending_confirmation', transaction: settlementTx, verify: explorerTx(settlementTx) }
         : null,
       funded: paymentRecorded,
-      dispatch: paymentRecorded && pricing.tier !== 'integration_test' ? 'public_worker_board' : 'private_integration_only',
+      dispatch: paymentRecorded ? 'public_worker_board' : 'unfunded_not_claimable',
       next_step: `Poll ${process.env.NEXT_PUBLIC_APP_URL ?? ''}/api/v1/tasks/${task.id} until "complete": true. It reports payment finality and proof verification separately.`,
 
       // A paid call buys the dispatch, not an inline answer — a person has to go

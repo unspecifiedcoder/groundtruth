@@ -1,11 +1,19 @@
 import Link from 'next/link'
-import { listOpenTasks, listTransactions, listTopWorkers, type LedgerEntry, type WorkerRep } from '@/lib/db'
+import { listOpenTasks, listTransactions, listTopWorkers, listUnfundedOpenTasks, type LedgerEntry, type WorkerRep } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
 
 async function getOpenTasks() {
   try {
     return await listOpenTasks()
+  } catch {
+    return []
+  }
+}
+
+async function getUnfundedTasks() {
+  try {
+    return await listUnfundedOpenTasks()
   } catch {
     return []
   }
@@ -43,7 +51,12 @@ async function getTopWorkers(): Promise<WorkerRep[]> {
 }
 
 export default async function TasksPage() {
-  const [tasks, ledger, oracles] = await Promise.all([getOpenTasks(), getTransactions(), getTopWorkers()])
+  const [tasks, unfundedTasks, ledger, oracles] = await Promise.all([
+    getOpenTasks(),
+    getUnfundedTasks(),
+    getTransactions(),
+    getTopWorkers(),
+  ])
 
   return (
     <main className="min-h-screen pb-20" style={{ color: 'var(--text)' }}>
@@ -53,7 +66,7 @@ export default async function TasksPage() {
         <div className="pt-12 pb-8 border-b" style={{ borderColor: 'var(--border)' }}>
           <div className="chip flex items-center gap-2 mb-4" style={{ color: 'var(--good)' }}>
             <span className="w-1.5 h-1.5 rounded-full animate-status" style={{ background: 'var(--good)' }} />
-            <span className="text-[10px]">Live · funded missions only</span>
+            <span className="text-[10px]">Live · paid missions from $0.01</span>
           </div>
           <div className="flex items-end justify-between">
             <div>
@@ -61,7 +74,7 @@ export default async function TasksPage() {
                 Mission Board
               </h1>
               <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-                Only reward-backed work appears here. Collect proof; approved work is paid in USDT.
+                Paid MVP tests and full field missions appear here. Collect proof; approved work is paid in USDT.
               </p>
             </div>
             <div className="text-right">
@@ -154,6 +167,46 @@ export default async function TasksPage() {
             </div>
           )}
         </div>
+
+        {/* Unfunded legacy requests stay visible, but never masquerade as paid work. */}
+        {unfundedTasks.length > 0 && (
+          <div className="mt-14 pt-8 border-t" style={{ borderColor: 'var(--border)' }}>
+            <div className="mb-4">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="font-display text-xl font-extrabold" style={{ color: 'var(--text)' }}>Legacy demo requests</h2>
+                <span className="chip text-[10px]" style={{ color: 'var(--warn)' }}>Visible · unfunded</span>
+              </div>
+              <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
+                Kept visible for transparency. These old records have no confirmed reward, so they cannot be claimed or counted as completed paid work.
+              </p>
+            </div>
+            <div className="space-y-3">
+              {unfundedTasks.map(task => {
+                const shortId = task.id.replace(/-/g, '').slice(0, 8).toUpperCase()
+                return (
+                  <div key={task.id} className="card p-5 opacity-80">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <span className="font-mono text-[10px]" style={{ color: 'var(--text-faint)' }}>#{shortId}</span>
+                          <span className="chip text-[10px]" style={{ color: 'var(--warn)' }}>Not claimable</span>
+                        </div>
+                        <p className="font-medium leading-snug" style={{ color: 'var(--text)' }}>{task.intent}</p>
+                        <p className="text-xs mt-2" style={{ color: 'var(--text-faint)' }}>
+                          Created {new Date(task.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' })}
+                        </p>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <div className="font-display text-sm font-extrabold" style={{ color: 'var(--text-faint)' }}>NO REWARD</div>
+                        <div className="font-mono text-[10px]" style={{ color: 'var(--text-faint)' }}>UNFUNDED</div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Top oracles — reputation */}
         {oracles.length > 0 && (

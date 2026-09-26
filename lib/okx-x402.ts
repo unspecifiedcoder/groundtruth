@@ -68,8 +68,8 @@ export function getHttpResourceServer(): Promise<x402HTTPResourceServer> {
         'POST JSON body: {"intent": string (1-500 chars, what a human oracle must verify), ' +
         '"proof_spec"?: {"type": "photo"|"form", "instructions": string, "minPhotos"?: 1-5, "formFields"?: string[]}, ' +
         `"service_tier"?: ${Object.keys(TASK_PRICE_TIERS).join('|')}, "timeout_seconds"?: 60-86400}. ` +
-        'The integration_test tier is for compatibility testing and is not dispatched publicly. ' +
-        'Body is optional: omitted fields create a private integration task and return a task_id to poll.',
+        'The integration_test tier is a public 0.01 USDT MVP test mission. ' +
+        'Body is optional: omitted fields create a paid test task and return a task_id to poll.',
       mimeType: 'application/json',
       resource: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}${RESOURCE_PATH}`,
       // Echo the challenge in the body as well. OKX validates the

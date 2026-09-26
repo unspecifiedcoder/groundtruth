@@ -35,8 +35,8 @@ const handler = createMcpHandler(
             pricing: {
               model: 'server-priced x402 service tiers',
               tiers: TASK_PRICE_TIERS,
-              default_field_tier: 'quick_check',
-              integration_note: 'integration_test is a private compatibility probe and is not dispatched to workers',
+              default_field_tier: 'integration_test',
+              integration_note: 'integration_test is a public 0.01 USDT MVP tier for testing the complete flow',
               currency: 'USDT0',
               network: `eip155:${process.env.SETTLEMENT_CHAIN_ID ?? '196'}`,
               platform_fee_bps: process.env.ASP_FEE_BPS ?? '1200',
@@ -67,7 +67,7 @@ const handler = createMcpHandler(
             longitude: z.number().min(-180).max(180),
             radius_meters: z.number().int().min(25).max(5000).optional().default(150),
           }).optional().describe('Optional target location and allowed capture radius'),
-          service_tier: z.enum(['quick_check', 'photo_visit', 'urgent_visit', 'complex_visit']).optional().default('quick_check'),
+          service_tier: z.enum(['integration_test', 'quick_check', 'photo_visit', 'urgent_visit', 'complex_visit']).optional().default('integration_test'),
           timeout_seconds: z.number().int().min(60).max(86400).optional().default(3600),
         }),
       },
@@ -76,11 +76,11 @@ const handler = createMcpHandler(
         proof_type: 'photo' | 'form'
         instructions: string
         target_location?: { label: string; latitude: number; longitude: number; radius_meters?: number }
-        service_tier?: Exclude<TaskPriceTier, 'integration_test'>
+        service_tier?: TaskPriceTier
         timeout_seconds?: number
       }) => {
         const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
-        const pricing = resolveTaskPricing({ service_tier: service_tier ?? 'quick_check' })
+        const pricing = resolveTaskPricing({ service_tier: service_tier ?? 'integration_test' })
         const amount = pricing.priceUsdt
 
         // Autonomous payment through the OFFICIAL OKX Payment SDK: probe the

@@ -19,7 +19,6 @@ export function GET() {
       audienceType: 'AI agents, retail operators, brands, and market researchers',
     },
     offers: Object.entries(TASK_PRICE_TIERS)
-      .filter(([tier]) => tier !== 'integration_test')
       .map(([tier, price]) => ({
         '@type': 'Offer',
         name: tier,
