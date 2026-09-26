@@ -4,6 +4,8 @@ export function GET() {
 
 GroundTruth dispatches paid real-world retail field checks and returns verified photographic evidence, structured observations, and settlement receipts.
 
+Paid x402 service manifest: ${base}/.well-known/x402-service.json
+
 ## Agent interfaces
 - MCP endpoint: ${base}/api/mcp
 - A2A agent card: ${base}/.well-known/agent-card.json
