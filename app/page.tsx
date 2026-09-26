@@ -48,10 +48,10 @@ export default function Home() {
             </p>
 
             <div className="fade-up fade-up-4 flex flex-col sm:flex-row gap-3 justify-center lg:justify-start mb-7">
-              <a href={contactUrl} className="btn btn-primary px-7 py-3.5 text-[15px]">
-                Run a field pilot <span className="btn-arrow">→</span>
-              </a>
-              <a href="#developers" className="btn btn-ghost px-7 py-3.5 text-[15px]">View the API flow</a>
+              <Link href="/try" className="btn btn-primary px-7 py-3.5 text-[15px]">
+                Test with an agent for $0.01 <span className="btn-arrow">→</span>
+              </Link>
+              <a href={contactUrl} className="btn btn-ghost px-7 py-3.5 text-[15px]">Scope a field pilot</a>
             </div>
 
             <Link href="/campaigns/demo" className="fade-up fade-up-5 inline-flex items-center gap-2 text-sm font-bold mb-5" style={{ color: 'var(--info)' }}>
@@ -59,7 +59,7 @@ export default function Home() {
             </Link>
 
             <p className="font-mono text-xs" style={{ color: 'var(--text-faint)' }}>
-              Launching focused pilots · Coverage and turnaround confirmed before dispatch
+              $0.01 integration test · Paid field missions from $2 · X Layer USDT0
             </p>
           </div>
 
