@@ -8,6 +8,7 @@ GroundTruth dispatches paid real-world retail field checks and returns verified 
 - MCP endpoint: ${base}/api/mcp
 - A2A agent card: ${base}/.well-known/agent-card.json
 - A2A JSON-RPC endpoint: ${base}/api/a2a
+- Machine-readable service catalog (JSON-LD/JSONL): ${base}/catalog.jsonl
 - OpenAPI document: ${base}/api/openapi
 - Developer guide: ${base}/developers
 - Service health: ${base}/api/health

@@ -10,6 +10,7 @@ GroundTruth dispatches human field workers to inspect shelves, prices, promotion
 
 - [A2A agent card](${base}/.well-known/agent-card.json)
 - [A2A JSON-RPC endpoint](${base}/api/a2a)
+- [Machine-readable service catalog](${base}/catalog.jsonl)
 - [MCP Streamable HTTP endpoint](${base}/api/mcp)
 - [OpenAPI document](${base}/api/openapi)
 - [Developer guide](${base}/developers)

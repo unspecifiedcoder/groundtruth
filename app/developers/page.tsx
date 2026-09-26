@@ -21,11 +21,12 @@ export default function DevelopersPage() {
       <div className="max-w-5xl mx-auto">
         <p className="chip text-[10px] mb-3" style={{ color: 'var(--info)' }}>Developer platform</p>
         <h1 className="font-display text-4xl sm:text-5xl font-extrabold mb-5">Call the physical world like software.</h1>
-        <p className="text-lg max-w-3xl leading-relaxed mb-9" style={{ color: 'var(--text-muted)' }}>GroundTruth exposes an asynchronous API, MCP server, and A2A interface for creating funded field missions, tracking human execution, and retrieving verified evidence.</p>
+        <p className="text-lg max-w-3xl leading-relaxed mb-9" style={{ color: 'var(--text-muted)' }}>GroundTruth exposes an asynchronous API, MCP server, A2A interface, and machine-readable service catalog for creating funded field missions, tracking human execution, and retrieving verified evidence.</p>
 
         <div className="grid md:grid-cols-3 gap-5 mb-12">
           <a className="card card-hover p-6" href="/api/mcp"><div className="chip text-[9px] mb-3" style={{ color: 'var(--good)' }}>MCP</div><h2 className="font-display text-xl font-extrabold">Streamable HTTP endpoint</h2><code className="block text-sm mt-3 break-all" style={{ color: 'var(--text-muted)' }}>{base}/api/mcp</code></a>
           <a className="card card-hover p-6" href="/.well-known/agent-card.json"><div className="chip text-[9px] mb-3" style={{ color: 'var(--info)' }}>A2A 1.0</div><h2 className="font-display text-xl font-extrabold">Agent card and messaging</h2><code className="block text-sm mt-3 break-all" style={{ color: 'var(--text-muted)' }}>{base}/api/a2a</code></a>
+          <a className="card card-hover p-6" href="/catalog.jsonl"><div className="chip text-[9px] mb-3" style={{ color: 'var(--good)' }}>JSON-LD</div><h2 className="font-display text-xl font-extrabold">Service catalog</h2><code className="block text-sm mt-3 break-all" style={{ color: 'var(--text-muted)' }}>{base}/catalog.jsonl</code></a>
           <a className="card card-hover p-6" href="/api/openapi"><div className="chip text-[9px] mb-3" style={{ color: 'var(--accent)' }}>REST</div><h2 className="font-display text-xl font-extrabold">OpenAPI 3.1 document</h2><code className="block text-sm mt-3 break-all" style={{ color: 'var(--text-muted)' }}>{base}/api/openapi</code></a>
         </div>
 
