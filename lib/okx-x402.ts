@@ -26,6 +26,76 @@ const ROUTE_PATTERN = 'POST /api/v1/human-do'
 const GET_ROUTE_PATTERN = 'GET /api/v1/human-do'
 export const RESOURCE_PATH = '/api/v1/human-do'
 
+// x402 Bazaar metadata makes the paid endpoint discoverable as a product, not
+// merely reachable as a URL. It also gives a buyer enough request/response
+// shape to build the first paid call without learning by being rejected.
+export const BAZAAR_EXTENSION = {
+  bazaar: {
+    info: {
+      input: {
+        type: 'http',
+        method: 'POST',
+        bodyType: 'json',
+        body: {
+          intent: 'GroundTruth external integration test',
+          service_tier: 'integration_test',
+          proof_spec: {
+            type: 'form',
+            instructions: 'Return a short integration receipt',
+            formFields: ['result'],
+          },
+        },
+      },
+      output: {
+        type: 'json',
+        example: {
+          task_id: '00000000-0000-0000-0000-000000000000',
+          status: 'pending',
+          service_tier: 'integration_test',
+          budget_usdt: '0.01',
+          poll_url: 'https://groundtruth-oracle.vercel.app/api/v1/tasks/00000000-0000-0000-0000-000000000000',
+          async: true,
+        },
+      },
+    },
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['input', 'output'],
+      properties: {
+        input: {
+          type: 'object',
+          required: ['type', 'method', 'bodyType', 'body'],
+          properties: {
+            type: { const: 'http' },
+            method: { const: 'POST' },
+            bodyType: { const: 'json' },
+            body: {
+              type: 'object',
+              required: ['intent', 'service_tier'],
+              properties: {
+                intent: { type: 'string', minLength: 1, maxLength: 500 },
+                service_tier: { enum: Object.keys(TASK_PRICE_TIERS) },
+                proof_spec: { type: 'object' },
+                target_location: { type: 'object' },
+                timeout_seconds: { type: 'number', minimum: 60, maximum: 86400 },
+              },
+            },
+          },
+        },
+        output: {
+          type: 'object',
+          required: ['type', 'example'],
+          properties: {
+            type: { const: 'json' },
+            example: { type: 'object' },
+          },
+        },
+      },
+    },
+  },
+} as const
+
 let cached: Promise<x402HTTPResourceServer> | null = null
 
 function requireEnv(name: string): string {
@@ -72,6 +142,7 @@ export function getHttpResourceServer(): Promise<x402HTTPResourceServer> {
         'Body is optional: omitted fields create a paid test task and return a task_id to poll.',
       mimeType: 'application/json',
       resource: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}${RESOURCE_PATH}`,
+      extensions: BAZAAR_EXTENSION,
       // Echo the challenge in the body as well. OKX validates the
       // PAYMENT-REQUIRED header, but clients (and humans) reading the body get
       // the same information instead of an empty object.

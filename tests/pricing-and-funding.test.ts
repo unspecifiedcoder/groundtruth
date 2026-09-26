@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { resolveTaskPricing } from '../lib/money'
 import { isTaskFundedForDispatch } from '../lib/funding'
+import { BAZAAR_EXTENSION } from '../lib/okx-x402'
 
 describe('server-owned task pricing', () => {
   it('maps named tiers to useful exact rewards', () => {
@@ -61,5 +62,22 @@ describe('worker-board funding boundary', () => {
       allowOperatorFundedCampaigns: true,
       minimumRewardUsdt: '2.00',
     })).toBe(true)
+  })
+})
+
+describe('paid endpoint discovery metadata', () => {
+  it('declares an agent-buildable Bazaar request and response contract', () => {
+    const info = BAZAAR_EXTENSION.bazaar.info
+    expect(info.input).toMatchObject({
+      type: 'http',
+      method: 'POST',
+      bodyType: 'json',
+      body: { service_tier: 'integration_test' },
+    })
+    expect(info.output).toMatchObject({
+      type: 'json',
+      example: { status: 'pending', budget_usdt: '0.01', async: true },
+    })
+    expect(BAZAAR_EXTENSION.bazaar.schema.required).toEqual(['input', 'output'])
   })
 })
