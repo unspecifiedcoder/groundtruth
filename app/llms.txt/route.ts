@@ -11,6 +11,7 @@ GroundTruth dispatches paid real-world retail field checks and returns verified 
 - OpenAPI document: ${base}/api/openapi
 - Developer guide: ${base}/developers
 - Service health: ${base}/api/health
+- Markdown product overview: ${base}/groundtruth.md
 
 ## Core operations
 - human_do: create a funded asynchronous field mission

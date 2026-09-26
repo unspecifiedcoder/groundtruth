@@ -37,7 +37,7 @@ export const metadata: Metadata = {
     'Dispatch retail field checks and receive fresh photographic evidence, structured observations, and an auditable verification receipt.',
   applicationName: 'GroundTruth',
   keywords: ['retail field audit', 'shelf availability', 'price intelligence', 'display compliance', 'field evidence API', 'AI agent tools'],
-  alternates: { canonical: '/' },
+  alternates: { canonical: '/', types: { 'text/markdown': '/groundtruth.md' } },
   openGraph: {
     type: 'website',
     url: '/',
