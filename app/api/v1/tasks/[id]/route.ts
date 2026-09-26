@@ -39,13 +39,17 @@ async function expireIfDue(task: { id: string; status: TaskStatus; expires_at: s
   return updated ? ('expired' as TaskStatus) : task.status
 }
 
-function describe(paymentState: 'confirmed' | 'pending' | 'none', taskStatus: TaskStatus): string {
+function describe(paymentState: 'confirmed' | 'pending' | 'recorded' | 'operator_escrow' | 'none', taskStatus: TaskStatus): string {
   const payPart =
     paymentState === 'confirmed'
       ? 'Payment confirmed on-chain.'
       : paymentState === 'pending'
         ? 'Payment is broadcast but not yet mined.'
-        : 'No x402 payment is attached to this task.'
+        : paymentState === 'recorded'
+          ? 'Payment was recorded by the facilitator, without a public transaction hash.'
+          : paymentState === 'operator_escrow'
+            ? 'Reward funding is reserved by an authorised operator campaign.'
+            : 'No confirmed worker reward is attached to this task.'
 
   const proofPart =
     taskStatus === 'verified'
@@ -79,27 +83,38 @@ export async function GET(
     const record = await getPaymentByTaskId(task.id).catch(() => null)
     const confirmation = record?.tx_hash ? await getTxConfirmation(record.tx_hash) : null
 
-    // Three states, not two. A task created through an authorised internal path
-    // (an OKX marketplace job, already funded via escrow) has no x402 payment at
-    // all — reporting that as "pending" claims a transaction that does not exist
-    // and can never confirm.
-    const paymentState: 'confirmed' | 'pending' | 'none' = !record?.tx_hash
-      ? 'none'
-      : confirmation?.confirmed
+    const operatorEscrowFunded =
+      process.env.ALLOW_OPERATOR_FUNDED_CAMPAIGNS === 'true' &&
+      !!task.campaign_id &&
+      !!task.payment_ref?.startsWith('campaign-')
+
+    // Do not infer funding merely because a task exists. A payment row without
+    // a transaction is recorded but not independently on-chain confirmed.
+    const paymentState: 'confirmed' | 'pending' | 'recorded' | 'operator_escrow' | 'none' = record?.tx_hash
+      ? confirmation?.confirmed
         ? 'confirmed'
         : 'pending'
+      : record
+        ? 'recorded'
+        : operatorEscrowFunded
+          ? 'operator_escrow'
+          : 'none'
 
     const payment =
-      paymentState === 'none'
+      paymentState === 'none' || paymentState === 'recorded' || paymentState === 'operator_escrow'
         ? {
-            status: 'none' as const,
+            status: paymentState,
             confirmed: false,
             transaction: null,
-            payer: null,
+            payer: record?.payer_address ?? null,
             block: null,
             reverted: false,
             explorer: null,
-            note: 'This task was not paid through the x402 endpoint — it originated from an authorised internal path such as an OKX marketplace job funded via escrow.',
+            note: paymentState === 'operator_escrow'
+              ? 'Reward funding is reserved by an authorised operator campaign; no per-task x402 transaction is attached.'
+              : paymentState === 'recorded'
+                ? 'A payment record exists, but no public transaction hash is available for independent confirmation.'
+                : 'No payment or authorised operator escrow is attached. This task is not eligible for public worker dispatch.',
           }
         : {
             status: paymentState,
@@ -111,9 +126,8 @@ export async function GET(
             explorer: explorerTx(record!.tx_hash!),
           }
 
-    // With no x402 payment there is nothing to confirm, so completion turns on
-    // the proof alone; otherwise both halves must be final.
-    const complete = paymentState === 'none' ? status === 'verified' : paymentState === 'confirmed' && status === 'verified'
+    const funded = paymentState === 'confirmed' || paymentState === 'recorded' || paymentState === 'operator_escrow'
+    const complete = status === 'verified' && (paymentState === 'confirmed' || paymentState === 'recorded' || paymentState === 'operator_escrow')
 
     // Return a safe public view — no payment_ref, internal fields, or exact
     // worker coordinates. The location verdict remains visible in result.checks,
@@ -166,6 +180,7 @@ export async function GET(
 
       // Async by design — poll until `complete` is true.
       payment,
+      funded,
       proof: { status, final: TERMINAL_TASK_STATUSES.has(status) },
       complete,
       detail: describe(paymentState, status),

@@ -1,8 +1,9 @@
 import { OKXFacilitatorClient } from '@okxweb3/x402-core'
 import { x402ResourceServer, x402HTTPResourceServer } from '@okxweb3/x402-core/server'
+import type { HTTPRequestContext } from '@okxweb3/x402-core/server'
 import { ExactEvmScheme } from '@okxweb3/x402-evm/exact/server'
 import type { NextRequest } from 'next/server'
-import { TASK_PRICE_USDT } from './money'
+import { resolveTaskPricing, TASK_PRICE_TIERS } from './money'
 
 // ── Official OKX Payment SDK integration ────────────────────────────────────
 //
@@ -24,14 +25,6 @@ const ROUTE_PATTERN = 'POST /api/v1/human-do'
 // check) get a real SDK-built PAYMENT-REQUIRED challenge rather than a bare 402.
 const GET_ROUTE_PATTERN = 'GET /api/v1/human-do'
 export const RESOURCE_PATH = '/api/v1/human-do'
-
-// Fallback advertised price when we can't read a budget off the request body
-// (e.g. the GET discovery probe). Buyers paying a larger budget are handled by
-// the dynamic price below.
-// One fixed price for every call, never read from the request body. This is the
-// exact figure registered on the OKX service listing, so a reviewer probing any
-// request — whatever budget they send — sees the advertised fee.
-const PRICE = `$${TASK_PRICE_USDT}`
 
 let cached: Promise<x402HTTPResourceServer> | null = null
 
@@ -60,8 +53,10 @@ export function getHttpResourceServer(): Promise<x402HTTPResourceServer> {
           scheme: 'exact',
           network: NETWORK,
           payTo: PAY_TO,
-          // Flat, request-independent price — matches the registered listing fee.
-          price: PRICE,
+          // The server—not the caller—maps a named product tier to its exact
+          // price. A missing tier remains the low-cost integration probe for
+          // marketplace compatibility; real field tiers pay useful rewards.
+          price: (context: HTTPRequestContext) => `$${resolveTaskPricing(context.adapter.getBody?.()).priceUsdt}`,
           maxTimeoutSeconds: 300,
         },
       ],
@@ -72,8 +67,9 @@ export function getHttpResourceServer(): Promise<x402HTTPResourceServer> {
         'GroundTruth task creation — Reality-as-a-Service. ' +
         'POST JSON body: {"intent": string (1-500 chars, what a human oracle must verify), ' +
         '"proof_spec"?: {"type": "photo"|"form", "instructions": string, "minPhotos"?: 1-5, "formFields"?: string[]}, ' +
-        '"budget_usdt"?: decimal string, "timeout_seconds"?: 60-86400}. ' +
-        'Body is optional: omitted fields fall back to defaults and a paid request always returns a task_id to poll.',
+        `"service_tier"?: ${Object.keys(TASK_PRICE_TIERS).join('|')}, "timeout_seconds"?: 60-86400}. ` +
+        'The integration_test tier is for compatibility testing and is not dispatched publicly. ' +
+        'Body is optional: omitted fields create a private integration task and return a task_id to poll.',
       mimeType: 'application/json',
       resource: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}${RESOURCE_PATH}`,
       // Echo the challenge in the body as well. OKX validates the

@@ -53,7 +53,7 @@ export default async function TasksPage() {
         <div className="pt-12 pb-8 border-b" style={{ borderColor: 'var(--border)' }}>
           <div className="chip flex items-center gap-2 mb-4" style={{ color: 'var(--good)' }}>
             <span className="w-1.5 h-1.5 rounded-full animate-status" style={{ background: 'var(--good)' }} />
-            <span className="text-[10px]">Live · open missions</span>
+            <span className="text-[10px]">Live · funded missions only</span>
           </div>
           <div className="flex items-end justify-between">
             <div>
@@ -61,7 +61,7 @@ export default async function TasksPage() {
                 Mission Board
               </h1>
               <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-                Do it on the ground. Collect proof. Approved work is paid in USDT.
+                Only reward-backed work appears here. Collect proof; approved work is paid in USDT.
               </p>
             </div>
             <div className="text-right">

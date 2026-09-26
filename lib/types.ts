@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import { TASK_PRICE_USDT } from './money'
 
 export type TaskStatus =
   | 'pending'
@@ -140,19 +139,15 @@ export const HumanDoInputSchema = z.object({
       formFields: z.array(z.string()).optional(),
     })
     .optional(),
-  // Optional — the advertised price is fixed, so callers normally omit it.
-  //
-  // Deliberately NOT pinned to that price: the marketplace's own review address
-  // sends payment-exempt and micro-payment probes, and rejecting those is
-  // exactly the "extra validation logic" that blocks official testing. What is
-  // actually collected is authoritative — after settlement the task's budget is
-  // overwritten with the settled amount, so the worker payout can never exceed
-  // the money received regardless of what was requested here.
+  service_tier: z
+    .enum(['integration_test', 'quick_check', 'photo_visit', 'urgent_visit', 'complex_visit'])
+    .optional(),
+  // Legacy compatibility only. Server-owned pricing tiers determine the x402
+  // quote; arbitrary caller-controlled budgets are never trusted.
   budget_usdt: z
     .string()
     .regex(/^\d+(\.\d{1,6})?$/, 'must be decimal string')
-    .optional()
-    .default(TASK_PRICE_USDT),
+    .optional(),
   timeout_seconds: z.number().int().min(60).max(86400).optional().default(3600),
 })
 

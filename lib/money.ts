@@ -14,17 +14,61 @@ export function fromUnits(units: bigint): string {
   return `${whole}.${frac.toString().padStart(Number(USDT_DECIMALS), '0').replace(/0+$/, '')}`
 }
 
-// The single, fixed price of a task. This exact number is what the OKX service
-// listing advertises, what the x402 challenge charges, and what the worker
-// payout is computed from — one value, so the three can never disagree and a
-// reviewer probing any call sees the registered fee.
-//
-// Pricing used to vary with the caller's budget. That is deliberately gone:
-// `settleOnChain` derives the worker payout from the task's recorded
-// `budget_usdt` (see settle.ts), so a challenge priced independently of that
-// field would let a caller pay 0.01 while booking a 5.00 payout out of the
-// operator's own wallet.
+// Compatibility price advertised to marketplace discovery probes. Real field
+// work uses the canonical server-owned tiers below; caller-controlled amounts
+// never become worker liabilities.
 export const TASK_PRICE_USDT = process.env.X402_PRICE ?? '0.01'
+
+/**
+ * Canonical task products. The integration tier preserves the marketplace's
+ * low-cost compatibility probe, but it is intentionally below the public
+ * worker-board threshold. Real field work must select a paid service tier.
+ */
+export const TASK_PRICE_TIERS = {
+  integration_test: process.env.X402_PRICE ?? '0.01',
+  quick_check: process.env.X402_QUICK_PRICE ?? '2.00',
+  photo_visit: process.env.X402_PHOTO_PRICE ?? '5.00',
+  urgent_visit: process.env.X402_URGENT_PRICE ?? '15.00',
+  complex_visit: process.env.X402_COMPLEX_PRICE ?? '50.00',
+} as const
+
+export type TaskPriceTier = keyof typeof TASK_PRICE_TIERS
+export const DEFAULT_TASK_PRICE_TIER: TaskPriceTier = 'integration_test'
+
+export function isTaskPriceTier(value: unknown): value is TaskPriceTier {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(TASK_PRICE_TIERS, value)
+}
+
+/**
+ * Resolve a request to one of the server-owned prices. Legacy callers may send
+ * one of the exact tier amounts in budget_usdt; arbitrary caller-controlled
+ * amounts are never trusted as a payment quote.
+ */
+export function resolveTaskPricing(input: unknown): { tier: TaskPriceTier; priceUsdt: string } {
+  const value = input && typeof input === 'object'
+    ? input as { service_tier?: unknown; budget_usdt?: unknown }
+    : {}
+
+  if (isTaskPriceTier(value.service_tier)) {
+    return { tier: value.service_tier, priceUsdt: TASK_PRICE_TIERS[value.service_tier] }
+  }
+
+  if (typeof value.budget_usdt === 'string') {
+    const matchingTier = (Object.keys(TASK_PRICE_TIERS) as TaskPriceTier[])
+      .find(tier => toUnits(TASK_PRICE_TIERS[tier]) === toUnitsSafe(value.budget_usdt as string))
+    if (matchingTier) return { tier: matchingTier, priceUsdt: TASK_PRICE_TIERS[matchingTier] }
+  }
+
+  return {
+    tier: DEFAULT_TASK_PRICE_TIER,
+    priceUsdt: TASK_PRICE_TIERS[DEFAULT_TASK_PRICE_TIER],
+  }
+}
+
+function toUnitsSafe(value: string): bigint | null {
+  if (!/^\d+(\.\d{1,6})?$/.test(value)) return null
+  try { return toUnits(value) } catch { return null }
+}
 
 /** True when `budgetUsdt` is a well-formed decimal exactly equal to the price. */
 export function isExactPrice(budgetUsdt: string): boolean {

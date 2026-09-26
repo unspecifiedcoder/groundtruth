@@ -1,3 +1,5 @@
+import { TASK_PRICE_TIERS } from '@/lib/money'
+
 const DEFAULT_BASE = 'https://groundtruth-oracle.vercel.app'
 
 export function GET() {
@@ -16,6 +18,15 @@ export function GET() {
       '@type': 'BusinessAudience',
       audienceType: 'AI agents, retail operators, brands, and market researchers',
     },
+    offers: Object.entries(TASK_PRICE_TIERS)
+      .filter(([tier]) => tier !== 'integration_test')
+      .map(([tier, price]) => ({
+        '@type': 'Offer',
+        name: tier,
+        price,
+        priceCurrency: 'USDT',
+        availability: 'https://schema.org/LimitedAvailability',
+      })),
   }
   const services = [
     {

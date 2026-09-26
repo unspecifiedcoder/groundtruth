@@ -14,7 +14,7 @@ export function GET() {
         post: {
           operationId: 'createFieldMission',
           summary: 'Create a paid asynchronous field mission',
-          description: 'An unpaid request may return HTTP 402 with machine-readable payment requirements.',
+          description: 'Select a server-priced service tier. An unpaid request returns HTTP 402 with the exact machine-readable payment requirement. integration_test tasks are private and never offered to workers.',
           requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/HumanDoInput' } } } },
           responses: {
             '201': { description: 'Mission created', content: { 'application/json': { schema: { $ref: '#/components/schemas/TaskCreated' } } } },
@@ -65,11 +65,12 @@ export function GET() {
             intent: { type: 'string', maxLength: 500, example: 'Check shelf availability and price for Brand A at Store 42' },
             target_location: { type: 'object', required: ['label', 'latitude', 'longitude'], properties: { label: { type: 'string' }, latitude: { type: 'number', minimum: -90, maximum: 90 }, longitude: { type: 'number', minimum: -180, maximum: 180 }, radius_meters: { type: 'integer', minimum: 25, maximum: 5000, default: 150 } } },
             proof_spec: { type: 'object', properties: { type: { enum: ['photo', 'form'] }, instructions: { type: 'string' }, minPhotos: { type: 'integer', minimum: 1, maximum: 5 }, formFields: { type: 'array', items: { type: 'string' } } } },
-            budget_usdt: { type: 'string', pattern: '^\\d+(\\.\\d{1,6})?$' },
+            service_tier: { enum: ['integration_test', 'quick_check', 'photo_visit', 'urgent_visit', 'complex_visit'], default: 'integration_test', description: 'Prices: 0.01, 2.00, 5.00, 15.00, and 50.00 USDT respectively. Only tiers meeting the public reward minimum are dispatched.' },
+            budget_usdt: { type: 'string', pattern: '^\\d+(\\.\\d{1,6})?$', deprecated: true, description: 'Legacy compatibility. Only exact canonical tier prices are recognized.' },
             timeout_seconds: { type: 'integer', minimum: 60, maximum: 86400, default: 3600 },
           },
         },
-        TaskCreated: { type: 'object', properties: { task_id: { type: 'string', format: 'uuid' }, status: { type: 'string' }, status_url: { type: 'string', format: 'uri' } } },
+        TaskCreated: { type: 'object', properties: { task_id: { type: 'string', format: 'uuid' }, status: { type: 'string' }, service_tier: { type: 'string' }, budget_usdt: { type: 'string' }, funded: { type: 'boolean' }, dispatch: { enum: ['public_worker_board', 'private_integration_only'] }, poll_url: { type: 'string', format: 'uri' } } },
         WalletAddress: { type: 'string', pattern: '^0x[0-9a-fA-F]{40}$', example: '0x1111111111111111111111111111111111111111' },
         PilotLead: {
           type: 'object', required: ['company_name', 'contact_name', 'work_email', 'use_case', 'launch_city', 'estimated_locations', 'timeline'], additionalProperties: false,

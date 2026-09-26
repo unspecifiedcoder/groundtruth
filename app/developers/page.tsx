@@ -34,7 +34,19 @@ export default function DevelopersPage() {
 
         <section className="grid lg:grid-cols-2 gap-6 mb-12">
           <div><h2 className="font-display text-2xl font-extrabold mb-3">MCP tools</h2><ul className="space-y-2 text-sm" style={{ color: 'var(--text-muted)' }}><li><code>ground_truth_info</code> — capabilities and current payment terms</li><li><code>human_do</code> — create a mission</li><li><code>task_status</code> — poll its outcome</li><li><code>review_task</code> — authorized review decision</li></ul></div>
-          <div className="card p-5 font-mono text-xs overflow-x-auto"><pre>{`POST /api/v1/human-do\nContent-Type: application/json\n\n{\n  "intent": "Check Brand A at Store 42",\n  "target_location": {\n    "label": "Store 42",\n    "latitude": 12.9716,\n    "longitude": 77.5946\n  }\n}`}</pre></div>
+          <div className="card p-5 font-mono text-xs overflow-x-auto"><pre>{`POST /api/v1/human-do\nContent-Type: application/json\n\n{\n  "intent": "Check Brand A at Store 42",\n  "service_tier": "photo_visit",\n  "target_location": {\n    "label": "Store 42",\n    "latitude": 12.9716,\n    "longitude": 77.5946\n  }\n}`}</pre></div>
+        </section>
+
+        <section className="mb-12">
+          <h2 className="font-display text-3xl font-extrabold mb-3">Predictable task pricing</h2>
+          <p className="mb-5" style={{ color: 'var(--text-muted)' }}>The server maps each named tier to an exact x402 amount. Agents cannot advertise one reward and pay another.</p>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="card p-4"><code>quick_check</code><strong className="block mt-2">2 USDT</strong></div>
+            <div className="card p-4"><code>photo_visit</code><strong className="block mt-2">5 USDT</strong></div>
+            <div className="card p-4"><code>urgent_visit</code><strong className="block mt-2">15 USDT</strong></div>
+            <div className="card p-4"><code>complex_visit</code><strong className="block mt-2">50 USDT</strong></div>
+          </div>
+          <p className="text-xs mt-4" style={{ color: 'var(--text-faint)' }}><code>integration_test</code> remains a 0.01 USDT compatibility probe and is never published to the worker board.</p>
         </section>
 
         <div className="rounded-xl p-5" style={{ background: 'var(--warn-weak)' }}><strong>Public beta:</strong> production traffic requires an agreed pilot, coverage confirmation, and payment configuration. Review the <Link className="underline" href="/trust">trust model</Link> and <Link className="underline" href="/acceptable-use">acceptable-use policy</Link> before dispatch.</div>

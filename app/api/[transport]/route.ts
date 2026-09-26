@@ -1,5 +1,6 @@
 import { createMcpHandler } from 'mcp-handler'
 import { z } from 'zod'
+import { resolveTaskPricing, TASK_PRICE_TIERS, type TaskPriceTier } from '@/lib/money'
 
 // Must match what the server verifies against (lib/payment.ts / route.ts x402Exact
 // branch) — X402_VERIFY_RECIPIENT if set (mainnet), else the testnet payroll contract.
@@ -20,9 +21,9 @@ const handler = createMcpHandler(
           text: JSON.stringify({
             name: 'GroundTruth',
             tagline: 'Reality-as-a-Service for AI agents',
-            description: 'Delegate physical-world tasks to human oracles. Submit a task (photo or form) with a budget; you immediately receive a task_id. A human completes it in minutes and an AI notary verifies the proof; poll task_status to retrieve the verified result and on-chain settlement.',
+            description: 'Delegate physical-world tasks to human oracles. Select a server-priced service tier; a funded task returns a task_id. A human completes it and an AI notary verifies the proof; poll task_status to retrieve the result and settlement.',
             how_it_works: [
-              'Call human_do with an intent, proof_type (photo|form), instructions, and budget → returns a task_id.',
+              'Call human_do with an intent, proof_type, instructions, and service_tier → returns a task_id.',
               'A human oracle claims and completes the task in the real world.',
               'An AI notary verifies the submitted proof against your intent.',
               'Call task_status with the task_id to retrieve the verified proof and the on-chain settlement transaction.',
@@ -32,8 +33,10 @@ const handler = createMcpHandler(
             authentication: 'x402 payment (handled automatically by the agent wallet)',
             registered_okx_service_call: 'Free discovery on X Layer mainnet — 0 USDT to call or discover this service.',
             pricing: {
-              model: 'x402 per-task budget, set by the caller (not a fixed listing fee)',
-              default_amount: process.env.ASP_PRICE_USDT ?? '0.01',
+              model: 'server-priced x402 service tiers',
+              tiers: TASK_PRICE_TIERS,
+              default_field_tier: 'quick_check',
+              integration_note: 'integration_test is a private compatibility probe and is not dispatched to workers',
               currency: 'USDT0',
               network: `eip155:${process.env.SETTLEMENT_CHAIN_ID ?? '196'}`,
               platform_fee_bps: process.env.ASP_FEE_BPS ?? '1200',
@@ -64,20 +67,21 @@ const handler = createMcpHandler(
             longitude: z.number().min(-180).max(180),
             radius_meters: z.number().int().min(25).max(5000).optional().default(150),
           }).optional().describe('Optional target location and allowed capture radius'),
-          budget_usdt: z.string().regex(/^\d+(\.\d{1,6})?$/).optional().default('0.01'),
+          service_tier: z.enum(['quick_check', 'photo_visit', 'urgent_visit', 'complex_visit']).optional().default('quick_check'),
           timeout_seconds: z.number().int().min(60).max(86400).optional().default(3600),
         }),
       },
-      async ({ intent, proof_type, instructions, target_location, budget_usdt, timeout_seconds }: {
+      async ({ intent, proof_type, instructions, target_location, service_tier, timeout_seconds }: {
         intent: string
         proof_type: 'photo' | 'form'
         instructions: string
         target_location?: { label: string; latitude: number; longitude: number; radius_meters?: number }
-        budget_usdt?: string
+        service_tier?: Exclude<TaskPriceTier, 'integration_test'>
         timeout_seconds?: number
       }) => {
         const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
-        const amount = budget_usdt ?? '0.01'
+        const pricing = resolveTaskPricing({ service_tier: service_tier ?? 'quick_check' })
+        const amount = pricing.priceUsdt
 
         // Autonomous payment through the OFFICIAL OKX Payment SDK: probe the
         // resource, sign the EIP-3009 credential for the returned challenge,
@@ -100,7 +104,7 @@ const handler = createMcpHandler(
                   ...(proof_type === 'photo' ? { minPhotos: 1 } : {}),
                 },
                 ...(target_location ? { target_location } : {}),
-                budget_usdt: amount,
+                service_tier: pricing.tier,
                 timeout_seconds: timeout_seconds ?? 3600,
               },
               buyerKey.startsWith('0x') ? buyerKey : (`0x${buyerKey}` as `0x${string}`)
@@ -152,7 +156,7 @@ const handler = createMcpHandler(
                 intent,
                 proof_spec: { type: proof_type, instructions, ...(proof_type === 'photo' ? { minPhotos: 1 } : {}) },
                 ...(target_location ? { target_location } : {}),
-                budget_usdt: amount,
+                service_tier: pricing.tier,
                 timeout_seconds: timeout_seconds ?? 3600,
               }),
               signal: AbortSignal.timeout(10_000),

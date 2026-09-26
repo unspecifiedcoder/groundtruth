@@ -5,7 +5,7 @@ import { recordPaymentRef, insertTask, deleteTask, setTaskBudget } from '@/lib/d
 import { planTask } from '@/lib/planner'
 import { generateChallenge } from '@/lib/challenge'
 import { getHttpResourceServer, makeContext } from '@/lib/okx-x402'
-import { TASK_PRICE_USDT } from '@/lib/money'
+import { resolveTaskPricing, TASK_PRICE_TIERS } from '@/lib/money'
 import { explorerTx } from '@/lib/chain'
 
 // Payments run through the OFFICIAL OKX Payment SDK (@okxweb3/x402-*): the
@@ -361,7 +361,8 @@ export async function POST(req: NextRequest) {
           intent: 'string, required, 1-500 chars — what the human oracle must do',
           proof_spec:
             'object, optional — {type: "photo"|"form", instructions: string, minPhotos?: 1-5, formFields?: string[]}; inferred from intent when omitted',
-          budget_usdt: `string, optional — decimal USDT; defaults to ${TASK_PRICE_USDT}`,
+          service_tier: `optional — one of ${Object.keys(TASK_PRICE_TIERS).join(', ')}`,
+          budget_usdt: 'deprecated — exact tier amounts remain accepted for legacy clients',
           timeout_seconds: 'number, optional, 60-86400 — defaults to 3600',
         },
         payment_requirements: `GET ${process.env.NEXT_PUBLIC_APP_URL ?? ''}/api/v1/human-do returns the x402 PAYMENT-REQUIRED challenge`,
@@ -370,6 +371,7 @@ export async function POST(req: NextRequest) {
     )
   }
   const input = parsed.data
+  const pricing = resolveTaskPricing(input)
 
   // Use planner if no explicit proof_spec provided. Attach a per-task freshness
   // challenge the worker must include in the proof, so a stale/stock image
@@ -377,6 +379,7 @@ export async function POST(req: NextRequest) {
   const baseSpec = input.proof_spec ?? (await planTask(input.intent)).proof_spec
   const proofSpec = {
     ...baseSpec,
+    service_tier: pricing.tier,
     challenge: generateChallenge(),
     ...(input.target_location ? { location: input.target_location } : {}),
   }
@@ -387,7 +390,7 @@ export async function POST(req: NextRequest) {
     task = await insertTask({
       intent: input.intent,
       proof_spec: proofSpec,
-      budget_usdt: input.budget_usdt,
+      budget_usdt: pricing.priceUsdt,
       expires_at: expiresAt,
       payment_ref: `x402-${crypto.randomUUID()}`,
     })
@@ -399,6 +402,7 @@ export async function POST(req: NextRequest) {
 
   const settlementHeaders: Record<string, string> = {}
   let settlementTx: string | null = null
+  let paymentRecorded = false
 
   if (isExemptPayer) {
     // Whitelisted: never settle, never charge. The task is created and returned
@@ -454,32 +458,35 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const { toUnits, splitBudget } = await import('@/lib/money')
-    let recorded = false
-    try {
-      recorded = await recordPaymentRef({
-        payment_ref: task.payment_ref ?? `x402-${task.id}`,
-        task_id: task.id,
-        amount_units: settle.amount ? BigInt(settle.amount) : toUnits(input.budget_usdt),
-        fee_units: splitBudget(input.budget_usdt, Number(process.env.ASP_FEE_BPS ?? '1200')).feeUnits,
-        payer_address: settle.payer ?? '',
-        // Deliberately undefined (stored NULL), never '' — tx_hash is unique, and
-        // an empty string would collide across every payment that has no on-chain
-        // transaction, so the second payment-exempt probe would be rejected as a
-        // replay. Postgres permits many NULLs.
-        tx_hash: settle.transaction ?? undefined,
-      })
-    } catch (err) {
-      await deleteTask(task.id).catch(() => {})
-      return NextResponse.json(
-        { error: 'Failed to record payment', detail: err instanceof Error ? err.message : String(err) },
-        { status: 500 }
-      )
-    }
-    if (!recorded) {
-      // Replayed payment (payment_ref or tx_hash already used).
-      await deleteTask(task.id).catch(() => {})
-      return NextResponse.json({ error: 'Payment already used' }, { status: 409 })
+    // Only a successful settlement with an authoritative amount and payer can
+    // fund a public worker mission. Marketplace probes may still receive a
+    // task_id for compatibility, but they remain private and cannot promise a
+    // worker reward.
+    if (settle.success && settle.amount && settle.payer) {
+      const { splitBudget } = await import('@/lib/money')
+      const settledUsdt = (await import('@/lib/money')).fromUnits(BigInt(settle.amount))
+      try {
+        paymentRecorded = await recordPaymentRef({
+          payment_ref: task.payment_ref ?? `x402-${task.id}`,
+          task_id: task.id,
+          amount_units: BigInt(settle.amount),
+          fee_units: splitBudget(settledUsdt, Number(process.env.ASP_FEE_BPS ?? '1200')).feeUnits,
+          payer_address: settle.payer,
+          // Deliberately undefined (stored NULL), never '' — Postgres permits
+          // many NULLs while the replay guard rejects duplicate real hashes.
+          tx_hash: settle.transaction ?? undefined,
+        })
+      } catch (err) {
+        await deleteTask(task.id).catch(() => {})
+        return NextResponse.json(
+          { error: 'Failed to record payment', detail: err instanceof Error ? err.message : String(err) },
+          { status: 500 }
+        )
+      }
+      if (!paymentRecorded) {
+        await deleteTask(task.id).catch(() => {})
+        return NextResponse.json({ error: 'Payment already used' }, { status: 409 })
+      }
     }
   }
 
@@ -490,6 +497,7 @@ export async function POST(req: NextRequest) {
       status: task.status,
       intent: task.intent,
       proof_spec: task.proof_spec,
+      service_tier: pricing.tier,
       budget_usdt: task.budget_usdt,
       expires_at: task.expires_at,
       poll_url: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/api/v1/tasks/${task.id}`,
@@ -503,6 +511,8 @@ export async function POST(req: NextRequest) {
       payment: settlementTx
         ? { status: 'pending_confirmation', transaction: settlementTx, verify: explorerTx(settlementTx) }
         : null,
+      funded: paymentRecorded,
+      dispatch: paymentRecorded && pricing.tier !== 'integration_test' ? 'public_worker_board' : 'private_integration_only',
       next_step: `Poll ${process.env.NEXT_PUBLIC_APP_URL ?? ''}/api/v1/tasks/${task.id} until "complete": true. It reports payment finality and proof verification separately.`,
 
       // A paid call buys the dispatch, not an inline answer — a person has to go

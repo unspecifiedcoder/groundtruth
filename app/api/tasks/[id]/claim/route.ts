@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { claimTask, getWorkerClaimEligibility, recordAuditEvent } from '@/lib/db'
+import { claimTask, getWorkerClaimEligibility, isTaskDispatchable, recordAuditEvent } from '@/lib/db'
 import { issueClaimToken, rateLimit, sameOrigin, verifyWalletSession } from '@/lib/security'
 
 export async function POST(
@@ -22,6 +22,13 @@ export async function POST(
   }
   if (process.env.REQUIRE_WALLET_SIGNATURE === 'true' && !verifyWalletSession(req.cookies.get('gt_worker')?.value, worker_wallet)) {
     return NextResponse.json({ error: 'Verify control of this wallet before claiming a mission' }, { status: 401 })
+  }
+
+  if (!(await isTaskDispatchable(routeParams.id))) {
+    return NextResponse.json(
+      { error: 'This mission is not backed by a confirmed worker reward' },
+      { status: 409 }
+    )
   }
 
   const eligibility = await getWorkerClaimEligibility(worker_wallet)

@@ -3,6 +3,7 @@ import { createHash } from 'crypto'
 import type { Task, TaskStatus, TaskResult, ProofPayload, Campaign } from './types'
 import { assessWorkerRisk, type WorkerRiskDecision } from './risk'
 import { calculateOperationsMetrics, type MetricTask } from './metrics'
+import { isTaskFundedForDispatch } from './funding'
 
 // Service-role client — used server-side only, never exposed to browser
 function getServiceClient(): SupabaseClient {
@@ -273,7 +274,34 @@ export async function listOpenTasks(): Promise<Task[]> {
     .gt('expires_at', new Date().toISOString())
     .order('created_at', { ascending: false })
   if (error) throw error
-  return (data ?? []) as Task[]
+  const tasks = (data ?? []) as Task[]
+  if (!tasks.length) return []
+
+  const { data: payments, error: paymentError } = await db
+    .from('payments')
+    .select('task_id')
+    .in('task_id', tasks.map(task => task.id))
+  if (paymentError) throw paymentError
+  const paidTaskIds = new Set((payments ?? []).map(row => row.task_id as string))
+  const allowOperatorFundedCampaigns = process.env.ALLOW_OPERATOR_FUNDED_CAMPAIGNS === 'true'
+
+  return tasks.filter(task => isTaskFundedForDispatch(task, {
+    hasRecordedPayment: paidTaskIds.has(task.id),
+    allowOperatorFundedCampaigns,
+  }))
+}
+
+export async function isTaskDispatchable(taskId: string): Promise<boolean> {
+  const db = getServiceClient()
+  const [{ data: task, error: taskError }, { data: payment, error: paymentError }] = await Promise.all([
+    db.from('tasks').select('budget_usdt,payment_ref').eq('id', taskId).maybeSingle(),
+    db.from('payments').select('task_id').eq('task_id', taskId).limit(1).maybeSingle(),
+  ])
+  if (taskError || paymentError || !task) return false
+  return isTaskFundedForDispatch(task, {
+    hasRecordedPayment: !!payment,
+    allowOperatorFundedCampaigns: process.env.ALLOW_OPERATOR_FUNDED_CAMPAIGNS === 'true',
+  })
 }
 
 // Returns false if payment_ref already exists (replay detected)
