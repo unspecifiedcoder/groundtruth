@@ -98,13 +98,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <div className="flex items-center gap-1.5">
               <div className="hidden md:flex items-center gap-1">
                 {[
-                  { href: '/try', label: 'Evaluate $0.10' },
+                  { href: '/#how-it-works', label: 'How it works' },
+                  { href: '/campaigns/demo', label: 'Illustrative output' },
+                  { href: '/#pricing', label: 'Pricing' },
                   { href: '/developers', label: 'Developers' },
-                  { href: '/campaigns/demo', label: 'Demo' },
-                  { href: '/trust', label: 'Trust' },
-                  { href: '/diligence', label: 'Diligence' },
-                  { href: '/tasks', label: 'Missions' },
-                  { href: '/pulse', label: 'Activity' },
                 ].map(l => (
                   <Link
                     key={l.href}
@@ -120,10 +117,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <ThemeToggle />
 
               <a
-                href="/try"
+                href="/pilot"
                 className="btn btn-primary ml-1.5 px-4 py-1.5 text-sm"
               >
-                <span className="sm:hidden">Try</span><span className="hidden sm:inline">Run $0.10 evaluation</span> <span className="btn-arrow">→</span>
+                <span className="sm:hidden">Coverage</span><span className="hidden sm:inline">Check pilot coverage</span> <span className="btn-arrow">→</span>
               </a>
             </div>
           </div>

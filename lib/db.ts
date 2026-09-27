@@ -176,6 +176,8 @@ export async function insertPilotLead(lead: {
   launch_city: string
   estimated_locations: number
   timeline: string
+  question_type?: string
+  notes?: string
 }): Promise<{ id: string }> {
   const db = getServiceClient()
   const id = crypto.randomUUID()
@@ -271,6 +273,27 @@ export async function insertAgentPilotLead(lead: {
   })
   if (error) throw error
   return { id: resourceId, created: true }
+}
+
+export type PilotLeadStatus = 'new' | 'qualified' | 'scope_sent' | 'payment_pending' | 'paid' | 'declined'
+
+export async function updatePilotLeadStatus(id: string, status: PilotLeadStatus): Promise<boolean> {
+  const db = getServiceClient()
+  const { data, error: lookupError } = await db
+    .from('audit_events')
+    .select('metadata')
+    .eq('event_type', 'pilot_lead.created')
+    .eq('resource_id', id)
+    .maybeSingle()
+  if (lookupError) throw lookupError
+  if (!data) return false
+  const { error } = await db
+    .from('audit_events')
+    .update({ metadata: { ...(data.metadata as object), lead_status: status, lead_status_updated_at: new Date().toISOString() } })
+    .eq('event_type', 'pilot_lead.created')
+    .eq('resource_id', id)
+  if (error) throw error
+  return true
 }
 
 // CAS transition: only updates if current status matches `from`

@@ -156,7 +156,7 @@ export default function CampaignDashboard() {
           </div>
         </div>
 
-        {isDemo && <div className="mt-6 rounded-xl p-4 text-sm" style={{ background: 'var(--warn-weak)', color: 'var(--text-muted)' }}><strong style={{ color: 'var(--warn)' }}>Demo note:</strong> these store names and results are illustrative. Live campaigns use persisted tasks, real evidence submissions, location checks, and payment settlement.</div>}
+        {isDemo && <div className="mt-6 rounded-xl p-4 text-sm" style={{ background: 'var(--warn-weak)', color: 'var(--text-muted)' }}><strong style={{ color: 'var(--warn)' }}>Illustrative output contract:</strong> this dataset shows the proposed deliverable format. It is not customer work, paid traction, or evidence of current coverage. Live campaigns use persisted tasks, original evidence submissions, location checks, and payment settlement.</div>}
       </div>
     </main>
   )

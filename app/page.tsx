@@ -54,33 +54,29 @@ export default function Home() {
           <div className="text-center lg:text-left">
             <div className="fade-up fade-up-1 chip inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-6" style={{ background: 'var(--good-weak)', color: 'var(--good)' }}>
               <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--good)' }} />
-              <span className="text-[10px]">Verified retail field evidence</span>
+              <span className="text-[10px]">25-store launch pilot · one city zone · $199</span>
             </div>
 
             <h1 className="fade-up fade-up-2 font-display font-extrabold tracking-tight leading-[1.01] text-[2.8rem] sm:text-6xl mb-6" style={{ color: 'var(--text)', textWrap: 'balance' }}>
-              Know what is happening<br />
-              <span className="underline-stroke">in the store today.</span>
+              Verify what is actually<br />
+              <span className="underline-stroke">on shelf across 25 stores.</span>
             </h1>
 
             <p className="fade-up fade-up-3 text-lg leading-relaxed max-w-xl mx-auto lg:mx-0 mb-8" style={{ color: 'var(--text-muted)' }}>
-              GroundTruth dispatches field operators to check stock, prices, and displays.
-              Get fresh photographic evidence and structured answers back through API, MCP,
-              or a shareable verification receipt.
+              Choose one repeatable question—stock, shelf price, promotion, or display compliance.
+              We dispatch field operators and return accepted photo evidence, structured results,
+              and a CSV-ready audit trail. Coverage is confirmed before payment.
             </p>
 
             <div className="fade-up fade-up-4 flex flex-col sm:flex-row gap-3 justify-center lg:justify-start mb-7">
               <Link href="/pilot?package=launch" className="btn btn-primary px-7 py-3.5 text-[15px]">
-                Start a 25-check pilot — $199 <span className="btn-arrow">→</span>
+                Check coverage for 25 stores <span className="btn-arrow">→</span>
               </Link>
-              <Link href="/campaigns/demo" className="btn btn-ghost px-7 py-3.5 text-[15px]">See sample results</Link>
+              <Link href="/campaigns/demo" className="btn btn-ghost px-7 py-3.5 text-[15px]">Inspect illustrative output</Link>
             </div>
 
-            <Link href="/try" className="fade-up fade-up-5 inline-flex items-center gap-2 text-sm font-bold mb-5" style={{ color: 'var(--info)' }}>
-              Developers and agents: test the payment integration for $0.10 <span>→</span>
-            </Link>
-
             <p className="font-mono text-xs" style={{ color: 'var(--text-faint)' }}>
-              Coverage confirmed before purchase · Standard 24-hour target · API, CSV and dashboard delivery
+              No payment today · 25 accepted checks · Standard 24-hour target after release
             </p>
           </div>
 
@@ -88,7 +84,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="px-5 py-20 border-t" style={{ borderColor: 'var(--border)' }}>
+      <section id="pricing" className="px-5 py-20 border-t scroll-mt-20" style={{ borderColor: 'var(--border)' }}>
         <div className="max-w-5xl mx-auto">
           <div className="max-w-2xl mb-10">
             <p className="chip text-[10px] mb-3" style={{ color: 'var(--accent)' }}>Commercial launch offer</p>
@@ -114,7 +110,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="px-5 py-20 border-t" style={{ borderColor: 'var(--border)' }}>
+      <section id="how-it-works" className="px-5 py-20 border-t scroll-mt-20" style={{ borderColor: 'var(--border)' }}>
         <div className="max-w-5xl mx-auto">
           <div className="max-w-2xl mb-11">
             <p className="chip text-[10px] mb-3" style={{ color: 'var(--accent)' }}>The first workflow</p>
@@ -224,7 +220,7 @@ export default function Home() {
       <footer className="border-t px-5 py-8" style={{ borderColor: 'var(--border)' }}>
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs" style={{ color: 'var(--text-faint)' }}>
           <div className="flex items-center gap-2.5"><LogoMark size={22} ground={false} /><span>GroundTruth · Verified field evidence</span></div>
-          <div className="flex flex-wrap items-center justify-center gap-4 font-mono"><Link href="/campaigns/demo">Demo</Link><Link href="/developers">Developers</Link><Link href="/operators">Field work</Link><Link href="/trust">Trust</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/acceptable-use">Acceptable use</Link></div>
+          <div className="flex flex-wrap items-center justify-center gap-4 font-mono"><Link href="/campaigns/demo">Illustrative output</Link><Link href="/developers">Developers</Link><Link href="/try">$0.10 integration test</Link><Link href="/operators">Field work</Link><Link href="/trust">Trust</Link><Link href="/diligence">Diligence</Link><Link href="/tasks">Missions</Link><Link href="/pulse">Activity</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/acceptable-use">Acceptable use</Link></div>
         </div>
       </footer>
     </main>
