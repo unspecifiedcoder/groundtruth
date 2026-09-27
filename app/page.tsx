@@ -16,6 +16,27 @@ const CHECKS = [
   'Explainable pass, fail, or review verdict',
 ]
 
+const PLANS = [
+  {
+    name: 'Launch pilot',
+    price: '$199 once',
+    detail: '25 verified locations in one agreed city zone',
+    fit: 'Prove the workflow and evidence standard before committing monthly.',
+  },
+  {
+    name: 'Monitor',
+    price: '$249 / month',
+    detail: '25 recurring checks with dashboard and CSV/API export',
+    fit: 'For one market, campaign, or recurring store question.',
+  },
+  {
+    name: 'Operations',
+    price: '$599 / month',
+    detail: '75 recurring checks with scheduled batches and priority QA',
+    fit: 'For teams that need physical-state data every week.',
+  },
+]
+
 export default function Home() {
   const contactUrl = '/pilot'
 
@@ -48,22 +69,48 @@ export default function Home() {
             </p>
 
             <div className="fade-up fade-up-4 flex flex-col sm:flex-row gap-3 justify-center lg:justify-start mb-7">
-              <Link href="/try" className="btn btn-primary px-7 py-3.5 text-[15px]">
-                Get an agent evaluation for $0.10 <span className="btn-arrow">→</span>
+              <Link href="/pilot?package=launch" className="btn btn-primary px-7 py-3.5 text-[15px]">
+                Start a 25-check pilot — $199 <span className="btn-arrow">→</span>
               </Link>
-              <a href={contactUrl} className="btn btn-ghost px-7 py-3.5 text-[15px]">Scope a field pilot</a>
+              <Link href="/campaigns/demo" className="btn btn-ghost px-7 py-3.5 text-[15px]">See sample results</Link>
             </div>
 
-            <Link href="/campaigns/demo" className="fade-up fade-up-5 inline-flex items-center gap-2 text-sm font-bold mb-5" style={{ color: 'var(--info)' }}>
-              Explore the interactive demo campaign <span>→</span>
+            <Link href="/try" className="fade-up fade-up-5 inline-flex items-center gap-2 text-sm font-bold mb-5" style={{ color: 'var(--info)' }}>
+              Developers and agents: test the payment integration for $0.10 <span>→</span>
             </Link>
 
             <p className="font-mono text-xs" style={{ color: 'var(--text-faint)' }}>
-              $0.10 paid evaluation · Base USDC or X Layer USDT0 · Paid field missions from $2
+              Coverage confirmed before purchase · Standard 24-hour target · API, CSV and dashboard delivery
             </p>
           </div>
 
           <div className="fade-up fade-up-4 flex justify-center lg:justify-end"><LiveNetwork /></div>
+        </div>
+      </section>
+
+      <section className="px-5 py-20 border-t" style={{ borderColor: 'var(--border)' }}>
+        <div className="max-w-5xl mx-auto">
+          <div className="max-w-2xl mb-10">
+            <p className="chip text-[10px] mb-3" style={{ color: 'var(--accent)' }}>Commercial launch offer</p>
+            <h2 className="font-display text-3xl sm:text-4xl font-extrabold mb-4">Buy verified coverage, not a vague consulting project.</h2>
+            <p className="leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+              Start with one repeatable question, one compact geography, and objective acceptance criteria. Each accepted check includes fresh evidence and a structured result. Coverage is reviewed before payment.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-5">
+            {PLANS.map((plan, index) => (
+              <article key={plan.name} className="card p-6" style={index === 0 ? { borderColor: 'var(--accent)' } : undefined}>
+                <p className="font-mono text-[10px] uppercase" style={{ color: index === 0 ? 'var(--accent)' : 'var(--text-faint)' }}>{plan.name}</p>
+                <h3 className="font-display text-2xl font-extrabold mt-3">{plan.price}</h3>
+                <p className="font-semibold text-sm mt-3">{plan.detail}</p>
+                <p className="text-sm leading-relaxed mt-3" style={{ color: 'var(--text-muted)' }}>{plan.fit}</p>
+              </article>
+            ))}
+          </div>
+          <div className="mt-7 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <Link href="/pilot?package=launch" className="btn btn-primary px-7 py-3.5">Request the launch pilot →</Link>
+            <p className="text-xs max-w-xl" style={{ color: 'var(--text-faint)' }}>Prices are initial pilot terms. Travel outside the agreed zone, purchases, venue fees, rush work, and specialized inspections are quoted separately.</p>
+          </div>
         </div>
       </section>
 
