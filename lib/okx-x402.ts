@@ -140,18 +140,21 @@ export function getHttpResourceServer(): Promise<x402HTTPResourceServer> {
     // outage on one rail must not take the other rail down with it.
     await resourceServer.initialize()
     const accepts = [
-      {
-        scheme: 'exact' as const,
-        network: BASE_NETWORK,
-        payTo: PAY_TO,
-        price: basePrice,
-        maxTimeoutSeconds: 300,
-      },
+      // Keep the marketplace-native X Layer offer first. Some A2MCP reviewers
+      // choose the first compatible option and the official review wallet is an
+      // X Layer account. Base remains available to external USDC buyers.
       {
         scheme: 'exact' as const,
         network: X_LAYER_NETWORK,
         payTo: PAY_TO,
         price,
+        maxTimeoutSeconds: 300,
+      },
+      {
+        scheme: 'exact' as const,
+        network: BASE_NETWORK,
+        payTo: PAY_TO,
+        price: basePrice,
         maxTimeoutSeconds: 300,
       },
     ].filter(option => resourceServer.getSupportedKind(2, option.network, option.scheme))

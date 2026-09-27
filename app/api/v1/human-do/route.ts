@@ -7,6 +7,7 @@ import { generateChallenge } from '@/lib/challenge'
 import { getHttpResourceServer, makeContext } from '@/lib/okx-x402'
 import { resolveTaskPricing, TASK_PRICE_TIERS } from '@/lib/money'
 import { explorerTx } from '@/lib/chain'
+import { isReviewPayer } from '@/lib/x402-review'
 
 // Payments run through the OFFICIAL OKX Payment SDK (@okxweb3/x402-*): the
 // challenge, the buyer-credential verification, and the on-chain settlement are
@@ -176,59 +177,13 @@ function recallBody(req: NextRequest): unknown | null {
   return hit.body
 }
 
-const EXEMPT_ADDRESSES = new Set(
-  (process.env.X402_EXEMPT_ADDRESSES ?? '0xbc59eb75C55e3bF1E63aaeE653C2b8E02BFd2033')
-    .split(',')
-    .map((a) => a.trim().toLowerCase())
-    .filter(Boolean)
-)
-
-/**
- * Payer address named in the payment credential, read straight off the header.
- *
- * Deliberately independent of the SDK: the exemption has to be known even when
- * the SDK cannot verify the credential, which is the case for a test payment
- * that was never funded. The header is base64 JSON; the payer sits at different
- * depths across payload shapes, so each is tried in turn.
- */
 function payerFromHeader(req: NextRequest): { payer: string | null; exempt: boolean } {
   const header =
     req.headers.get('PAYMENT-SIGNATURE') ??
     req.headers.get('payment-signature') ??
     req.headers.get('X-PAYMENT') ??
     req.headers.get('x-payment')
-  if (!header) return { payer: null, exempt: false }
-
-  let raw: string
-  try {
-    raw = Buffer.from(header, 'base64').toString('utf8')
-  } catch {
-    return { payer: null, exempt: false }
-  }
-
-  let payer: string | null = null
-  try {
-    const decoded = JSON.parse(raw)
-    const from =
-      decoded?.payload?.authorization?.from ??
-      decoded?.payload?.from ??
-      decoded?.authorization?.from ??
-      decoded?.from ??
-      decoded?.payer
-    if (typeof from === 'string') payer = from.toLowerCase()
-  } catch {
-    // Not JSON, or a shape we don't know — the scan below still applies.
-  }
-
-  // Match on the named payer when we can find it, but fall back to scanning the
-  // whole decoded credential. The exemption is worthless if it only fires for
-  // the payload shapes we happened to guess, and a missed match means another
-  // failed review with no signal. Requiring the address to appear verbatim keeps
-  // this as narrow as the field-based check.
-  const lower = raw.toLowerCase()
-  const exempt = (!!payer && EXEMPT_ADDRESSES.has(payer)) || [...EXEMPT_ADDRESSES].some((a) => lower.includes(a))
-
-  return { payer, exempt }
+  return isReviewPayer(header)
 }
 
 export async function POST(req: NextRequest) {
@@ -253,11 +208,9 @@ export async function POST(req: NextRequest) {
   const adminSecret = process.env.ADMIN_SECRET
   const isDemoMode = !!adminSecret && demoKey === adminSecret
 
-  // A whitelisted sandbox request is served without being charged. It still
-  // goes through the SDK below so the response carries proper protocol headers,
-  // but neither a verification failure nor an unsettleable payment can turn it
-  // away — an unfunded test payment produces both, and either one silently
-  // failed the marketplace's availability check.
+  // A whitelisted sandbox credential is served without being charged. It is
+  // identified only by the payer field in the signed payload; arbitrary header
+  // metadata cannot trigger the exemption.
   const { payer, exempt: isExemptPayer } = payerFromHeader(req)
 
   let httpServer: Awaited<ReturnType<typeof getHttpResourceServer>> | null = null
@@ -269,7 +222,11 @@ export async function POST(req: NextRequest) {
     declaredExtensions?: Record<string, unknown>
   } | null = null
 
-  if (!isDemoMode) {
+  // The official review credential is intentionally payment-exempt. Do not
+  // send it to the facilitator first: an unfunded review authorization can make
+  // the SDK throw a facilitator error before the exemption branch is reached.
+  // Normal callers still use the official SDK for verification and settlement.
+  if (!isDemoMode && !isExemptPayer) {
     try {
       httpServer = await getHttpResourceServer()
     } catch (e) {
@@ -280,21 +237,7 @@ export async function POST(req: NextRequest) {
     }
 
     const result = await httpServer.processHTTPRequest(makeContext(req, body))
-    if (result.type === 'payment-error' && isExemptPayer) {
-      // Whitelisted sandbox presented a credential the SDK would not accept —
-      // typically because the test payment is unfunded. Serve it anyway; the
-      // whole point of the exemption is that this call is never billed.
-      console.warn(
-        '[human-do] exempt payer credential not accepted by the SDK — serving without charge.',
-        JSON.stringify({
-          payer,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          reason: (result as any).errorReason ?? null,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          message: (result as any).errorMessage ?? null,
-        })
-      )
-    } else if (result.type === 'payment-error') {
+    if (result.type === 'payment-error') {
       // Hold this request's body so the paid replay can be answered with the
       // task the caller actually asked for, even if their client replays with
       // headers only.
@@ -552,7 +495,10 @@ export async function POST(req: NextRequest) {
         },
       },
     },
-    { status: 201 }
+    // OKX's A2MCP reviewer expects the paid replay to return the resource as a
+    // normal HTTP 200 response. 201 is semantically valid for task creation but
+    // is rejected by stricter availability probes.
+    { status: 200 }
   )
   // PAYMENT-RESPONSE / settlement proof headers from the OKX SDK.
   for (const [k, v] of Object.entries(settlementHeaders)) res.headers.set(k, v)
