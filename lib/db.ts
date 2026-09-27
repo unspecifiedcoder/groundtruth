@@ -215,6 +215,25 @@ export async function insertOperatorApplication(application: {
   return { id }
 }
 
+export async function updateOperatorApplicationStatus(id: string, status: 'shortlisted' | 'rejected'): Promise<boolean> {
+  const db = getServiceClient()
+  const { data, error: lookupError } = await db
+    .from('audit_events')
+    .select('metadata')
+    .eq('event_type', 'operator_application.created')
+    .eq('resource_id', id)
+    .maybeSingle()
+  if (lookupError) throw lookupError
+  if (!data) return false
+  const { error } = await db
+    .from('audit_events')
+    .update({ metadata: { ...(data.metadata as object), status, reviewed_at: new Date().toISOString() } })
+    .eq('event_type', 'operator_application.created')
+    .eq('resource_id', id)
+  if (error) throw error
+  return true
+}
+
 export async function insertAgentPilotLead(lead: {
   message_id: string
   context_id: string
