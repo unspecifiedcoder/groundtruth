@@ -32,6 +32,7 @@ const AGENT_ID = process.env.ASP_AGENT_ID ?? '6282'
 const STATE_FILE = process.env.BRIDGE_STATE ?? '/root/logs/marketplace-bridge.json'
 const LOG_FILE = process.env.BRIDGE_LOG ?? '/root/logs/marketplace-bridge.log'
 const INTERVAL_MS = Number(process.env.BRIDGE_INTERVAL_MS ?? '60000')
+const MAX_RECOVERY_ATTEMPTS = Number(process.env.BRIDGE_MAX_RECOVERY_ATTEMPTS ?? '1')
 const ENV_FILE = process.env.BRIDGE_ENV_FILE ?? '/mnt/c/Users/Pramod/GitHub/okx_submission/.env.local'
 
 // Marketplace status codes (task-core.md field mapping table).
@@ -77,6 +78,11 @@ function saveState(state) {
   writeFileSync(STATE_FILE, JSON.stringify(state, null, 2))
 }
 
+function fitText(value, maxLength) {
+  const normalized = String(value).replace(/\s+/g, ' ').trim()
+  return normalized.length <= maxLength ? normalized : `${normalized.slice(0, maxLength - 1).trimEnd()}…`
+}
+
 async function cli(args) {
   const { stdout } = await exec(ONCHAINOS, args, { timeout: 180_000, maxBuffer: 8 << 20 })
   return stdout
@@ -92,17 +98,37 @@ async function activeJobs() {
   return (res?.data?.tasks ?? []).filter((t) => t.myRole === 'asp')
 }
 
+/** Load the full buyer-authored description; active-tasks only returns a title. */
+async function enrichJob(job) {
+  try {
+    const detail = await cli(['agent', 'status', job.jobId, '--agent-id', AGENT_ID])
+    const description = detail.match(/^\s*description:\s*([\s\S]*?)^\s*budget:/m)?.[1]?.trim()
+    return description ? { ...job, description } : job
+  } catch (error) {
+    log(`[${job.shortJobId}] task detail lookup failed; using title: ${error.message.split('\n')[0]}`)
+    return job
+  }
+}
+
 /** Create the GroundTruth task backing a marketplace job. */
 async function createTask(job) {
   if (!ADMIN_SECRET) throw new Error('ADMIN_SECRET missing — cannot create task without double-charging')
+  const detailedJob = await enrichJob(job)
+  const buyerIntent = detailedJob.description ?? detailedJob.title
+  const intent = fitText(buyerIntent, 500)
+  const instructions = fitText(
+    `${buyerIntent}\n\nCapture fresh, clear photographic evidence that directly answers the request. Marketplace job ${job.shortJobId}.`,
+    1000,
+  )
   const res = await fetch(`${APP_URL}/api/v1/human-do`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-DEMO-KEY': ADMIN_SECRET },
     body: JSON.stringify({
-      intent: job.title,
+      intent,
+      service_tier: 'quick_check',
       proof_spec: {
         type: 'photo',
-        instructions: `${job.title} — photograph clear evidence. Marketplace job ${job.shortJobId}.`,
+        instructions,
         minPhotos: 1,
       },
     }),
@@ -232,9 +258,27 @@ async function handleAccepted(job, state) {
     state.jobs[job.jobId] = rec
     saveState(state)
   } else if (task.status === 'failed' || task.status === 'expired') {
-    // Don't silently sit on a dead task — surface it rather than leaving the
-    // buyer in `accepted` forever, which is the bug this script exists to fix.
-    log(`[${job.shortJobId}] backing task ${rec.taskId} is ${task.status} — needs attention`)
+    const attempts = Number(rec.recoveryAttempts ?? 0)
+    if (attempts >= MAX_RECOVERY_ATTEMPTS) {
+      log(`[${job.shortJobId}] backing task ${rec.taskId} is ${task.status}; recovery limit reached — needs attention`)
+      return
+    }
+
+    const previousTaskId = rec.taskId
+    const replacement = await createTask(job)
+    rec.previousTaskIds = [...(rec.previousTaskIds ?? []), previousTaskId]
+    rec.taskId = replacement.task_id
+    rec.recoveryAttempts = attempts + 1
+    rec.recoveredAt = new Date().toISOString()
+    state.jobs[job.jobId] = rec
+    saveState(state)
+    log(`[${job.shortJobId}] replaced ${task.status} task ${previousTaskId} with ${rec.taskId}`)
+    await notifyBuyer(
+      job,
+      `GroundTruth restarted the field check because the original dispatch expired before evidence arrived. ` +
+        `The new task is ${rec.taskId}. Track it at ${APP_URL}/api/v1/tasks/${rec.taskId}. ` +
+        `Fulfilment remains asynchronous and subject to local worker coverage.`
+    )
   } else {
     log(`[${job.shortJobId}] waiting on task ${rec.taskId} (${task.status})`)
   }

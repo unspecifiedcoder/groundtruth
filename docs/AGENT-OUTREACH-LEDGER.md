@@ -10,16 +10,25 @@ Directory listings, automated acknowledgements, quarantined offers, and vague in
 
 ## Current verified count
 
-**0 / 5 customers**
+**1 / 5 verified external commitments**
 
 ## Pipeline snapshot
 
 - Qualified/research-qualified prospects: **100** ([full pipeline](./AGENT-PROSPECTS-100.csv))
 - New outreach attempts this cycle: **10**
-- New responses: **5 automated/structured responses; 0 human-qualified replies**
-- New trials or pilots: **0**
-- Verified customers: **0**
+- New responses: **1 external marketplace task plus 5 automated/structured responses**
+- New trials or pilots: **1 active external evaluation task**
+- Verified external commitments: **1**
+- Settled external `$2+` tasks: **0**
 - Payment-rail status: GroundTruth now accepts canonical Base USDC for the Base-native prospect pool while retaining X Layer USDT0.
+
+### 2026-09-27 first verified external trial
+
+- OKX.AI buyer Agent `#6058` created marketplace job `0xcae1276f788164eef18c435f447cfbffa3f1d0df28982d2fb4b196630565b683` for GroundTruth ASP `#6282`: physically verify whether Blue Bottle Coffee at 66 Mint Street, San Francisco is open, with fresh storefront/signage/hours evidence.
+- This counts as one verified external evaluation commitment because an external buyer created a concrete task and requested GroundTruth fulfilment. It does **not** count as revenue: the marketplace fee is `0 USDT`.
+- The original backing task `4c7ef05c-8c8f-4a1a-9585-05794afe7cc3` expired. The A2A runtime was repaired and upgraded, and the bridge now recreates one failed/expired dispatch at most once while preserving the buyer's full requirements.
+- Replacement GroundTruth task `0c10637b-5702-4df3-9f8f-520fef27a450` is live with status `pending`, a `$2.00` worker budget, and one-hour expiry. The bridge sent the replacement task ID and tracking URL to Agent `#6058`; fulfilment was accurately described as asynchronous and coverage-dependent.
+- Next action: monitor the replacement for claim/evidence. Deliver only verified proof; do not report success before the notary verifies it. Continue pursuing a distinct external `$2+` settlement.
 
 ### 2026-09-27 buyer-quality rebuild and outbound
 
@@ -83,6 +92,7 @@ Directory listings, automated acknowledgements, quarantined offers, and vague in
 
 | Channel | Endpoint | Evidence | Classification | Next action |
 |---|---|---|---|---|
+| OKX.AI buyer Agent #6058 | Marketplace job `0xcae1276f788164eef18c435f447cfbffa3f1d0df28982d2fb4b196630565b683` | Buyer requested a real café-open verification with fresh photo evidence. Replacement task `0c10637b-5702-4df3-9f8f-520fef27a450` was created and sent after the first dispatch expired. Marketplace fee is `0 USDT`. | **Verified external evaluation commitment #1; unpaid trial, not revenue** | Monitor task claim and proof. Deliver only after verified completion; no duplicate buyer message. |
 | iwant.fyi | `https://iwant.fyi/api/a2a` | Listing `de98fc95-b04f-4bd3-a815-d067da2b7b2a` recorded. The agent confirmed matching buyer wants will be forwarded to GroundTruth's A2A endpoint. | Active distribution, not a customer | Wait for a matched buyer; answer concrete questions. Do not resubmit the same offer. |
 | MARS Economic Intermediary | `https://mars-economic-agent-gateway.mars-economic.workers.dev/a2a` | Offer `off_21e6a275-6eb2-4d7c-8d2b-9a1566ce8e87` accepted into `QUARANTINED_PENDING_REVIEW`; 2026-09-26 public offer search returned zero matches. | Qualified marketplace lead, not a customer | Check for a human-review decision; do not claim acceptance. |
 | Agoragentic | Public A2A endpoint | Federation proposal returned `federation identity wiring not enabled`. | Blocked | Do not retry unless its capability changes. |
