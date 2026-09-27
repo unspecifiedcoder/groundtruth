@@ -159,7 +159,7 @@ export async function recordAuditEvent(params: {
   event_type: string
   actor_type: 'buyer' | 'worker' | 'agent' | 'operator' | 'system'
   actor_ref?: string
-  resource_type: 'campaign' | 'task' | 'payment' | 'evidence' | 'pilot_lead'
+  resource_type: 'campaign' | 'task' | 'payment' | 'evidence' | 'pilot_lead' | 'worker'
   resource_id: string
   metadata?: Record<string, unknown>
 }): Promise<void> {
@@ -185,6 +185,31 @@ export async function insertPilotLead(lead: {
     resource_type: 'pilot_lead',
     resource_id: id,
     metadata: lead,
+  })
+  if (error) throw error
+  return { id }
+}
+
+export async function insertOperatorApplication(application: {
+  full_name: string
+  email: string
+  phone: string
+  city: string
+  locality: string
+  languages: string
+  transport: string
+  availability: string
+  experience: string
+}): Promise<{ id: string }> {
+  const db = getServiceClient()
+  const id = crypto.randomUUID()
+  const { error } = await db.from('audit_events').insert({
+    event_type: 'operator_application.created',
+    actor_type: 'worker',
+    actor_ref: application.email,
+    resource_type: 'worker',
+    resource_id: id,
+    metadata: application,
   })
   if (error) throw error
   return { id }
@@ -550,11 +575,12 @@ export async function getAdminOperationsOverview() {
   const db = getServiceClient()
   // Parallel reads keep the console fast; each read independently retries a
   // transient serverless egress/TLS failure.
-  const [tasksRes, paymentsRes, campaignsRes, leadsRes, workersRes] = await Promise.all([
+  const [tasksRes, paymentsRes, campaignsRes, leadsRes, operatorApplicationsRes, workersRes] = await Promise.all([
     withDbRetry(() => db.from('tasks').select('id,intent,status,budget_usdt,created_at,submitted_at,resolved_at,worker_wallet,payment_ref,result').order('created_at', { ascending: false }).limit(500)),
     withDbRetry(() => db.from('payments').select('amount_units')),
     withDbRetry(() => db.from('campaigns').select('*').limit(100)),
     withDbRetry(() => db.from('audit_events').select('*').eq('event_type', 'pilot_lead.created').limit(100)),
+    withDbRetry(() => db.from('audit_events').select('*').eq('event_type', 'operator_application.created').order('created_at', { ascending: false }).limit(250)),
     withDbRetry(() => db.from('workers').select('wallet,tasks_completed,tasks_failed,total_earned_units,last_seen').order('last_seen', { ascending: false }).limit(250)),
   ])
   const warnings = [
@@ -562,6 +588,7 @@ export async function getAdminOperationsOverview() {
     paymentsRes.error ? 'payments' : null,
     campaignsRes.error ? 'campaigns' : null,
     leadsRes.error ? 'leads' : null,
+    operatorApplicationsRes.error ? 'operator_applications' : null,
     workersRes.error ? 'workers' : null,
   ].filter((value): value is string => !!value)
   if (warnings.length) {
@@ -570,11 +597,12 @@ export async function getAdminOperationsOverview() {
       payments: paymentsRes.error,
       campaigns: campaignsRes.error,
       leads: leadsRes.error,
+      operator_applications: operatorApplicationsRes.error,
       workers: workersRes.error,
     })
   }
   const warningDetails: Record<string, { code: string; message: string }> = {}
-  for (const [key, error] of Object.entries({ tasks: tasksRes.error, payments: paymentsRes.error, campaigns: campaignsRes.error, leads: leadsRes.error, workers: workersRes.error })) {
+  for (const [key, error] of Object.entries({ tasks: tasksRes.error, payments: paymentsRes.error, campaigns: campaignsRes.error, leads: leadsRes.error, operator_applications: operatorApplicationsRes.error, workers: workersRes.error })) {
     if (error) warningDetails[key] = { code: error.code ?? 'unknown', message: error.message ?? 'Database query failed' }
   }
   const tasks = (tasksRes.data ?? []) as Array<MetricTask & { id: string; intent: string; worker_wallet: string | null; payment_ref: string | null; campaign_id?: string | null }>
@@ -595,6 +623,7 @@ export async function getAdminOperationsOverview() {
     settlement_exceptions: tasks.filter(task => task.status === 'verified' && !task.result?.settle).map(task => ({ id: task.id, intent: task.intent, worker_wallet: task.worker_wallet, budget_usdt: task.budget_usdt, resolved_at: task.resolved_at })),
     campaigns: (campaignsRes.data ?? []).map(campaign => ({ ...campaign, task_counts: taskCounts.get(campaign.id) ?? {} })),
     leads: (leadsRes.data ?? []).map(row => ({ id: row.resource_id, created_at: row.created_at, ...(row.metadata as object) })),
+    operator_applications: (operatorApplicationsRes.data ?? []).map(row => ({ id: row.resource_id, created_at: row.created_at, ...(row.metadata as object) })),
     workers: (workersRes.data ?? []).map(worker => {
       const completed = Number(worker.tasks_completed ?? 0)
       const failed = Number(worker.tasks_failed ?? 0)
