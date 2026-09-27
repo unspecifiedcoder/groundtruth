@@ -28,6 +28,14 @@ export async function GET() {
         urgent_visit: '15.00',
         complex_visit: '50.00',
       },
+      commercialPilot: {
+        price: '199.00',
+        currency: 'USD',
+        includedChecks: 25,
+        purchaseFlow: `${base}/pilot`,
+        paymentTiming: 'after coverage and acceptance criteria are confirmed',
+        note: 'Commercial pilot payment is quoted and reconciled separately; it is not purchased through the single-task x402 endpoint.',
+      },
     },
     payment: {
       address: process.env.X402_VERIFY_RECIPIENT ?? '0x72db032c0dFB6E7502e16A73fabdab31712dc706',

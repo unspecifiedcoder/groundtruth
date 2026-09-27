@@ -4,7 +4,12 @@ export function GET() {
 
 GroundTruth dispatches paid real-world retail field checks and returns verified photographic evidence, structured observations, and settlement receipts.
 
+Commercial buyer flow: ${base}/pilot
+Launch offer: 25 accepted retail checks in one agreed city zone for $199, after coverage and the evidence checklist are confirmed.
+Illustrative output format (not customer work or traction): ${base}/campaigns/demo
+
 Paid x402 service manifest: ${base}/.well-known/x402-service.json
+The $0.01 and $0.10 x402 tiers validate payment and task orchestration only. They do not claim field fulfillment. Commercial pilots are scoped separately.
 
 ## Agent interfaces
 - MCP endpoint: ${base}/api/mcp

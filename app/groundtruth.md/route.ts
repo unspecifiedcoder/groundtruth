@@ -2,9 +2,17 @@ export function GET() {
   const base = process.env.NEXT_PUBLIC_APP_URL ?? 'https://groundtruth-oracle.vercel.app'
   const body = `# GroundTruth
 
-> Verified, location-bound retail field evidence for software and autonomous agents.
+> Independent, location-bound retail execution checks for brands, commerce teams, and software agents.
 
-GroundTruth dispatches human field workers to inspect shelves, prices, promotions, and displays. It returns structured observations, screened photographic evidence, verification checks, and settlement status.
+GroundTruth dispatches field operators to inspect shelves, prices, promotions, and displays. It returns accepted photographic evidence, structured observations, verification checks, and CSV/API-ready results.
+
+## Commercial pilot
+
+- 25 accepted checks in one agreed city zone
+- One repeatable question: stock, shelf price, promotion/display, or store status
+- $199 after coverage and acceptance criteria are confirmed
+- [Check pilot coverage](${base}/pilot)
+- [Inspect the illustrative output contract](${base}/campaigns/demo) — not customer work or traction
 
 ## Agent interfaces
 
@@ -17,14 +25,14 @@ GroundTruth dispatches human field workers to inspect shelves, prices, promotion
 
 ## Evaluate GroundTruth
 
-- [Interactive campaign demo](${base}/campaigns/demo)
+- [Illustrative campaign output](${base}/campaigns/demo)
 - [Technical and investor diligence](${base}/diligence)
 - [Trust and evidence model](${base}/trust)
 - [Service health](${base}/api/health)
 
 ## Current operating boundary
 
-GroundTruth is in focused-pilot mode. Coverage, payout funding, pricing, and acceptance criteria are confirmed before real missions are published. Model scores measure evidence-to-brief consistency; they are not guarantees of factual truth.
+GroundTruth is in focused-pilot mode, initially building operator density in compact Hyderabad zones. Coverage, payout funding, pricing, and acceptance criteria are confirmed before real missions are published. Model scores measure evidence-to-brief consistency; they are not guarantees of factual truth. The $0.01 and $0.10 x402 tiers test integration plumbing and do not represent field-work pricing.
 `
   return new Response(body, {
     headers: {
