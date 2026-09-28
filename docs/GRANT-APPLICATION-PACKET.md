@@ -6,16 +6,24 @@ This packet is deliberately evidence-first. It does not claim customers, revenue
 
 ## Recommended application order
 
-1. **Base Ecosystem Fund** — apply now. This is a pre-seed/seed investment application, not a grant. GroundTruth's live Base USDC x402 rail and agent-payment workflow make it the strongest current ecosystem fit.
-2. **Fetch.ai Startup Accelerator / ASI partnership request** — applications are live. Fit is moderate today and becomes strong only if GroundTruth genuinely commits to a Fetch/uAgents/Agentverse integration. The application requires substantial founder, corporate, equity, traction, and video information.
-3. **CUDOS ASI Accelerator** — apply for compute credits only if GroundTruth has a defensible compute requirement. This is not a verified $100,000 cash grant.
-4. **Base Builder Grants** — pursue only after Base confirms a currently active submission route. The public documentation still describes retroactive grants, but an unambiguous current application form has not been verified.
-5. **Thala Foundry** — do not apply yet. The program is open, but it prioritizes novel DeFi that is native to Aptos. GroundTruth has no Aptos deployment or Move implementation today.
-6. **Avalanche programs** — do not pivot chains merely to chase funding. Retro9000 is concluded; the 2025 GenAI/Avalanche round is over. Reconsider only when an active program fits a committed Avalanche deployment milestone.
-7. **Optimism Retro Funding** — not currently available; new rounds are paused.
-8. **Gitcoin, Bittensor, Biconomy** — no matching current application was verified. Gitcoin's visible GG24 dates are from 2025; Bittensor would require a material subnet/incentive-design pivot; and Biconomy's account-abstraction site does not currently expose the claimed grant application.
+1. **Base Ecosystem Fund** — submitted on 2026-09-28. This is a pre-seed/seed investment application, not a grant. GroundTruth's live Base USDC x402 rail and agent-payment workflow make it the strongest current ecosystem fit.
+2. **CDP Founders Fuel** — application drafted on 2026-09-28 and awaiting final submission confirmation. This program offers up to $15,000 of CDP/Paymaster credits, $5,000 of AWS Activate credits, technical support, go-to-market support, and possible ecosystem visibility; it is not a cash grant.
+3. **Fetch.ai Startup Accelerator / ASI partnership request** — applications are live. Fit is moderate today and becomes strong only if GroundTruth genuinely commits to a Fetch/uAgents/Agentverse integration. The application requires a phone number, founder introduction video, education entry, full-time/exclusivity commitment, legal-entity and equity answers, funding ask, and substantial founder/company details.
+4. **CUDOS ASI Accelerator** — apply for compute credits only if GroundTruth has a defensible compute requirement. This is not a verified $100,000 cash grant.
+5. **Base Builder Grants** — pursue only after Base confirms a currently active submission route. The public documentation still describes retroactive grants, but an unambiguous current application form has not been verified.
+6. **Thala Foundry** — do not apply yet. The program is open, but it prioritizes novel DeFi that is native to Aptos. GroundTruth has no Aptos deployment or Move implementation today.
+7. **Avalanche programs** — do not pivot chains merely to chase funding. Retro9000 currently exposes ecosystem rounds, but GroundTruth has no committed Avalanche deployment and should not claim eligibility merely to chase funding. The 2025 GenAI/Avalanche round is over.
+8. **Optimism Retro Funding** — not currently available; new rounds are paused.
+9. **Gitcoin, Bittensor, Biconomy** — no matching current application was verified. Gitcoin's current public campaigns do not include an applicable open round; Bittensor would require a material subnet/incentive-design pivot; and Biconomy's account-abstraction site does not currently expose the claimed grant application.
 
 Base Batches 004 would have been a strong accelerator fit, but applications closed on 2026-09-10. It is not available now.
+
+## Submission log
+
+- **Base Ecosystem Fund** — submitted 2026-09-28; confirmation shown in the official application UI as “Application received.”
+- **Pitch deck** — validated 10-slide PowerPoint uploaded to Google Drive and set to “Anyone with the link — Viewer”: https://drive.google.com/file/d/19_EMh94_nK_zz_OAwpBSqjAXqPFbrZud/view?usp=sharing
+- **CDP Founders Fuel** — official Google Form completed as a saved draft. It truthfully identifies x402 as current and CDP Wallet API as planned, states zero verified external revenue, and remains unsubmitted pending action-time confirmation.
+- **Fetch.ai Startup Accelerator** — official application inspected but not submitted. Required founder phone number, introduction video, education entry, exclusivity/full-time commitment, legal-entity status, equity split, funding request, and Fetch integration commitment are not all available or confirmed.
 
 ## Base Ecosystem Fund draft
 
