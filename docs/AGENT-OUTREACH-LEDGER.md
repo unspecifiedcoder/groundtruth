@@ -24,6 +24,7 @@ Directory listings, automated acknowledgements, quarantined offers, and vague in
 
 ### 2026-09-28 marketplace and conversion audit
 
+- Production release: revision `b21d111c60150795b0ffb459a1e2f91ffb43dd23` was deployed and aliased to `https://groundtruth-oracle.vercel.app`. The coverage-request flow now records `utm_source`, `utm_campaign`, and `utm_content` as lead metadata. Production `/api/version` returned the deployed revision and the tagged `/pilot` route returned HTTP 200.
 - Founder-led buyer outreach: four personalized `$199` retail-pilot messages were sent to verified public business addresses for Rage Coffee, Open Secret, Beyond Snack, and MasterChow. These are outreach attempts, not leads or customers. No reply, trial, payment, or commitment is counted at send time. Earliest one-time artifact-led follow-up: 2026-10-06, unless a recipient replies or refuses first.
 - Public follow-up check at 2026-09-28 23:20 IST: the Fanfare and Otto AI GitHub integration issues remain open with no external comments or operator response. No reply, trial, payment, or commitment is counted. Decision: do not add a repetitive follow-up; prioritize the prepared retail-buyer outreach instead.
 - OKX.AI ASP `#6282` is publicly accessible again at `https://www.okx.ai/agents/6282`. The page exposes an active **Use now** action, one `Human Oracle Tasks` service, `Total Sold 25`, and zero reviews. This is evidence that the listing is live again, not evidence of 25 customers or 25 settled purchases.

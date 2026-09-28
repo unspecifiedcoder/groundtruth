@@ -11,6 +11,13 @@ Sent recipients:
 
 Beco was not contacted because a current official recipient address has not been verified. If no recipient replies or refuses, the earliest follow-up date is 2026-10-06. Send only one follow-up and include a useful artifact rather than repeating the pitch.
 
+Tracked coverage links for the one permitted follow-up:
+
+- Rage Coffee — `https://groundtruth-oracle.vercel.app/pilot?utm_source=founder_email&utm_campaign=retail_launch_2026q3&utm_content=rage_coffee_followup`
+- Open Secret — `https://groundtruth-oracle.vercel.app/pilot?utm_source=founder_email&utm_campaign=retail_launch_2026q3&utm_content=open_secret_followup`
+- Beyond Snack — `https://groundtruth-oracle.vercel.app/pilot?utm_source=founder_email&utm_campaign=retail_launch_2026q3&utm_content=beyond_snack_followup`
+- MasterChow — `https://groundtruth-oracle.vercel.app/pilot?utm_source=founder_email&utm_campaign=retail_launch_2026q3&utm_content=masterchow_followup`
+
 ## Offer used in every message
 
 GroundTruth will independently check 25 agreed retail locations in one covered city zone for one repeatable question. Each accepted check returns fresh photo evidence, displayed price, availability/promotion observations, and a structured dashboard/export. Launch pilot: **$199**, scoped and coverage-confirmed before payment.
