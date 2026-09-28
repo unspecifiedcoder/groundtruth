@@ -1,6 +1,6 @@
 # GroundTruth agent customer outreach ledger
 
-Updated: 2026-09-27
+Updated: 2026-09-28
 
 ## Success definition
 
@@ -21,6 +21,15 @@ Directory listings, automated acknowledgements, quarantined offers, and vague in
 - Verified external commitments: **1**
 - Settled external `$2+` tasks: **0**
 - Payment-rail status: GroundTruth now accepts canonical Base USDC for the Base-native prospect pool while retaining X Layer USDT0.
+
+### 2026-09-28 marketplace and conversion audit
+
+- OKX.AI ASP `#6282` is publicly accessible again at `https://www.okx.ai/agents/6282`. The page exposes an active **Use now** action, one `Human Oracle Tasks` service, `Total Sold 25`, and zero reviews. This is evidence that the listing is live again, not evidence of 25 customers or 25 settled purchases.
+- The OKX service copy remains stale: it describes a flat `0.01 USDT` human-oracle task. Production treats `$0.01` as an integration test; sustainable managed field work is sold separately as a coverage-confirmed 25-check pilot for `$199`. Do not route managed-pilot buyers through the single-task marketplace description.
+- The official Windows marketplace installer currently fails with a PowerShell parser error after the platform's own preflight directed migration to `@okxweb3/onchainos-installer`. The standalone official v4.6.2 binary was downloaded and verified against the release SHA-256 checksum, but the required workflow installer did not complete. No listing mutation was attempted through a stale workflow.
+- Public acquisition checks found no inbound pilot/A2A leads and no campaigns. The sole operator-application record is the explicitly rejected deployment QA record, not real supply.
+- The replacement Blue Bottle evaluation task `0c10637b-5702-4df3-9f8f-520fef27a450` is definitively `expired`, `funded:false`, and `complete:false`; no worker completed it. The historical buyer request remains commitment evidence, but there is no active trial or revenue to fulfil now.
+- Buyer conversion is now primary: production offers a `$199` 25-check retail pilot, a simplified coverage request, a private lead-status pipeline, and a controlled order-form/invoice process. Direct founder/trade-marketing outreach remains blocked until a mail or browser account is connected.
 
 ### 2026-09-27 first verified external trial
 
@@ -100,7 +109,7 @@ Directory listings, automated acknowledgements, quarantined offers, and vague in
 | Relay | `https://relay2--5de8b3b2995311f1a5481607ee4eb77e.web.val.run/` | Human-review task `5a0dd62e-248f-4e91-8bd4-96db5f80dc95` remains `TASK_STATE_WORKING` as of 2026-09-26 17:06 UTC; Relay says it is being carried. | Warm lead, not yet a customer | Monitor the existing task and answer the human's questions. |
 | Direct Hire | Public directory and A2A discovery | GroundTruth is discoverable as external agent `fdb0054f-d969-4847-8e8b-340317fd5e04`. | Active distribution, not a customer | Contact only relevant public buyer profiles; do not duplicate-register. |
 | Global A2A Registry | Public registry API | GroundTruth package `app.vercel.groundtruth_field_evidence_agent` is public and queryable. | Active distribution, not a customer | Keep the agent card healthy; do not count searches as demand. |
-| OKX.AI | `https://www.okx.ai/agents/6282` | GroundTruth ASP `#6282` is online. The profile shows `Total Sold 24`, while service metadata shows `salesCount: 0` and zero reviews. | Ambiguous platform usage, not verified customers | Do not claim 24 customers. Repair the local client/preflight version mismatch before marketplace actions. |
+| OKX.AI | `https://www.okx.ai/agents/6282` | Public profile verified live on 2026-09-28 with an active **Use now** action, `Total Sold 25`, and zero reviews. The displayed service still incorrectly presents `0.01 USDT` as field-work pricing. | Active distribution; sales counter remains ambiguous and is not verified customer/revenue evidence | Do not claim 25 customers. Update the service contract only through a current approved workflow; the official Windows workflow installer is presently broken. |
 | Packrift | Public A2A endpoint | Returned static procurement routing and policy information without evaluation or trial intent. | No lead | No follow-up without new relevance. |
 | A2A402 | Public marketplace/A2A endpoint | Open-job searches for retail and evidence verification returned no matches; the agent returned generic marketplace information. | No lead | Recheck later; do not register or spend without a concrete match. |
 | GAIP Opportunity Broker | Public bounded route | Requests produced retained receipts but remained blocked with `SUPPORTED_SPECIALIST_TASK_KIND_REQUIRED`. | No lead | Do not retry without a supported task schema. |
