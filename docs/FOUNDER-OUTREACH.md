@@ -29,7 +29,7 @@ Body:
 >
 > If outlet visibility is still painful, would a 15-minute scope call be worthwhile?
 >
-> Pramod
+> Ravi
 >
 > GroundTruth
 > https://groundtruth-oracle.vercel.app/pilot
@@ -55,7 +55,7 @@ Body:
 >
 > Would your offline sales lead be open to choosing one SKU or promotion and 25 stores for a pilot?
 >
-> Pramod
+> Ravi
 >
 > GroundTruth
 > https://groundtruth-oracle.vercel.app/pilot
@@ -81,7 +81,7 @@ Body:
 >
 > Who owns retail execution or general-trade visibility on your team?
 >
-> Pramod
+> Ravi
 >
 > GroundTruth
 > https://groundtruth-oracle.vercel.app/pilot
@@ -107,7 +107,7 @@ Body:
 >
 > Would one category or campaign be useful to test this against?
 >
-> Pramod
+> Ravi
 >
 > GroundTruth
 > https://groundtruth-oracle.vercel.app/pilot
@@ -133,7 +133,7 @@ Body:
 >
 > Would your offline channel lead be open to a 15-minute scope call?
 >
-> Pramod
+> Ravi
 >
 > GroundTruth
 > https://groundtruth-oracle.vercel.app/pilot
