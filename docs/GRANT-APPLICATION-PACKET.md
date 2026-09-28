@@ -19,6 +19,20 @@ Base Batches 004 would have been a strong accelerator fit, but applications clos
 
 ## Base Ecosystem Fund draft
 
+### Founder and team
+
+- Founder: Ravi Shankar Bejini
+- Role: Solo founder and engineer
+- Location: Hyderabad, India
+- Team size: 1
+- Telegram: https://t.me/ravi_invincible
+- LinkedIn: https://www.linkedin.com/in/ravishankarbejini
+- Funding raised: None; bootstrapped
+- Education: B.Tech in Computer Science & Engineering, Neil Gogte Institute of Technology, 2020-2024, CGPA 8.3/10
+- Relevant experience: founding engineer working across DeFi and smart contracts; prior production backend engineering in digital banking; prior data-science engineering on physical-sensor and maintenance systems.
+
+The founder profile combines onchain execution, x402/MCP implementation, production transaction systems, and work with physical sensor data. This is credible founder-market fit for an agent-payment product that coordinates present physical-world evidence.
+
 ### Company name
 
 GroundTruth
@@ -92,6 +106,18 @@ Funding would be used to reach verifiable commercial and operating milestones ra
 - Base USDC and wallet integration hardening.
 - Two tightly scoped design-partner pilots.
 - Legal, privacy, and operational controls for physical fieldwork.
+
+### Proposed fundraising goal - requires founder confirmation
+
+Raise **$250,000 in pre-seed capital** to target approximately 18 months of focused runway. This is an investment ask, not a grant request. The application should describe the intended allocation approximately as:
+
+- 35% field operations, operator calibration, and pilot fulfillment.
+- 25% product and evidence-integrity engineering.
+- 20% buyer acquisition and design-partner delivery.
+- 10% Base payment, wallet, and reconciliation hardening.
+- 10% legal, privacy, security, and operating contingency.
+
+Do not state a cash runway in months until the founder confirms personal burn, business cash balance, and whether GroundTruth is being funded from employment income. A truthful interim description is: **bootstrapped, no external capital raised; operating runway is founder-funded and not yet institutionalized.**
 
 ### Defensibility
 
