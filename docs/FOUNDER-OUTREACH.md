@@ -1,6 +1,15 @@
 # Founder-led buyer outreach
 
-Status: drafts prepared; no message in this file is evidence that outreach was sent or that a buyer replied.
+Status: four messages sent on 2026-09-28; no reply, trial, payment, or customer commitment has been recorded yet.
+
+Sent recipients:
+
+- Rage Coffee — `help@ragecoffee.com`
+- Open Secret — `partnerships@opensecret.in`
+- Beyond Snack — `crc@drjackfruit.com`
+- MasterChow — `hello@masterchow.in`
+
+Beco was not contacted because a current official recipient address has not been verified. If no recipient replies or refuses, the earliest follow-up date is 2026-10-06. Send only one follow-up and include a useful artifact rather than repeating the pitch.
 
 ## Offer used in every message
 

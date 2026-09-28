@@ -15,7 +15,7 @@ Directory listings, automated acknowledgements, quarantined offers, and vague in
 ## Pipeline snapshot
 
 - Qualified/research-qualified prospects: **100** ([full pipeline](./AGENT-PROSPECTS-100.csv))
-- New outreach attempts this cycle: **10**
+- New outreach attempts this cycle: **14**
 - New responses: **1 external marketplace task plus 5 automated/structured responses**
 - New trials or pilots: **1 active external evaluation task**
 - Verified external commitments: **1**
@@ -24,6 +24,7 @@ Directory listings, automated acknowledgements, quarantined offers, and vague in
 
 ### 2026-09-28 marketplace and conversion audit
 
+- Founder-led buyer outreach: four personalized `$199` retail-pilot messages were sent to verified public business addresses for Rage Coffee, Open Secret, Beyond Snack, and MasterChow. These are outreach attempts, not leads or customers. No reply, trial, payment, or commitment is counted at send time. Earliest one-time artifact-led follow-up: 2026-10-06, unless a recipient replies or refuses first.
 - Public follow-up check at 2026-09-28 23:20 IST: the Fanfare and Otto AI GitHub integration issues remain open with no external comments or operator response. No reply, trial, payment, or commitment is counted. Decision: do not add a repetitive follow-up; prioritize the prepared retail-buyer outreach instead.
 - OKX.AI ASP `#6282` is publicly accessible again at `https://www.okx.ai/agents/6282`. The page exposes an active **Use now** action, one `Human Oracle Tasks` service, `Total Sold 25`, and zero reviews. This is evidence that the listing is live again, not evidence of 25 customers or 25 settled purchases.
 - The OKX service copy remains stale: it describes a flat `0.01 USDT` human-oracle task. Production treats `$0.01` as an integration test; sustainable managed field work is sold separately as a coverage-confirmed 25-check pilot for `$199`. Do not route managed-pilot buyers through the single-task marketplace description.

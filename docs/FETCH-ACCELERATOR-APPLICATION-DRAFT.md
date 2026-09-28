@@ -8,7 +8,6 @@ This draft is evidence-first. It does not claim Fetch/uAgents integration, custo
 
 The official application cannot be submitted truthfully until Ravi confirms or supplies:
 
-- Phone number.
 - Whether he will work exclusively on GroundTruth for the next year if accepted.
 - Whether GroundTruth is a legally formed entity; if yes, its name, jurisdiction, and formation date.
 - Current equity split/cap table.
@@ -21,6 +20,7 @@ The official application cannot be submitted truthfully until Ravi confirms or s
 
 - **Name:** Ravi Shankar Bejini
 - **Email:** ravishankarbejini@gmail.com
+- **Phone:** +91 89195 89637
 - **City:** Hyderabad, India
 - **Title / responsibility:** Solo Founder & Engineer — product, protocol, backend, payments, field-operations design, and customer development.
 - **Technical founder:** Yes.
