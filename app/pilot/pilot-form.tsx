@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 const questions = [
   { value: 'stock', label: 'Is the SKU in stock?' },
@@ -11,20 +11,31 @@ const questions = [
 ] as const
 
 const initial = { company_name: '', work_email: '', launch_city: 'Hyderabad', question_type: 'stock', notes: '', website: '' }
+const initialAttribution = { source: 'website', campaign: '', prospect: '' }
 
 export default function PilotForm() {
   const [form, setForm] = useState(initial)
+  const [attribution, setAttribution] = useState(initialAttribution)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [reference, setReference] = useState('')
   const field = 'mt-2 w-full rounded-xl px-4 py-3 outline-none'
   const fieldStyle = { background: 'var(--bg-subtle)', border: '1px solid var(--border)' }
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    setAttribution({
+      source: params.get('utm_source') || 'website',
+      campaign: params.get('utm_campaign') || '',
+      prospect: params.get('utm_content') || '',
+    })
+  }, [])
+
   async function submit(event: React.FormEvent) {
     event.preventDefault()
     setBusy(true)
     setError('')
-    const response = await fetch('/api/pilot-leads', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) })
+    const response = await fetch('/api/pilot-leads', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, ...attribution }) })
     const data = await response.json()
     if (!response.ok) setError(data.error ?? 'Submission failed')
     else setReference(data.reference)

@@ -10,6 +10,9 @@ const LeadSchema = z.object({
   question_type: z.enum(['stock', 'price', 'promotion', 'store_open', 'other']),
   notes: z.string().trim().max(1000).optional().default(''),
   website: z.string().max(0).optional().default(''),
+  source: z.string().trim().min(1).max(80).optional().default('website'),
+  campaign: z.string().trim().max(120).optional().default(''),
+  prospect: z.string().trim().max(120).optional().default(''),
 })
 
 export async function POST(req: NextRequest) {
@@ -17,7 +20,7 @@ export async function POST(req: NextRequest) {
   if (await rateLimit(req, 'pilot-lead', 5)) return NextResponse.json({ error: 'Too many submissions' }, { status: 429 })
   const parsed = LeadSchema.safeParse(await req.json().catch(() => null))
   if (!parsed.success) return NextResponse.json({ error: 'Please complete every field with a valid work email' }, { status: 400 })
-  const { website: _honeypot, question_type, notes, ...input } = parsed.data
+  const { website: _honeypot, question_type, notes, source, campaign, prospect, ...input } = parsed.data
   const questionLabels = { stock: 'Is the SKU in stock?', price: 'What shelf price is displayed?', promotion: 'Is the promotion or display executed?', store_open: 'Is the store open?', other: 'Other retail verification question' }
   const lead = {
     ...input,
@@ -25,6 +28,9 @@ export async function POST(req: NextRequest) {
     use_case: `${questionLabels[question_type]}${notes ? `\n\n${notes}` : ''}`,
     question_type,
     notes,
+    source,
+    campaign,
+    prospect,
     estimated_locations: 25,
     timeline: 'coverage_request',
   }

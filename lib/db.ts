@@ -178,6 +178,9 @@ export async function insertPilotLead(lead: {
   timeline: string
   question_type?: string
   notes?: string
+  source?: string
+  campaign?: string
+  prospect?: string
 }): Promise<{ id: string }> {
   const db = getServiceClient()
   const id = crypto.randomUUID()

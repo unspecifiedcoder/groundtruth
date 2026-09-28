@@ -24,6 +24,7 @@ Directory listings, automated acknowledgements, quarantined offers, and vague in
 
 ### 2026-09-28 marketplace and conversion audit
 
+- Public follow-up check at 2026-09-28 23:20 IST: the Fanfare and Otto AI GitHub integration issues remain open with no external comments or operator response. No reply, trial, payment, or commitment is counted. Decision: do not add a repetitive follow-up; prioritize the prepared retail-buyer outreach instead.
 - OKX.AI ASP `#6282` is publicly accessible again at `https://www.okx.ai/agents/6282`. The page exposes an active **Use now** action, one `Human Oracle Tasks` service, `Total Sold 25`, and zero reviews. This is evidence that the listing is live again, not evidence of 25 customers or 25 settled purchases.
 - The OKX service copy remains stale: it describes a flat `0.01 USDT` human-oracle task. Production treats `$0.01` as an integration test; sustainable managed field work is sold separately as a coverage-confirmed 25-check pilot for `$199`. Do not route managed-pilot buyers through the single-task marketplace description.
 - The official Windows marketplace installer currently fails with a PowerShell parser error after the platform's own preflight directed migration to `@okxweb3/onchainos-installer`. The standalone official v4.6.2 binary was downloaded and verified against the release SHA-256 checksum, but the required workflow installer did not complete. No listing mutation was attempted through a stale workflow.
