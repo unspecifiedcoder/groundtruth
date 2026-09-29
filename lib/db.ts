@@ -4,6 +4,7 @@ import type { Task, TaskStatus, TaskResult, ProofPayload, Campaign } from './typ
 import { assessWorkerRisk, type WorkerRiskDecision } from './risk'
 import { calculateOperationsMetrics, type MetricTask } from './metrics'
 import { isTaskFundedForDispatch } from './funding'
+import { calculateSalesMetrics, canTransitionPilotLead, isPilotLeadStatus, isRecurringCadence, type PilotLeadStatus, type SalesMetricLead } from './sales-pipeline'
 
 // Service-role client — used server-side only, never exposed to browser
 function getServiceClient(): SupabaseClient {
@@ -300,9 +301,9 @@ export async function insertAgentPilotLead(lead: {
   return { id: resourceId, created: true }
 }
 
-export type PilotLeadStatus = 'new' | 'qualified' | 'scope_sent' | 'payment_pending' | 'paid' | 'declined'
+export type PilotLeadTransitionResult = { updated: true } | { updated: false; reason: 'not_found' | 'invalid_transition' | 'payment_evidence_required' | 'recurring_plan_required' }
 
-export async function updatePilotLeadStatus(id: string, status: PilotLeadStatus): Promise<boolean> {
+export async function updatePilotLeadStatus(id: string, status: PilotLeadStatus, payment?: { reference: string; amountUsd: number }): Promise<PilotLeadTransitionResult> {
   const db = getServiceClient()
   const { data, error: lookupError } = await db
     .from('audit_events')
@@ -311,14 +312,28 @@ export async function updatePilotLeadStatus(id: string, status: PilotLeadStatus)
     .eq('resource_id', id)
     .maybeSingle()
   if (lookupError) throw lookupError
-  if (!data) return false
+  if (!data) return { updated: false, reason: 'not_found' }
+  const metadata = data.metadata as Record<string, unknown>
+  const current = isPilotLeadStatus(metadata.lead_status) ? metadata.lead_status : 'new'
+  if (!canTransitionPilotLead(current, status)) return { updated: false, reason: 'invalid_transition' }
+  if ((status === 'paid' || status === 'active') && (!payment?.reference.trim() || !Number.isFinite(payment.amountUsd) || payment.amountUsd <= 0)) {
+    return { updated: false, reason: 'payment_evidence_required' }
+  }
+  if (status === 'active' && !isRecurringCadence(metadata.cadence)) return { updated: false, reason: 'recurring_plan_required' }
+  const now = new Date().toISOString()
+  const paymentMetadata = payment ? {
+    payment_reference: payment.reference.trim(),
+    amount_received_usd: payment.amountUsd,
+    payment_recorded_at: now,
+    ...(status === 'active' ? { recurring_monthly_usd: payment.amountUsd, subscription_started_at: now } : {}),
+  } : {}
   const { error } = await db
     .from('audit_events')
-    .update({ metadata: { ...(data.metadata as object), lead_status: status, lead_status_updated_at: new Date().toISOString() } })
+    .update({ metadata: { ...metadata, ...paymentMetadata, lead_status: status, lead_status_updated_at: now } })
     .eq('event_type', 'pilot_lead.created')
     .eq('resource_id', id)
   if (error) throw error
-  return true
+  return { updated: true }
 }
 
 // CAS transition: only updates if current status matches `from`
@@ -695,6 +710,7 @@ export async function getAdminOperationsOverview() {
     counts[task.status] = (counts[task.status] ?? 0) + 1
     taskCounts.set(task.campaign_id, counts)
   }
+  const leads = (leadsRes.data ?? []).map(row => ({ id: row.resource_id, created_at: row.created_at, ...(row.metadata as object) })) as Array<SalesMetricLead & Record<string, unknown>>
   const operatorApplications = (operatorApplicationsRes.data ?? []).map(row => ({ id: row.resource_id, created_at: row.created_at, ...(row.metadata as object) })) as Array<{ status?: OperatorApplicationStatus } & Record<string, unknown>>
   const operatorStatusCounts = operatorApplications.reduce<Record<OperatorApplicationStatus, number>>((counts, application) => {
     const status = application.status && OPERATOR_STATUS_TRANSITIONS[application.status] ? application.status : 'new'
@@ -707,6 +723,7 @@ export async function getAdminOperationsOverview() {
     warnings,
     warning_details: warningDetails,
     metrics: calculateOperationsMetrics(tasks, paymentVolume),
+    sales: calculateSalesMetrics(leads),
     payment_activity: {
       last_24h_count: recentPayments.length,
       last_24h_volume_usdt: recentPayments.reduce((sum, payment) => sum + payment.amount_usdt, 0),
@@ -715,7 +732,7 @@ export async function getAdminOperationsOverview() {
     },
     settlement_exceptions: tasks.filter(task => task.status === 'verified' && !task.result?.settle).map(task => ({ id: task.id, intent: task.intent, worker_wallet: task.worker_wallet, budget_usdt: task.budget_usdt, resolved_at: task.resolved_at })),
     campaigns: (campaignsRes.data ?? []).map(campaign => ({ ...campaign, task_counts: taskCounts.get(campaign.id) ?? {} })),
-    leads: (leadsRes.data ?? []).map(row => ({ id: row.resource_id, created_at: row.created_at, ...(row.metadata as object) })),
+    leads,
     operator_readiness: {
       ...operatorStatusCounts,
       launch_threshold: 5,
