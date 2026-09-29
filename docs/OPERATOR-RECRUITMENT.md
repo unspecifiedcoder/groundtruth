@@ -6,11 +6,11 @@ Status: recruitment funnel is production-ready, but no public recruitment post h
 
 Recruit 30 applicants, interview 12, run eight paid calibration checks, and activate at least five operators with overlapping coverage in the initial Madhapur–Kondapur–Gachibowli and Hitech City–Jubilee Hills corridors.
 
-Production counts only an operator in `active` status toward launch readiness. The enforced lifecycle is:
+Production counts only an operator in `active` status with complete paid-calibration evidence toward launch readiness. The enforced lifecycle is:
 
 `new → shortlisted → calibration scheduled → active`
 
-Paused operators do not count. Rejected applicants cannot be reactivated. Five active operators is a minimum numeric threshold, not proof that any proposed store list is covered; locality and availability must still be checked before quoting delivery.
+Activation requires a calibration task/receipt reference, a payout-system reference, at least the published ₹180 calibration payment, verified payout identity, and explicit passes for fresh capture, location, checklist completeness, safety/privacy, and manual review. Paused operators do not count. Rejected applicants cannot be reactivated. Five calibrated active operators is a minimum numeric threshold, not proof that any proposed store list is covered; locality and availability must still be checked before quoting delivery.
 
 ## Attributed application link
 

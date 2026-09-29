@@ -5,6 +5,7 @@ import { assessWorkerRisk, type WorkerRiskDecision } from './risk'
 import { calculateOperationsMetrics, type MetricTask } from './metrics'
 import { isTaskFundedForDispatch } from './funding'
 import { calculateSalesMetrics, canTransitionPilotLead, isPilotLeadStatus, isRecurringCadence, type PilotLeadStatus, type SalesMetricLead } from './sales-pipeline'
+import { validateOperatorCalibration, type OperatorCalibrationEvidence } from './operator-calibration'
 
 // Service-role client — used server-side only, never exposed to browser
 function getServiceClient(): SupabaseClient {
@@ -261,7 +262,7 @@ export function canTransitionOperatorApplication(from: OperatorApplicationStatus
   return OPERATOR_STATUS_TRANSITIONS[from].includes(to)
 }
 
-export async function updateOperatorApplicationStatus(id: string, status: OperatorApplicationStatus): Promise<'updated' | 'not_found' | 'invalid_transition'> {
+export async function updateOperatorApplicationStatus(id: string, status: OperatorApplicationStatus, calibration?: OperatorCalibrationEvidence): Promise<'updated' | 'not_found' | 'invalid_transition' | 'invalid_calibration'> {
   const db = getServiceClient()
   const { data, error: lookupError } = await db
     .from('audit_events')
@@ -274,12 +275,44 @@ export async function updateOperatorApplicationStatus(id: string, status: Operat
   const metadata = data.metadata as Record<string, unknown>
   const current = typeof metadata.status === 'string' ? metadata.status as OperatorApplicationStatus : 'new'
   if (!OPERATOR_STATUS_TRANSITIONS[current] || !canTransitionOperatorApplication(current, status)) return 'invalid_transition'
+  if (status === 'active' && validateOperatorCalibration(calibration)) return 'invalid_calibration'
+  const now = new Date().toISOString()
+  const calibrationMetadata = status === 'active' && calibration ? {
+    calibration_verified: true,
+    calibration_reference: calibration.calibration_reference.trim(),
+    calibration_payment_reference: calibration.payment_reference.trim(),
+    calibration_payment_amount_inr: calibration.payment_amount_inr,
+    calibration_checks: {
+      fresh_capture: calibration.fresh_capture_pass,
+      location: calibration.location_pass,
+      checklist: calibration.checklist_pass,
+      safety_privacy: calibration.safety_pass,
+      manual_review: calibration.manual_review_pass,
+      payout_identity: calibration.payout_identity_verified,
+    },
+    calibration_verified_at: now,
+  } : {}
   const { error } = await db
     .from('audit_events')
-    .update({ metadata: { ...metadata, status, status_updated_at: new Date().toISOString() } })
+    .update({ metadata: { ...metadata, ...calibrationMetadata, status, status_updated_at: now } })
     .eq('event_type', 'operator_application.created')
     .eq('resource_id', id)
   if (error) throw error
+  if (status === 'active' && calibration) {
+    const { error: auditError } = await db.from('audit_events').insert({
+      event_type: 'operator.calibration_approved',
+      actor_type: 'admin',
+      resource_type: 'worker',
+      resource_id: id,
+      metadata: {
+        calibration_reference: calibration.calibration_reference.trim(),
+        payment_reference: calibration.payment_reference.trim(),
+        payment_amount_inr: calibration.payment_amount_inr,
+        verified_at: now,
+      },
+    })
+    if (auditError) console.error('[operator-calibration-audit]', auditError)
+  }
   return 'updated'
 }
 
@@ -750,6 +783,8 @@ export async function getAdminOperationsOverview() {
     counts[status] += 1
     return counts
   }, { new: 0, shortlisted: 0, calibration_scheduled: 0, active: 0, paused: 0, rejected: 0 })
+  const verifiedActiveOperators = operatorApplications.filter(application => application.status === 'active' && application.calibration_verified === true).length
+  const unverifiedActiveOperators = operatorStatusCounts.active - verifiedActiveOperators
   return {
     generated_at: new Date().toISOString(),
     scope: 'prototype_and_pilot_activity',
@@ -768,8 +803,10 @@ export async function getAdminOperationsOverview() {
     leads,
     operator_readiness: {
       ...operatorStatusCounts,
+      active: verifiedActiveOperators,
+      unverified_active: unverifiedActiveOperators,
       launch_threshold: 5,
-      launch_ready: operatorStatusCounts.active >= 5,
+      launch_ready: verifiedActiveOperators >= 5,
     },
     operator_applications: operatorApplications,
     workers: (workersRes.data ?? []).map(worker => {

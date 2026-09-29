@@ -9,8 +9,8 @@ type Campaign = { id: string; name: string; customer_name: string; status: strin
 type LeadStatus = PilotLeadStatus
 type Lead = { id: string; source?: string; campaign?: string; prospect?: string; company_name?: string; contact_name?: string; work_email?: string; use_case?: string; launch_city?: string; estimated_locations?: number; timeline?: string; cadence?: string; reply_url?: string; lead_status?: LeadStatus; payment_reference?: string; payment_cycle?: string; amount_received_usd?: number; recurring_monthly_usd?: number; created_at: string }
 type OperatorStatus = 'new' | 'shortlisted' | 'calibration_scheduled' | 'active' | 'paused' | 'rejected'
-type OperatorApplication = { id: string; full_name: string; email: string; phone: string; city: string; locality: string; languages: string; transport: string; availability: string; experience?: string; source?: string; campaign?: string; prospect?: string; status?: OperatorStatus; created_at: string }
-type OperatorReadiness = { new: number; shortlisted: number; calibration_scheduled: number; active: number; paused: number; rejected: number; launch_threshold: number; launch_ready: boolean }
+type OperatorApplication = { id: string; full_name: string; email: string; phone: string; city: string; locality: string; languages: string; transport: string; availability: string; experience?: string; source?: string; campaign?: string; prospect?: string; status?: OperatorStatus; calibration_verified?: boolean; calibration_reference?: string; calibration_payment_reference?: string; calibration_payment_amount_inr?: number; calibration_verified_at?: string; created_at: string }
+type OperatorReadiness = { new: number; shortlisted: number; calibration_scheduled: number; active: number; unverified_active: number; paused: number; rejected: number; launch_threshold: number; launch_ready: boolean }
 type Worker = { wallet: string; tasks_completed: number; tasks_failed: number; total_earned_units: string; last_seen: string; success_rate_pct: number | null }
 type SettlementException = { id: string; intent: string; worker_wallet: string | null; budget_usdt: string; resolved_at: string | null }
 type PaymentActivity = { last_24h_count: number; last_24h_volume_usdt: number; latest_payment_at: string | null; recent: Array<{ created_at: string; amount_usdt: number; payer_address: string; tx_hash: string | null; task_id: string; task_intent: string; task_status: string }> }
@@ -93,8 +93,23 @@ export default function AdminReviewClient() {
   }
 
   async function decideOperatorApplication(id: string, status: Exclude<OperatorStatus, 'new'>) {
+    let calibration: Record<string, string | number | boolean> | undefined
+    if (status === 'active') {
+      const calibrationReference = window.prompt('Enter the completed calibration task or receipt reference.')
+      if (!calibrationReference?.trim()) return
+      const paymentReference = window.prompt('Enter the payout system reference. A promise or screenshot is not sufficient.')
+      if (!paymentReference?.trim()) return
+      const paymentAmountText = window.prompt('Enter the calibration amount actually paid in INR (minimum ₹180).')
+      const paymentAmount = Number(paymentAmountText)
+      if (!Number.isFinite(paymentAmount) || paymentAmount < 180) { setError('Calibration payout must be at least ₹180.'); return }
+      if (!window.confirm('Confirm all activation gates passed: fresh capture, location, complete checklist, safety/privacy, manual QA, and verified payout identity.')) return
+      calibration = {
+        calibration_reference: calibrationReference.trim(), payment_reference: paymentReference.trim(), payment_amount_inr: paymentAmount,
+        fresh_capture_pass: true, location_pass: true, checklist_pass: true, safety_pass: true, manual_review_pass: true, payout_identity_verified: true,
+      }
+    }
     setBusy(true); setError('')
-    const response = await fetch(`/api/admin/operator-applications/${id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) })
+    const response = await fetch(`/api/admin/operator-applications/${id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status, ...(calibration ? { calibration } : {}) }) })
     const data = await response.json()
     if (!response.ok) setError(data.error ?? 'Application decision failed'); else await load()
     setBusy(false)
@@ -149,10 +164,10 @@ function FulfillmentReadiness({ readiness }: { readiness: OperatorReadiness }) {
   return <div className="card p-5 mt-5">
     <div className="flex flex-col sm:flex-row justify-between gap-3">
       <div><h2 className="font-display text-lg font-bold">Fulfillment readiness</h2><p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>{readiness.launch_ready ? 'Launch threshold met; confirm locality overlap before promising coverage.' : 'Do not promise guaranteed coverage. Recruit and calibrate operators before releasing a paid pilot.'}</p></div>
-      <span className="chip self-start" style={{ color: readiness.launch_ready ? 'var(--good)' : 'var(--warn)' }}>{readiness.active} / {readiness.launch_threshold} active</span>
+      <span className="chip self-start" style={{ color: readiness.launch_ready ? 'var(--good)' : 'var(--warn)' }}>{readiness.active} / {readiness.launch_threshold} calibrated active</span>
     </div>
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center mt-4">
-      {[['New', readiness.new], ['Shortlisted', readiness.shortlisted], ['Calibration', readiness.calibration_scheduled], ['Paused', readiness.paused]].map(([label, value]) => <div key={label} className="rounded-xl p-3" style={{ background: 'var(--bg-subtle)' }}><strong className="text-xl">{value}</strong><div className="text-xs" style={{ color: 'var(--text-muted)' }}>{label}</div></div>)}
+      {[['New', readiness.new], ['Shortlisted', readiness.shortlisted], ['Calibration', readiness.calibration_scheduled], ['Legacy unverified active', readiness.unverified_active], ['Paused', readiness.paused]].map(([label, value]) => <div key={label} className="rounded-xl p-3" style={{ background: 'var(--bg-subtle)' }}><strong className="text-xl">{value}</strong><div className="text-xs" style={{ color: 'var(--text-muted)' }}>{label}</div></div>)}
     </div>
   </div>
 }
@@ -176,6 +191,7 @@ function OperatorApplicationCard({ application, busy, onTransition }: { applicat
     {(application.source || application.campaign || application.prospect) && <p className="font-mono text-[11px] mt-1" style={{ color: 'var(--text-faint)' }}>{application.source || 'unknown source'}{application.campaign ? ` · ${application.campaign}` : ''}{application.prospect ? ` · ${application.prospect}` : ''}</p>}
     <p className="mt-3 text-sm">{application.languages} · {application.transport.replaceAll('_', ' ')} · {application.availability}</p>
     {application.experience && <p className="mt-2 text-sm whitespace-pre-wrap" style={{ color: 'var(--text-muted)' }}>{application.experience}</p>}
+    {application.calibration_verified && <p className="font-mono text-xs mt-3" style={{ color: 'var(--good)' }}>Calibration verified · {application.calibration_reference} · ₹{application.calibration_payment_amount_inr} paid · {application.calibration_verified_at ? new Date(application.calibration_verified_at).toLocaleDateString() : 'date unavailable'}</p>}
     <div className="flex flex-wrap gap-2 mt-4">{actions.map(([next, label]) => <button key={next} disabled={busy} onClick={() => onTransition(application.id, next)} className="btn btn-ghost px-4 py-2 text-sm disabled:opacity-40">{label}</button>)}</div>
   </article>
 }
