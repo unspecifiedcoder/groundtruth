@@ -233,6 +233,17 @@ export async function getPilotLead(id: string): Promise<(Record<string, unknown>
   return { ...(data.metadata as object), id: data.resource_id }
 }
 
+export async function getOperatorApplications(): Promise<Array<Record<string, unknown> & { id: string }>> {
+  const db = getServiceClient()
+  const { data, error } = await db
+    .from('audit_events')
+    .select('resource_id,metadata')
+    .eq('event_type', 'operator_application.created')
+    .limit(500)
+  if (error) throw error
+  return (data ?? []).map(row => ({ id: row.resource_id, ...(row.metadata as object) }))
+}
+
 export async function hasCampaignFundingCycle(pilotLeadId: string, billingCycle: string): Promise<boolean> {
   const db = getServiceClient()
   const prefix = `campaign-paid:${pilotLeadId}:${billingCycle}:`

@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createHash, randomBytes } from 'crypto'
-import { createCampaignWithTasks, getPilotLead, hasCampaignFundingCycle, recordAuditEvent } from '@/lib/db'
+import { createCampaignWithTasks, getOperatorApplications, getPilotLead, hasCampaignFundingCycle, recordAuditEvent } from '@/lib/db'
 import { generateChallenge } from '@/lib/challenge'
 import { campaignRewardWithinGuardrail, MAX_CAMPAIGN_REWARD_USDT, MIN_CAMPAIGN_REWARD_USDT } from '@/lib/pilot-economics'
 import { constantTimeEqual, rateLimit, sameOrigin } from '@/lib/security'
 import { validateCampaignFunding, type CampaignFundingLead } from '@/lib/campaign-funding'
+import { validateCampaignCoverage, type CampaignCoverageLead, type CampaignCoverageOperator } from '@/lib/campaign-coverage'
 
 const StoreSchema = z.object({
   store_name: z.string().min(1).max(200),
   address: z.string().min(1).max(500),
+  city: z.string().min(2).max(120),
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
   sku: z.string().min(1).max(200),
@@ -27,6 +29,9 @@ const CampaignSchema = z.object({
   stores: z.array(StoreSchema).min(1).max(250),
   pilot_lead_id: z.string().uuid(),
   billing_cycle: z.string().regex(/^(one-time|20\d{2}-(0[1-9]|1[0-2]))$/),
+  coverage_city: z.string().min(2).max(120),
+  coverage_locality_scope: z.string().min(3).max(500),
+  coverage_review_reference: z.string().min(3).max(160),
 })
 
 function validPilotKey(req: NextRequest): boolean {
@@ -53,6 +58,17 @@ export async function POST(req: NextRequest) {
   if (!lead) return NextResponse.json({ error: 'Paid pilot lead not found' }, { status: 404 })
   const funding = validateCampaignFunding({ lead: lead as CampaignFundingLead, customerName: input.customer_name, taskCount: input.stores.length, rewardUsdt: input.budget_per_task_usdt, billingCycle: input.billing_cycle })
   if (!funding.ok) return NextResponse.json({ error: 'Campaign funding gate failed', detail: funding.reason }, { status: 409 })
+  let operatorApplications: Awaited<ReturnType<typeof getOperatorApplications>>
+  try { operatorApplications = await getOperatorApplications() } catch { return NextResponse.json({ error: 'Could not verify operator coverage' }, { status: 503 }) }
+  const coverage = validateCampaignCoverage({
+    lead: lead as CampaignCoverageLead,
+    operators: operatorApplications as CampaignCoverageOperator[],
+    city: input.coverage_city,
+    storeCities: input.stores.map(store => store.city),
+    localityScope: input.coverage_locality_scope,
+    reviewReference: input.coverage_review_reference,
+  })
+  if (!coverage.ok) return NextResponse.json({ error: 'Campaign coverage gate failed', detail: coverage.reason }, { status: 409 })
   try {
     if (await hasCampaignFundingCycle(input.pilot_lead_id, input.billing_cycle)) return NextResponse.json({ error: 'This paid order cycle already has a campaign' }, { status: 409 })
   } catch { return NextResponse.json({ error: 'Could not verify campaign funding usage' }, { status: 503 }) }
@@ -85,7 +101,7 @@ export async function POST(req: NextRequest) {
             longitude: store.longitude,
             radius_meters: input.radius_meters,
           },
-          campaign: { sku: store.sku, store_name: store.store_name },
+          campaign: { sku: store.sku, store_name: store.store_name, city: store.city },
         },
         budget_usdt: input.budget_per_task_usdt,
         expires_at: expiresAt,
@@ -94,7 +110,7 @@ export async function POST(req: NextRequest) {
     })
 
     const base = process.env.NEXT_PUBLIC_APP_URL ?? ''
-    await recordAuditEvent({ event_type: 'campaign.created', actor_type: 'buyer', actor_ref: input.customer_name, resource_type: 'campaign', resource_id: campaign.id, metadata: { task_count: input.stores.length, pilot_lead_id: input.pilot_lead_id, billing_cycle: input.billing_cycle, cadence: funding.cadence, amount_received_usd: funding.amountReceivedUsd, worker_reward_reserve_usd: funding.rewardReserveUsd, payment_reference_fingerprint: createHash('sha256').update(funding.paymentReference).digest('hex').slice(0, 16) } }).catch(() => {})
+    await recordAuditEvent({ event_type: 'campaign.created', actor_type: 'buyer', actor_ref: input.customer_name, resource_type: 'campaign', resource_id: campaign.id, metadata: { task_count: input.stores.length, pilot_lead_id: input.pilot_lead_id, billing_cycle: input.billing_cycle, cadence: funding.cadence, amount_received_usd: funding.amountReceivedUsd, worker_reward_reserve_usd: funding.rewardReserveUsd, payment_reference_fingerprint: createHash('sha256').update(funding.paymentReference).digest('hex').slice(0, 16), coverage_city: coverage.city, coverage_locality_scope: input.coverage_locality_scope, coverage_review_reference: input.coverage_review_reference, calibrated_operator_ids: coverage.operatorIds } }).catch(() => {})
     return NextResponse.json({
       campaign_id: campaign.id,
       task_count: input.stores.length,

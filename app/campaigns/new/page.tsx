@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { campaignRewardReserveUsd, DEFAULT_CAMPAIGN_REWARD_USDT, LAUNCH_PILOT_PRICE_USD, MAX_CAMPAIGN_REWARD_USDT, MIN_CAMPAIGN_REWARD_USDT } from '@/lib/pilot-economics'
 
-type StoreRow = { store_name: string; address: string; latitude: number; longitude: number; sku: string }
+type StoreRow = { store_name: string; address: string; city: string; latitude: number; longitude: number; sku: string }
 
 function parseCsv(text: string): string[][] {
   const rows: string[][] = []
@@ -33,7 +33,7 @@ function storesFromCsv(text: string): StoreRow[] {
   const [header, ...rows] = parseCsv(text)
   if (!header) throw new Error('The CSV is empty')
   const names = header.map(value => value.toLowerCase().trim())
-  const required = ['store_name', 'address', 'latitude', 'longitude', 'sku']
+  const required = ['store_name', 'address', 'city', 'latitude', 'longitude', 'sku']
   const indexes = Object.fromEntries(required.map(name => [name, names.indexOf(name)]))
   const missing = required.filter(name => indexes[name] < 0)
   if (missing.length) throw new Error(`Missing columns: ${missing.join(', ')}`)
@@ -44,6 +44,7 @@ function storesFromCsv(text: string): StoreRow[] {
     return {
       store_name: values[indexes.store_name],
       address: values[indexes.address],
+      city: values[indexes.city],
       latitude,
       longitude,
       sku: values[indexes.sku],
@@ -51,7 +52,7 @@ function storesFromCsv(text: string): StoreRow[] {
   }).filter(row => row.store_name && row.address && row.sku)
 }
 
-const SAMPLE = `store_name,address,latitude,longitude,sku\nCentral Market,"100 Main Road, Indiranagar",12.9784,77.6408,Sparkling Water 330ml\nFreshMart,"21 80 Feet Road, Koramangala",12.9352,77.6245,Sparkling Water 330ml`
+const SAMPLE = `store_name,address,city,latitude,longitude,sku\nCentral Market,"100 Main Road, Madhapur",Hyderabad,17.4486,78.3908,Sparkling Water 330ml\nFreshMart,"21 Main Road, Kondapur",Hyderabad,17.4600,78.3400,Sparkling Water 330ml`
 
 export default function NewCampaignPage() {
   const [name, setName] = useState('Shelf availability pilot')
@@ -62,6 +63,9 @@ export default function NewCampaignPage() {
   const [key, setKey] = useState('')
   const [pilotLeadId, setPilotLeadId] = useState('')
   const [billingCycle, setBillingCycle] = useState('one-time')
+  const [coverageCity, setCoverageCity] = useState('Hyderabad')
+  const [coverageLocalityScope, setCoverageLocalityScope] = useState('')
+  const [coverageReviewReference, setCoverageReviewReference] = useState('')
   const [stores, setStores] = useState<StoreRow[]>([])
   const [error, setError] = useState('')
   const [creating, setCreating] = useState(false)
@@ -86,6 +90,9 @@ export default function NewCampaignPage() {
           radius_meters: Number(radius),
           pilot_lead_id: pilotLeadId,
           billing_cycle: billingCycle,
+          coverage_city: coverageCity,
+          coverage_locality_scope: coverageLocalityScope,
+          coverage_review_reference: coverageReviewReference,
           stores,
         }),
       })
@@ -124,7 +131,7 @@ export default function NewCampaignPage() {
 
             <div className="card p-6">
               <div className="flex items-start justify-between gap-4 mb-4">
-                <div><h2 className="font-display text-xl font-extrabold">Store list</h2><p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Required columns: store_name, address, latitude, longitude, sku.</p></div>
+                <div><h2 className="font-display text-xl font-extrabold">Store list</h2><p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Required columns: store_name, address, city, latitude, longitude, sku.</p></div>
                 <div className="flex gap-2"><a href="/sample-retail-campaign.csv" download className="btn btn-ghost px-4 py-2 text-xs">Download template</a><button type="button" onClick={() => loadCsv(SAMPLE)} className="btn btn-ghost px-4 py-2 text-xs">Use sample</button></div>
               </div>
               <input type="file" accept=".csv,text/csv" onChange={e => { const file = e.target.files?.[0]; if (file) file.text().then(loadCsv) }} className="block w-full text-sm" />
@@ -136,12 +143,16 @@ export default function NewCampaignPage() {
               <p className="text-xs mt-2 mb-5" style={{ color: 'var(--text-faint)' }}>The linked lead must match the customer, plan, cleared amount, and payment reference. Unpaid or underfunded work is rejected server-side.</p>
               <label className="text-sm">Billing cycle<input required value={billingCycle} onChange={e => setBillingCycle(e.target.value)} placeholder="one-time or YYYY-MM" className="mt-2 w-full rounded-xl px-4 py-3 font-mono" style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border)' }} /></label>
               <p className="text-xs mt-2 mb-5" style={{ color: 'var(--text-faint)' }}>Use <code>one-time</code> for a launch pilot or <code>YYYY-MM</code> for a recurring monthly cycle. A paid lead cannot fund the same cycle twice.</p>
+              <label className="text-sm">Coverage city<input required value={coverageCity} onChange={e => setCoverageCity(e.target.value)} className="mt-2 w-full rounded-xl px-4 py-3" style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border)' }} /></label>
+              <label className="text-sm block mt-5">Reviewed locality or corridor scope<input required value={coverageLocalityScope} onChange={e => setCoverageLocalityScope(e.target.value)} placeholder="Example: Madhapur, Kondapur and Gachibowli" className="mt-2 w-full rounded-xl px-4 py-3" style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border)' }} /></label>
+              <label className="text-sm block mt-5">Coverage review reference<input required value={coverageReviewReference} onChange={e => setCoverageReviewReference(e.target.value)} placeholder="Internal coverage checklist or call reference" className="mt-2 w-full rounded-xl px-4 py-3 font-mono" style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border)' }} /></label>
+              <p className="text-xs mt-2 mb-5" style={{ color: 'var(--text-faint)' }}>Release is blocked unless the paid lead, every store row, and at least five calibrated active operators match this city. The locality scope must be reviewed against the exact store list.</p>
               <label className="text-sm">Pilot access key<input type="password" value={key} onChange={e => setKey(e.target.value)} placeholder="Required to create funded missions" className="mt-2 w-full rounded-xl px-4 py-3 font-mono" style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border)' }} /></label>
               <p className="text-xs mt-2" style={{ color: 'var(--text-faint)' }}>Campaign creation is restricted. The key is sent only to the server and is not saved by this page.</p>
             </div>
 
             {error && <div className="text-sm rounded-xl p-4" style={{ color: 'var(--accent)', background: 'var(--warn-weak)' }}>⚠ {error} <a href="/pilot" className="underline font-semibold">Request a funded pilot</a></div>}
-            <button type="button" onClick={createCampaign} disabled={creating || !stores.length || !pilotLeadId || !key} className="btn btn-primary w-full py-4 disabled:opacity-40">{creating ? 'Creating campaign…' : `Create ${stores.length || 0} funded field missions →`}</button>
+            <button type="button" onClick={createCampaign} disabled={creating || !stores.length || !pilotLeadId || !coverageLocalityScope || !coverageReviewReference || !key} className="btn btn-primary w-full py-4 disabled:opacity-40">{creating ? 'Creating campaign…' : `Create ${stores.length || 0} funded field missions →`}</button>
           </div>
         )}
       </div>
