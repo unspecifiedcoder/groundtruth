@@ -220,7 +220,22 @@ export async function insertOperatorApplication(application: {
   return { id }
 }
 
-export async function updateOperatorApplicationStatus(id: string, status: 'shortlisted' | 'rejected'): Promise<boolean> {
+export type OperatorApplicationStatus = 'new' | 'shortlisted' | 'calibration_scheduled' | 'active' | 'paused' | 'rejected'
+
+const OPERATOR_STATUS_TRANSITIONS: Record<OperatorApplicationStatus, OperatorApplicationStatus[]> = {
+  new: ['shortlisted', 'rejected'],
+  shortlisted: ['calibration_scheduled', 'rejected'],
+  calibration_scheduled: ['active', 'paused', 'rejected'],
+  active: ['paused'],
+  paused: ['calibration_scheduled', 'active', 'rejected'],
+  rejected: [],
+}
+
+export function canTransitionOperatorApplication(from: OperatorApplicationStatus, to: OperatorApplicationStatus): boolean {
+  return OPERATOR_STATUS_TRANSITIONS[from].includes(to)
+}
+
+export async function updateOperatorApplicationStatus(id: string, status: OperatorApplicationStatus): Promise<'updated' | 'not_found' | 'invalid_transition'> {
   const db = getServiceClient()
   const { data, error: lookupError } = await db
     .from('audit_events')
@@ -229,14 +244,17 @@ export async function updateOperatorApplicationStatus(id: string, status: 'short
     .eq('resource_id', id)
     .maybeSingle()
   if (lookupError) throw lookupError
-  if (!data) return false
+  if (!data) return 'not_found'
+  const metadata = data.metadata as Record<string, unknown>
+  const current = typeof metadata.status === 'string' ? metadata.status as OperatorApplicationStatus : 'new'
+  if (!OPERATOR_STATUS_TRANSITIONS[current] || !canTransitionOperatorApplication(current, status)) return 'invalid_transition'
   const { error } = await db
     .from('audit_events')
-    .update({ metadata: { ...(data.metadata as object), status, reviewed_at: new Date().toISOString() } })
+    .update({ metadata: { ...metadata, status, status_updated_at: new Date().toISOString() } })
     .eq('event_type', 'operator_application.created')
     .eq('resource_id', id)
   if (error) throw error
-  return true
+  return 'updated'
 }
 
 export async function insertAgentPilotLead(lead: {
@@ -673,6 +691,12 @@ export async function getAdminOperationsOverview() {
     counts[task.status] = (counts[task.status] ?? 0) + 1
     taskCounts.set(task.campaign_id, counts)
   }
+  const operatorApplications = (operatorApplicationsRes.data ?? []).map(row => ({ id: row.resource_id, created_at: row.created_at, ...(row.metadata as object) })) as Array<{ status?: OperatorApplicationStatus } & Record<string, unknown>>
+  const operatorStatusCounts = operatorApplications.reduce<Record<OperatorApplicationStatus, number>>((counts, application) => {
+    const status = application.status && OPERATOR_STATUS_TRANSITIONS[application.status] ? application.status : 'new'
+    counts[status] += 1
+    return counts
+  }, { new: 0, shortlisted: 0, calibration_scheduled: 0, active: 0, paused: 0, rejected: 0 })
   return {
     generated_at: new Date().toISOString(),
     scope: 'prototype_and_pilot_activity',
@@ -688,7 +712,12 @@ export async function getAdminOperationsOverview() {
     settlement_exceptions: tasks.filter(task => task.status === 'verified' && !task.result?.settle).map(task => ({ id: task.id, intent: task.intent, worker_wallet: task.worker_wallet, budget_usdt: task.budget_usdt, resolved_at: task.resolved_at })),
     campaigns: (campaignsRes.data ?? []).map(campaign => ({ ...campaign, task_counts: taskCounts.get(campaign.id) ?? {} })),
     leads: (leadsRes.data ?? []).map(row => ({ id: row.resource_id, created_at: row.created_at, ...(row.metadata as object) })),
-    operator_applications: (operatorApplicationsRes.data ?? []).map(row => ({ id: row.resource_id, created_at: row.created_at, ...(row.metadata as object) })),
+    operator_readiness: {
+      ...operatorStatusCounts,
+      launch_threshold: 5,
+      launch_ready: operatorStatusCounts.active >= 5,
+    },
+    operator_applications: operatorApplications,
     workers: (workersRes.data ?? []).map(worker => {
       const completed = Number(worker.tasks_completed ?? 0)
       const failed = Number(worker.tasks_failed ?? 0)
