@@ -176,6 +176,7 @@ export async function insertPilotLead(lead: {
   launch_city: string
   estimated_locations: number
   timeline: string
+  cadence?: string
   question_type?: string
   notes?: string
   source?: string

@@ -1,14 +1,14 @@
 import type { Metadata } from 'next'
 import PilotForm from './pilot-form'
 
-export const metadata: Metadata = { title: 'Check coverage for a 25-store retail pilot', description: 'Tell GroundTruth the city and retail question. We confirm coverage and the evidence checklist before you pay for the $199 pilot.', alternates: { canonical: '/pilot' } }
+export const metadata: Metadata = { title: 'Scope a retail verification pilot or monthly monitor', description: 'Tell GroundTruth the city, retail question, and cadence. We confirm coverage and the evidence checklist before a $199 pilot or recurring plan begins.', alternates: { canonical: '/pilot' } }
 
 export default function PilotPage() {
   return <main className="min-h-screen px-5 py-14"><div className="max-w-5xl mx-auto grid lg:grid-cols-[0.85fr_1.15fr] gap-12">
     <div>
-      <p className="chip text-[10px] mb-3" style={{ color: 'var(--accent)' }}>25-store launch pilot · $199</p>
-      <h1 className="font-display text-4xl sm:text-5xl font-extrabold mb-5">Tell us the city and retail question.</h1>
-      <p className="leading-relaxed" style={{ color: 'var(--text-muted)' }}>We will confirm coverage before you pay. Choose one repeatable question across 25 agreed stores in one compact city zone.</p>
+      <p className="chip text-[10px] mb-3" style={{ color: 'var(--accent)' }}>Launch once · monitor monthly</p>
+      <h1 className="font-display text-4xl sm:text-5xl font-extrabold mb-5">Tell us the decision that needs fresh store evidence.</h1>
+      <p className="leading-relaxed" style={{ color: 'var(--text-muted)' }}>Start with a $199 one-time validation, or request a $249/$599 monthly monitoring cadence. We confirm local coverage before you approve any scope or payment.</p>
       <div className="card p-5 mt-7 text-sm space-y-3" style={{ color: 'var(--text-muted)' }}>
         <h2 className="font-display text-lg font-bold" style={{ color: 'var(--text)' }}>For every accepted store check, you receive:</h2>
         <p>✓ Original submitted evidence and capture time</p><p>✓ Freshness and location-radius verdicts</p><p>✓ Structured answer for stock, price, promotion, or store status</p><p>✓ Pass, review, or reject reason</p><p>✓ Dashboard plus CSV/API-ready row</p>
