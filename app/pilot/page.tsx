@@ -14,6 +14,7 @@ export default function PilotPage() {
         <p>✓ Original submitted evidence and capture time</p><p>✓ Freshness and location-radius verdicts</p><p>✓ Structured answer for stock, price, promotion, or store status</p><p>✓ Pass, review, or reject reason</p><p>✓ Dashboard plus CSV/API-ready row</p>
       </div>
       <p className="text-xs mt-5 leading-relaxed" style={{ color: 'var(--text-faint)' }}>Standard target is 24 hours after each covered batch is released. Travel outside the agreed zone, purchases, entry fees, rush work, and specialized inspections are scoped separately. Submission is not a purchase or coverage guarantee.</p>
+      <p className="text-xs mt-3 leading-relaxed" style={{ color: 'var(--text-faint)' }}>Campaign-attributed links record the source, campaign, prospect label, and visit time. These events are not treated as identity, interest, or customer evidence.</p>
     </div>
     <PilotForm />
   </div></main>

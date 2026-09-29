@@ -25,11 +25,22 @@ export default function PilotForm() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    setAttribution({
+    const nextAttribution = {
       source: params.get('utm_source') || 'website',
       campaign: params.get('utm_campaign') || '',
       prospect: params.get('utm_content') || '',
-    })
+    }
+    setAttribution(nextAttribution)
+    if (nextAttribution.source === 'website' && !nextAttribution.campaign && !nextAttribution.prospect) return
+    const eventKey = `gt:pilot-landing:${nextAttribution.source}:${nextAttribution.campaign}:${nextAttribution.prospect}`
+    if (window.sessionStorage.getItem(eventKey)) return
+    window.sessionStorage.setItem(eventKey, '1')
+    fetch('/api/funnel-events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event: 'pilot_landing', ...nextAttribution }),
+      keepalive: true,
+    }).catch(() => {})
   }, [])
 
   async function submit(event: React.FormEvent) {

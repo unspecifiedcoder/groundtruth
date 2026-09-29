@@ -198,6 +198,27 @@ export async function insertPilotLead(lead: {
   return { id }
 }
 
+export async function insertFunnelEvent(event: {
+  event: 'pilot_landing'
+  source: string
+  campaign?: string
+  prospect?: string
+}): Promise<void> {
+  const db = getServiceClient()
+  const { error } = await db.from('audit_events').insert({
+    event_type: 'funnel.pilot_landing',
+    actor_type: 'visitor',
+    resource_type: 'pilot_lead',
+    resource_id: crypto.randomUUID(),
+    metadata: {
+      source: event.source,
+      campaign: event.campaign ?? '',
+      prospect: event.prospect ?? '',
+    },
+  })
+  if (error) throw error
+}
+
 export async function getPilotLead(id: string): Promise<(Record<string, unknown> & { id: string }) | null> {
   const db = getServiceClient()
   const { data, error } = await db
@@ -723,11 +744,12 @@ export async function getAdminOperationsOverview() {
   const db = getServiceClient()
   // Parallel reads keep the console fast; each read independently retries a
   // transient serverless egress/TLS failure.
-  const [tasksRes, paymentsRes, campaignsRes, leadsRes, operatorApplicationsRes, workersRes] = await Promise.all([
+  const [tasksRes, paymentsRes, campaignsRes, leadsRes, funnelEventsRes, operatorApplicationsRes, workersRes] = await Promise.all([
     withDbRetry(() => db.from('tasks').select('id,intent,status,budget_usdt,created_at,submitted_at,resolved_at,worker_wallet,payment_ref,result,campaign_id').order('created_at', { ascending: false }).limit(500)),
     withDbRetry(() => db.from('payments').select('task_id,payer_address,amount_units,tx_hash,created_at').order('created_at', { ascending: false }).limit(500)),
     withDbRetry(() => db.from('campaigns').select('*').limit(100)),
     withDbRetry(() => db.from('audit_events').select('*').eq('event_type', 'pilot_lead.created').limit(100)),
+    withDbRetry(() => db.from('audit_events').select('created_at,metadata').eq('event_type', 'funnel.pilot_landing').order('created_at', { ascending: false }).limit(500)),
     withDbRetry(() => db.from('audit_events').select('*').eq('event_type', 'operator_application.created').order('created_at', { ascending: false }).limit(250)),
     withDbRetry(() => db.from('workers').select('wallet,tasks_completed,tasks_failed,total_earned_units,last_seen').order('last_seen', { ascending: false }).limit(250)),
   ])
@@ -736,6 +758,7 @@ export async function getAdminOperationsOverview() {
     paymentsRes.error ? 'payments' : null,
     campaignsRes.error ? 'campaigns' : null,
     leadsRes.error ? 'leads' : null,
+    funnelEventsRes.error ? 'funnel_events' : null,
     operatorApplicationsRes.error ? 'operator_applications' : null,
     workersRes.error ? 'workers' : null,
   ].filter((value): value is string => !!value)
@@ -745,12 +768,13 @@ export async function getAdminOperationsOverview() {
       payments: paymentsRes.error,
       campaigns: campaignsRes.error,
       leads: leadsRes.error,
+      funnel_events: funnelEventsRes.error,
       operator_applications: operatorApplicationsRes.error,
       workers: workersRes.error,
     })
   }
   const warningDetails: Record<string, { code: string; message: string }> = {}
-  for (const [key, error] of Object.entries({ tasks: tasksRes.error, payments: paymentsRes.error, campaigns: campaignsRes.error, leads: leadsRes.error, operator_applications: operatorApplicationsRes.error, workers: workersRes.error })) {
+  for (const [key, error] of Object.entries({ tasks: tasksRes.error, payments: paymentsRes.error, campaigns: campaignsRes.error, leads: leadsRes.error, funnel_events: funnelEventsRes.error, operator_applications: operatorApplicationsRes.error, workers: workersRes.error })) {
     if (error) warningDetails[key] = { code: error.code ?? 'unknown', message: error.message ?? 'Database query failed' }
   }
   const tasks = (tasksRes.data ?? []) as Array<MetricTask & { id: string; intent: string; worker_wallet: string | null; payment_ref: string | null; campaign_id?: string | null }>
@@ -777,6 +801,7 @@ export async function getAdminOperationsOverview() {
     taskCounts.set(task.campaign_id, counts)
   }
   const leads = (leadsRes.data ?? []).map(row => ({ id: row.resource_id, created_at: row.created_at, ...(row.metadata as object) })) as Array<SalesMetricLead & Record<string, unknown>>
+  const funnelEvents = (funnelEventsRes.data ?? []).map(row => ({ created_at: row.created_at, ...(row.metadata as object) })) as Array<{ created_at: string; source?: string; campaign?: string; prospect?: string }>
   const operatorApplications = (operatorApplicationsRes.data ?? []).map(row => ({ id: row.resource_id, created_at: row.created_at, ...(row.metadata as object) })) as Array<{ status?: OperatorApplicationStatus } & Record<string, unknown>>
   const operatorStatusCounts = operatorApplications.reduce<Record<OperatorApplicationStatus, number>>((counts, application) => {
     const status = application.status && OPERATOR_STATUS_TRANSITIONS[application.status] ? application.status : 'new'
@@ -792,6 +817,10 @@ export async function getAdminOperationsOverview() {
     warning_details: warningDetails,
     metrics: calculateOperationsMetrics(tasks, paymentVolume),
     sales: calculateSalesMetrics(leads),
+    acquisition: {
+      attributed_landing_events: funnelEvents.length,
+      recent_attributed_landings: funnelEvents.slice(0, 50),
+    },
     payment_activity: {
       last_24h_count: recentPayments.length,
       last_24h_volume_usdt: recentPayments.reduce((sum, payment) => sum + payment.amount_usdt, 0),
