@@ -1,6 +1,6 @@
 # GroundTruth agent customer outreach ledger
 
-Updated: 2026-09-28
+Updated: 2026-09-29
 
 ## Success definition
 
@@ -21,6 +21,13 @@ Directory listings, automated acknowledgements, quarantined offers, and vague in
 - Verified external commitments: **1**
 - Settled external `$2+` tasks: **0**
 - Payment-rail status: GroundTruth now accepts canonical Base USDC for the Base-native prospect pool while retaining X Layer USDT0.
+
+### 2026-09-29 production revenue-operations audit
+
+- Restored and verified the private production operations API after rotating its admin credential. The credential is stored only in the git-ignored local environment file; a live authenticated request returned HTTP 200 after the production redeploy.
+- The authenticated snapshot generated at `2026-09-28T18:20:35.412Z` contained **0 pilot leads**, **0 campaigns**, **167 total tasks**, **65 verified tasks**, **9 settlement issues**, and **86.28 USDT** of recorded payment volume.
+- The recorded payment volume is historical/test processing evidence, not verified external revenue. It is excluded from customer, pilot, MRR, and traction counts until an external payer and transaction are independently attributable.
+- Current conversion evidence remains unchanged: **1 / 5** verified external commitments, **0** settled external `$2+` tasks, and **$0 verified MRR**. The next revenue action is converting the four retail-pilot emails or a qualified agent conversation into a scoped paid pilot—not generating more internal transactions.
 
 ### 2026-09-28 marketplace and conversion audit
 
