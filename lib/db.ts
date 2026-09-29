@@ -6,6 +6,7 @@ import { calculateOperationsMetrics, type MetricTask } from './metrics'
 import { isTaskFundedForDispatch } from './funding'
 import { calculateSalesMetrics, canTransitionPilotLead, isPilotLeadStatus, isRecurringCadence, type PilotLeadStatus, type SalesMetricLead } from './sales-pipeline'
 import { validateOperatorCalibration, type OperatorCalibrationEvidence } from './operator-calibration'
+import { calculateAcquisitionMetrics, type AttributedLanding } from './acquisition-metrics'
 
 // Service-role client — used server-side only, never exposed to browser
 function getServiceClient(): SupabaseClient {
@@ -801,7 +802,7 @@ export async function getAdminOperationsOverview() {
     taskCounts.set(task.campaign_id, counts)
   }
   const leads = (leadsRes.data ?? []).map(row => ({ id: row.resource_id, created_at: row.created_at, ...(row.metadata as object) })) as Array<SalesMetricLead & Record<string, unknown>>
-  const funnelEvents = (funnelEventsRes.data ?? []).map(row => ({ created_at: row.created_at, ...(row.metadata as object) })) as Array<{ created_at: string; source?: string; campaign?: string; prospect?: string }>
+  const funnelEvents = (funnelEventsRes.data ?? []).map(row => ({ created_at: row.created_at, ...(row.metadata as object) })) as AttributedLanding[]
   const operatorApplications = (operatorApplicationsRes.data ?? []).map(row => ({ id: row.resource_id, created_at: row.created_at, ...(row.metadata as object) })) as Array<{ status?: OperatorApplicationStatus } & Record<string, unknown>>
   const operatorStatusCounts = operatorApplications.reduce<Record<OperatorApplicationStatus, number>>((counts, application) => {
     const status = application.status && OPERATOR_STATUS_TRANSITIONS[application.status] ? application.status : 'new'
@@ -817,10 +818,7 @@ export async function getAdminOperationsOverview() {
     warning_details: warningDetails,
     metrics: calculateOperationsMetrics(tasks, paymentVolume),
     sales: calculateSalesMetrics(leads),
-    acquisition: {
-      attributed_landing_events: funnelEvents.length,
-      recent_attributed_landings: funnelEvents.slice(0, 50),
-    },
+    acquisition: calculateAcquisitionMetrics(leads, funnelEvents),
     payment_activity: {
       last_24h_count: recentPayments.length,
       last_24h_volume_usdt: recentPayments.reduce((sum, payment) => sum + payment.amount_usdt, 0),
