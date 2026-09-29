@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DEMO_CAMPAIGN, DEMO_TASKS } from '@/lib/demo-campaign'
+import { campaignRewardReserveUsd, campaignRewardWithinGuardrail, DEFAULT_CAMPAIGN_REWARD_USDT, LAUNCH_PILOT_CHECKS, LAUNCH_PILOT_PRICE_USD } from '@/lib/pilot-economics'
 
 describe('investor demo data', () => {
   it('labels the sample consistently with its row count', () => {
@@ -11,5 +12,12 @@ describe('investor demo data', () => {
     const prices = DEMO_TASKS.map(task => task.price).filter((value): value is string => !!value)
     expect(prices.every(price => price.startsWith('₹'))).toBe(true)
     expect(DEMO_TASKS.filter(task => task.status === 'failed').every(task => task.confidence === null)).toBe(true)
+  })
+
+  it('keeps the standard pilot worker reserve below the buyer price', () => {
+    expect(campaignRewardWithinGuardrail(DEFAULT_CAMPAIGN_REWARD_USDT)).toBe(true)
+    expect(campaignRewardWithinGuardrail('1.99')).toBe(false)
+    expect(campaignRewardWithinGuardrail('5.01')).toBe(false)
+    expect(campaignRewardReserveUsd(DEFAULT_CAMPAIGN_REWARD_USDT, LAUNCH_PILOT_CHECKS)).toBeLessThan(LAUNCH_PILOT_PRICE_USD)
   })
 })

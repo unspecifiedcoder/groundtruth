@@ -1,10 +1,12 @@
+import { DEFAULT_CAMPAIGN_REWARD_USDT } from './pilot-economics'
+
 export const DEMO_CAMPAIGN = {
   id: 'demo',
   name: 'Eight-store shelf availability sample',
   customer_name: 'Example Consumer Brand',
   brief: 'Verify availability, shelf price, promotion, and display quality for Sparkling Water 330ml.',
   status: 'active',
-  budget_per_task_usdt: '12.00',
+  budget_per_task_usdt: DEFAULT_CAMPAIGN_REWARD_USDT,
   created_at: '2026-09-25T09:00:00.000Z',
   expires_at: '2026-09-28T09:00:00.000Z',
 }

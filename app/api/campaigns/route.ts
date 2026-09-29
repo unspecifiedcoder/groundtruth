@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { createHash, randomBytes } from 'crypto'
 import { createCampaignWithTasks, recordAuditEvent } from '@/lib/db'
 import { generateChallenge } from '@/lib/challenge'
+import { campaignRewardWithinGuardrail, MAX_CAMPAIGN_REWARD_USDT, MIN_CAMPAIGN_REWARD_USDT } from '@/lib/pilot-economics'
 import { constantTimeEqual, rateLimit, sameOrigin } from '@/lib/security'
 
 const StoreSchema = z.object({
@@ -17,7 +18,9 @@ const CampaignSchema = z.object({
   name: z.string().min(3).max(120),
   customer_name: z.string().min(2).max(120),
   brief: z.string().max(1000).optional().default(''),
-  budget_per_task_usdt: z.string().regex(/^\d+(\.\d{1,6})?$/),
+  budget_per_task_usdt: z.string().regex(/^\d+(\.\d{1,6})?$/).refine(campaignRewardWithinGuardrail, {
+    message: `Standard retail pilot reward must be between ${MIN_CAMPAIGN_REWARD_USDT} and ${MAX_CAMPAIGN_REWARD_USDT} USDT per accepted check`,
+  }),
   radius_meters: z.number().int().min(25).max(5000).optional().default(150),
   expires_in_hours: z.number().int().min(1).max(720).optional().default(72),
   stores: z.array(StoreSchema).min(1).max(250),

@@ -110,7 +110,7 @@ export default function CampaignDashboard() {
             </div>
             <h1 className="font-display text-3xl sm:text-4xl font-extrabold">{data.campaign.name}</h1>
             <p className="mt-2 max-w-2xl" style={{ color: 'var(--text-muted)' }}>{data.campaign.brief}</p>
-            <p className="font-mono text-xs mt-3" style={{ color: 'var(--text-faint)' }}>{data.campaign.customer_name} · ${data.campaign.budget_per_task_usdt} per verified store</p>
+            <p className="font-mono text-xs mt-3" style={{ color: 'var(--text-faint)' }}>{data.campaign.customer_name} · ${data.campaign.budget_per_task_usdt} worker reward per accepted store</p>
           </div>
           <div className="flex gap-3">
             <button type="button" onClick={exportResults} className="btn btn-ghost px-5 py-2.5 text-sm">Export CSV</button>

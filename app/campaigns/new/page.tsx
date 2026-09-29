@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { campaignRewardReserveUsd, DEFAULT_CAMPAIGN_REWARD_USDT, LAUNCH_PILOT_PRICE_USD, MAX_CAMPAIGN_REWARD_USDT, MIN_CAMPAIGN_REWARD_USDT } from '@/lib/pilot-economics'
 
 type StoreRow = { store_name: string; address: string; latitude: number; longitude: number; sku: string }
 
@@ -56,7 +57,7 @@ export default function NewCampaignPage() {
   const [name, setName] = useState('Shelf availability pilot')
   const [customer, setCustomer] = useState('')
   const [brief, setBrief] = useState('Verify availability, current shelf price, promotion, and display quality.')
-  const [budget, setBudget] = useState('12.00')
+  const [budget, setBudget] = useState(DEFAULT_CAMPAIGN_REWARD_USDT)
   const [radius, setRadius] = useState('150')
   const [key, setKey] = useState('')
   const [stores, setStores] = useState<StoreRow[]>([])
@@ -112,8 +113,9 @@ export default function NewCampaignPage() {
               <label className="text-sm">Campaign name<input value={name} onChange={e => setName(e.target.value)} className="mt-2 w-full rounded-xl px-4 py-3" style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border)' }} /></label>
               <label className="text-sm">Customer or brand<input value={customer} onChange={e => setCustomer(e.target.value)} placeholder="Brand name" className="mt-2 w-full rounded-xl px-4 py-3" style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border)' }} /></label>
               <label className="text-sm sm:col-span-2">Campaign brief<textarea value={brief} onChange={e => setBrief(e.target.value)} rows={3} className="mt-2 w-full rounded-xl px-4 py-3" style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border)' }} /></label>
-              <label className="text-sm">Reward per store (USDT)<input value={budget} onChange={e => setBudget(e.target.value)} className="mt-2 w-full rounded-xl px-4 py-3" style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border)' }} /></label>
+              <label className="text-sm">Worker reward per accepted store (USDT)<input value={budget} onChange={e => setBudget(e.target.value)} className="mt-2 w-full rounded-xl px-4 py-3" style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border)' }} /><span className="block text-xs mt-2" style={{ color: 'var(--text-faint)' }}>Standard pilot guardrail: ${MIN_CAMPAIGN_REWARD_USDT.toFixed(2)}–${MAX_CAMPAIGN_REWARD_USDT.toFixed(2)}. Detailed or rush scopes require a separate quote.</span></label>
               <label className="text-sm">Capture radius (metres)<input value={radius} onChange={e => setRadius(e.target.value)} className="mt-2 w-full rounded-xl px-4 py-3" style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border)' }} /></label>
+              {stores.length > 0 && <div className="sm:col-span-2 rounded-xl p-4 text-sm" style={{ background: 'var(--bg-subtle)' }}><strong>Worker reward reserve: ${campaignRewardReserveUsd(budget, stores.length).toFixed(2)} USDT</strong><p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>The ${LAUNCH_PILOT_PRICE_USD} buyer price also funds QA, retries, payment costs and support. Never release work until the full worker reserve is funded.</p></div>}
             </div>
 
             <div className="card p-6">

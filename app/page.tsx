@@ -193,9 +193,12 @@ export default function Home() {
             </div>
             <pre className="p-5 text-[12px] sm:text-[13px] leading-relaxed overflow-x-auto" style={{ color: 'var(--text)' }}>{`{
   "intent": "Check Brand A at Store 42",
-  "proof_type": "photo",
-  "instructions": "Capture shelf, price and stock",
-  "budget_usdt": "12.00"
+  "service_tier": "photo_visit",
+  "proof_spec": {
+    "type": "photo",
+    "instructions": "Capture shelf, price and stock",
+    "minPhotos": 2
+  }
 }
 
 → { "task_id": "...", "status": "pending" }
