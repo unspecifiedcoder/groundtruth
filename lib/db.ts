@@ -621,8 +621,8 @@ export async function getAdminOperationsOverview() {
   // Parallel reads keep the console fast; each read independently retries a
   // transient serverless egress/TLS failure.
   const [tasksRes, paymentsRes, campaignsRes, leadsRes, operatorApplicationsRes, workersRes] = await Promise.all([
-    withDbRetry(() => db.from('tasks').select('id,intent,status,budget_usdt,created_at,submitted_at,resolved_at,worker_wallet,payment_ref,result').order('created_at', { ascending: false }).limit(500)),
-    withDbRetry(() => db.from('payments').select('amount_units')),
+    withDbRetry(() => db.from('tasks').select('id,intent,status,budget_usdt,created_at,submitted_at,resolved_at,worker_wallet,payment_ref,result,campaign_id').order('created_at', { ascending: false }).limit(500)),
+    withDbRetry(() => db.from('payments').select('task_id,payer_address,amount_units,tx_hash,created_at').order('created_at', { ascending: false }).limit(500)),
     withDbRetry(() => db.from('campaigns').select('*').limit(100)),
     withDbRetry(() => db.from('audit_events').select('*').eq('event_type', 'pilot_lead.created').limit(100)),
     withDbRetry(() => db.from('audit_events').select('*').eq('event_type', 'operator_application.created').order('created_at', { ascending: false }).limit(250)),
@@ -651,7 +651,21 @@ export async function getAdminOperationsOverview() {
     if (error) warningDetails[key] = { code: error.code ?? 'unknown', message: error.message ?? 'Database query failed' }
   }
   const tasks = (tasksRes.data ?? []) as Array<MetricTask & { id: string; intent: string; worker_wallet: string | null; payment_ref: string | null; campaign_id?: string | null }>
-  const paymentVolume = (paymentsRes.data ?? []).reduce((sum, payment: { amount_units: string }) => sum + Number(payment.amount_units) / 1_000_000, 0)
+  const payments = (paymentsRes.data ?? []) as Array<{ task_id: string; payer_address: string; amount_units: string; tx_hash: string | null; created_at: string }>
+  const paymentVolume = payments.reduce((sum, payment) => sum + Number(payment.amount_units) / 1_000_000, 0)
+  const taskById = new Map(tasks.map(task => [task.id, task]))
+  const last24hCutoff = Date.now() - 24 * 60 * 60 * 1000
+  const recentPayments = payments
+    .filter(payment => new Date(payment.created_at).getTime() >= last24hCutoff)
+    .map(payment => ({
+      created_at: payment.created_at,
+      amount_usdt: Number(payment.amount_units) / 1_000_000,
+      payer_address: payment.payer_address,
+      tx_hash: payment.tx_hash,
+      task_id: payment.task_id,
+      task_intent: taskById.get(payment.task_id)?.intent ?? 'Unknown task',
+      task_status: taskById.get(payment.task_id)?.status ?? 'unknown',
+    }))
   const taskCounts = new Map<string, Record<string, number>>()
   for (const task of tasks) {
     if (!task.campaign_id) continue
@@ -665,6 +679,12 @@ export async function getAdminOperationsOverview() {
     warnings,
     warning_details: warningDetails,
     metrics: calculateOperationsMetrics(tasks, paymentVolume),
+    payment_activity: {
+      last_24h_count: recentPayments.length,
+      last_24h_volume_usdt: recentPayments.reduce((sum, payment) => sum + payment.amount_usdt, 0),
+      latest_payment_at: payments[0]?.created_at ?? null,
+      recent: recentPayments.slice(0, 25),
+    },
     settlement_exceptions: tasks.filter(task => task.status === 'verified' && !task.result?.settle).map(task => ({ id: task.id, intent: task.intent, worker_wallet: task.worker_wallet, budget_usdt: task.budget_usdt, resolved_at: task.resolved_at })),
     campaigns: (campaignsRes.data ?? []).map(campaign => ({ ...campaign, task_counts: taskCounts.get(campaign.id) ?? {} })),
     leads: (leadsRes.data ?? []).map(row => ({ id: row.resource_id, created_at: row.created_at, ...(row.metadata as object) })),
