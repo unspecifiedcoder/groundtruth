@@ -69,6 +69,7 @@ Never lower worker pay to preserve an advertised price. Change scope, cluster de
 - Define two operating zones and one checklist: open status, displayed price, and shelf availability for up to three SKUs.
 - Recruit 30 operator applicants; interview 12; run eight paid field tests; activate five.
 - Complete 15 calibration checks with 100% manual QA.
+- Enforce the production lifecycle `new → shortlisted → calibration scheduled → active`; only active operators count toward the five-operator launch threshold. Rejected applicants cannot be reactivated, and locality overlap must still be confirmed even after the numeric threshold is reached.
 - Build 30 qualified brand accounts and send ten deeply personalized founder-led messages per day.
 
 ### Week 2 — first paid pilot
