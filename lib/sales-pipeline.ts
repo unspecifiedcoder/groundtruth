@@ -12,7 +12,7 @@ export const LEAD_STATUS_TRANSITIONS: Record<PilotLeadStatus, readonly PilotLead
   scope_sent: ['payment_pending', 'declined'],
   payment_pending: ['paid', 'active', 'declined'],
   paid: ['active'],
-  active: ['churned'],
+  active: ['active', 'churned'],
   declined: [],
   churned: [],
 }

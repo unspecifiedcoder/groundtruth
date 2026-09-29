@@ -64,6 +64,14 @@ describe('worker-board funding boundary', () => {
       minimumRewardUsdt: '2.00',
     })).toBe(true)
   })
+
+  it('publishes a campaign only when the server marked it payment-evidenced', () => {
+    expect(isTaskFundedForDispatch({ budget_usdt: '3.00', payment_ref: 'campaign-paid:lead:payment:campaign:1' }, {
+      hasRecordedPayment: false,
+      allowOperatorFundedCampaigns: false,
+      minimumRewardUsdt: '2.00',
+    })).toBe(true)
+  })
 })
 
 describe('paid endpoint discovery metadata', () => {

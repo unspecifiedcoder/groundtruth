@@ -29,5 +29,6 @@ export function isTaskFundedForDispatch(
   }
   if (!meetsMinimum) return false
   if (options.hasRecordedPayment) return true
+  if (task.payment_ref?.startsWith('campaign-paid:')) return true
   return options.allowOperatorFundedCampaigns && !!task.payment_ref?.startsWith('campaign-')
 }

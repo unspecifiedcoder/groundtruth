@@ -60,6 +60,8 @@ export default function NewCampaignPage() {
   const [budget, setBudget] = useState(DEFAULT_CAMPAIGN_REWARD_USDT)
   const [radius, setRadius] = useState('150')
   const [key, setKey] = useState('')
+  const [pilotLeadId, setPilotLeadId] = useState('')
+  const [billingCycle, setBillingCycle] = useState('one-time')
   const [stores, setStores] = useState<StoreRow[]>([])
   const [error, setError] = useState('')
   const [creating, setCreating] = useState(false)
@@ -82,6 +84,8 @@ export default function NewCampaignPage() {
           brief,
           budget_per_task_usdt: budget,
           radius_meters: Number(radius),
+          pilot_lead_id: pilotLeadId,
+          billing_cycle: billingCycle,
           stores,
         }),
       })
@@ -128,12 +132,16 @@ export default function NewCampaignPage() {
             </div>
 
             <div className="card p-6">
+              <label className="text-sm">Paid pilot lead ID<input required value={pilotLeadId} onChange={e => setPilotLeadId(e.target.value)} placeholder="UUID from the private sales pipeline" className="mt-2 w-full rounded-xl px-4 py-3 font-mono" style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border)' }} /></label>
+              <p className="text-xs mt-2 mb-5" style={{ color: 'var(--text-faint)' }}>The linked lead must match the customer, plan, cleared amount, and payment reference. Unpaid or underfunded work is rejected server-side.</p>
+              <label className="text-sm">Billing cycle<input required value={billingCycle} onChange={e => setBillingCycle(e.target.value)} placeholder="one-time or YYYY-MM" className="mt-2 w-full rounded-xl px-4 py-3 font-mono" style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border)' }} /></label>
+              <p className="text-xs mt-2 mb-5" style={{ color: 'var(--text-faint)' }}>Use <code>one-time</code> for a launch pilot or <code>YYYY-MM</code> for a recurring monthly cycle. A paid lead cannot fund the same cycle twice.</p>
               <label className="text-sm">Pilot access key<input type="password" value={key} onChange={e => setKey(e.target.value)} placeholder="Required to create funded missions" className="mt-2 w-full rounded-xl px-4 py-3 font-mono" style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border)' }} /></label>
               <p className="text-xs mt-2" style={{ color: 'var(--text-faint)' }}>Campaign creation is restricted. The key is sent only to the server and is not saved by this page.</p>
             </div>
 
             {error && <div className="text-sm rounded-xl p-4" style={{ color: 'var(--accent)', background: 'var(--warn-weak)' }}>⚠ {error} <a href="/pilot" className="underline font-semibold">Request a funded pilot</a></div>}
-            <button type="button" onClick={createCampaign} disabled={creating || !stores.length} className="btn btn-primary w-full py-4 disabled:opacity-40">{creating ? 'Creating campaign…' : `Create ${stores.length || 0} field missions →`}</button>
+            <button type="button" onClick={createCampaign} disabled={creating || !stores.length || !pilotLeadId || !key} className="btn btn-primary w-full py-4 disabled:opacity-40">{creating ? 'Creating campaign…' : `Create ${stores.length || 0} funded field missions →`}</button>
           </div>
         )}
       </div>

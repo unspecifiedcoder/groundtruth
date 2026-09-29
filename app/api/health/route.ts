@@ -34,7 +34,8 @@ export async function GET() {
     private_receipts: process.env.RECEIPTS_PUBLIC !== 'true',
     faucet_disabled: process.env.ENABLE_TESTNET_FAUCET !== 'true',
     wallet_signature_required: process.env.REQUIRE_WALLET_SIGNATURE === 'true',
-    unfunded_campaign_publication_blocked: process.env.ALLOW_OPERATOR_FUNDED_CAMPAIGNS !== 'true',
+    unfunded_campaign_publication_blocked: true,
+    legacy_operator_funding_disabled: process.env.ALLOW_OPERATOR_FUNDED_CAMPAIGNS !== 'true',
   }
   const safetyReady = Object.values(safety).every(Boolean)
   if (!safetyReady) missing.push('PRODUCTION_SAFETY_FLAGS')

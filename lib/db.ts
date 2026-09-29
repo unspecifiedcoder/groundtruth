@@ -197,6 +197,27 @@ export async function insertPilotLead(lead: {
   return { id }
 }
 
+export async function getPilotLead(id: string): Promise<(Record<string, unknown> & { id: string }) | null> {
+  const db = getServiceClient()
+  const { data, error } = await db
+    .from('audit_events')
+    .select('resource_id,metadata')
+    .eq('event_type', 'pilot_lead.created')
+    .eq('resource_id', id)
+    .maybeSingle()
+  if (error) throw error
+  if (!data) return null
+  return { ...(data.metadata as object), id: data.resource_id }
+}
+
+export async function hasCampaignFundingCycle(pilotLeadId: string, billingCycle: string): Promise<boolean> {
+  const db = getServiceClient()
+  const prefix = `campaign-paid:${pilotLeadId}:${billingCycle}:`
+  const { data, error } = await db.from('tasks').select('id').like('payment_ref', `${prefix}%`).limit(1)
+  if (error) throw error
+  return (data ?? []).length > 0
+}
+
 export async function insertOperatorApplication(application: {
   full_name: string
   email: string
@@ -321,10 +342,12 @@ export async function updatePilotLeadStatus(id: string, status: PilotLeadStatus,
   }
   if (status === 'active' && !isRecurringCadence(metadata.cadence)) return { updated: false, reason: 'recurring_plan_required' }
   const now = new Date().toISOString()
+  const paymentCycle = payment ? (isRecurringCadence(metadata.cadence) ? now.slice(0, 7) : 'one-time') : undefined
   const paymentMetadata = payment ? {
     payment_reference: payment.reference.trim(),
     amount_received_usd: payment.amountUsd,
     payment_recorded_at: now,
+    payment_cycle: paymentCycle,
     ...(status === 'active' ? { recurring_monthly_usd: payment.amountUsd, subscription_started_at: now } : {}),
   } : {}
   const { error } = await db
@@ -333,6 +356,16 @@ export async function updatePilotLeadStatus(id: string, status: PilotLeadStatus,
     .eq('event_type', 'pilot_lead.created')
     .eq('resource_id', id)
   if (error) throw error
+  if (payment) {
+    const { error: auditError } = await db.from('audit_events').insert({
+      event_type: 'pilot_lead.payment_recorded',
+      actor_type: 'operator',
+      resource_type: 'payment',
+      resource_id: id,
+      metadata: { lead_status: status, payment_reference: payment.reference.trim(), amount_received_usd: payment.amountUsd, payment_cycle: paymentCycle },
+    })
+    if (auditError) throw auditError
+  }
   return { updated: true }
 }
 

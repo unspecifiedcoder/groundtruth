@@ -7,6 +7,7 @@ describe('evidence-backed sales pipeline', () => {
     expect(canTransitionPilotLead('qualified', 'scope_sent')).toBe(true)
     expect(canTransitionPilotLead('payment_pending', 'active')).toBe(true)
     expect(canTransitionPilotLead('active', 'churned')).toBe(true)
+    expect(canTransitionPilotLead('active', 'active')).toBe(true)
     expect(canTransitionPilotLead('new', 'paid')).toBe(false)
     expect(canTransitionPilotLead('churned', 'active')).toBe(false)
     expect(isPilotLeadStatus('active')).toBe(true)

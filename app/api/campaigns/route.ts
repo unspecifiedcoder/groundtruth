@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createHash, randomBytes } from 'crypto'
-import { createCampaignWithTasks, recordAuditEvent } from '@/lib/db'
+import { createCampaignWithTasks, getPilotLead, hasCampaignFundingCycle, recordAuditEvent } from '@/lib/db'
 import { generateChallenge } from '@/lib/challenge'
 import { campaignRewardWithinGuardrail, MAX_CAMPAIGN_REWARD_USDT, MIN_CAMPAIGN_REWARD_USDT } from '@/lib/pilot-economics'
 import { constantTimeEqual, rateLimit, sameOrigin } from '@/lib/security'
+import { validateCampaignFunding, type CampaignFundingLead } from '@/lib/campaign-funding'
 
 const StoreSchema = z.object({
   store_name: z.string().min(1).max(200),
@@ -24,6 +25,8 @@ const CampaignSchema = z.object({
   radius_meters: z.number().int().min(25).max(5000).optional().default(150),
   expires_in_hours: z.number().int().min(1).max(720).optional().default(72),
   stores: z.array(StoreSchema).min(1).max(250),
+  pilot_lead_id: z.string().uuid(),
+  billing_cycle: z.string().regex(/^(one-time|20\d{2}-(0[1-9]|1[0-2]))$/),
 })
 
 function validPilotKey(req: NextRequest): boolean {
@@ -36,12 +39,6 @@ function validPilotKey(req: NextRequest): boolean {
 export async function POST(req: NextRequest) {
   if (!sameOrigin(req)) return NextResponse.json({ error: 'Cross-site request rejected' }, { status: 403 })
   if (await rateLimit(req, 'campaign-create', 6)) return NextResponse.json({ error: 'Too many campaign requests' }, { status: 429 })
-  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_OPERATOR_FUNDED_CAMPAIGNS !== 'true') {
-    return NextResponse.json({
-      error: 'Campaign publication is paused until funding is confirmed',
-      detail: 'Request a funded pilot at /pilot. This safety gate prevents publishing missions without reserved payout funds.',
-    }, { status: 503 })
-  }
   if (!process.env.PILOT_ACCESS_KEY && !process.env.ADMIN_SECRET) return NextResponse.json({ error: 'Campaign creation is not configured' }, { status: 503 })
   if (!validPilotKey(req)) return NextResponse.json({ error: 'Invalid pilot access key' }, { status: 401 })
 
@@ -51,6 +48,14 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: 'Invalid campaign', details: parsed.error.flatten() }, { status: 400 })
 
   const input = parsed.data
+  let lead: Awaited<ReturnType<typeof getPilotLead>>
+  try { lead = await getPilotLead(input.pilot_lead_id) } catch { return NextResponse.json({ error: 'Could not verify pilot payment evidence' }, { status: 503 }) }
+  if (!lead) return NextResponse.json({ error: 'Paid pilot lead not found' }, { status: 404 })
+  const funding = validateCampaignFunding({ lead: lead as CampaignFundingLead, customerName: input.customer_name, taskCount: input.stores.length, rewardUsdt: input.budget_per_task_usdt, billingCycle: input.billing_cycle })
+  if (!funding.ok) return NextResponse.json({ error: 'Campaign funding gate failed', detail: funding.reason }, { status: 409 })
+  try {
+    if (await hasCampaignFundingCycle(input.pilot_lead_id, input.billing_cycle)) return NextResponse.json({ error: 'This paid order cycle already has a campaign' }, { status: 409 })
+  } catch { return NextResponse.json({ error: 'Could not verify campaign funding usage' }, { status: 503 }) }
   const accessToken = randomBytes(24).toString('hex')
   const accessTokenHash = createHash('sha256').update(accessToken).digest('hex')
   const expiresAt = new Date(Date.now() + input.expires_in_hours * 60 * 60 * 1000).toISOString()
@@ -84,12 +89,12 @@ export async function POST(req: NextRequest) {
         },
         budget_usdt: input.budget_per_task_usdt,
         expires_at: expiresAt,
-        payment_ref: `campaign-${campaignRef}-${index + 1}`,
+        payment_ref: `campaign-paid:${input.pilot_lead_id}:${input.billing_cycle}:${createHash('sha256').update(funding.paymentReference).digest('hex').slice(0, 16)}:${campaignRef}:${index + 1}`,
       })),
     })
 
     const base = process.env.NEXT_PUBLIC_APP_URL ?? ''
-    await recordAuditEvent({ event_type: 'campaign.created', actor_type: 'buyer', actor_ref: input.customer_name, resource_type: 'campaign', resource_id: campaign.id, metadata: { task_count: input.stores.length } }).catch(() => {})
+    await recordAuditEvent({ event_type: 'campaign.created', actor_type: 'buyer', actor_ref: input.customer_name, resource_type: 'campaign', resource_id: campaign.id, metadata: { task_count: input.stores.length, pilot_lead_id: input.pilot_lead_id, billing_cycle: input.billing_cycle, cadence: funding.cadence, amount_received_usd: funding.amountReceivedUsd, worker_reward_reserve_usd: funding.rewardReserveUsd, payment_reference_fingerprint: createHash('sha256').update(funding.paymentReference).digest('hex').slice(0, 16) } }).catch(() => {})
     return NextResponse.json({
       campaign_id: campaign.id,
       task_count: input.stores.length,

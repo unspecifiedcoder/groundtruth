@@ -75,4 +75,5 @@ Before creating a campaign, the operator must verify all of the following:
 - [ ] quote reference and payment reference match;
 - [ ] worker-reward reserve covers the full released batch;
 - [ ] active operator coverage is confirmed; and
-- [ ] the lead status is moved to `paid` only after the preceding checks pass.
+- [ ] the lead status is moved to `paid` (one-time) or `active` (recurring) only after the preceding checks pass; and
+- [ ] the campaign is created with that paid lead ID so the server can revalidate company, plan, cleared amount, payment reference, task count, and worker reserve.
