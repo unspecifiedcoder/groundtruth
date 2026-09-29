@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 const initial = {
   full_name: '',
@@ -17,11 +17,21 @@ const initial = {
 
 export default function OperatorForm() {
   const [form, setForm] = useState(initial)
+  const [tracking, setTracking] = useState({ source: 'organic', campaign: '', prospect: '' })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [reference, setReference] = useState('')
   const field = 'mt-2 w-full rounded-xl px-4 py-3 outline-none'
   const fieldStyle = { background: 'var(--bg-subtle)', border: '1px solid var(--border)' }
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    setTracking({
+      source: params.get('utm_source')?.slice(0, 120) || 'organic',
+      campaign: params.get('utm_campaign')?.slice(0, 120) || '',
+      prospect: params.get('utm_content')?.slice(0, 160) || '',
+    })
+  }, [])
 
   async function submit(event: React.FormEvent) {
     event.preventDefault()
@@ -30,7 +40,7 @@ export default function OperatorForm() {
     const response = await fetch('/api/operator-applications', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
+      body: JSON.stringify({ ...form, ...tracking }),
     })
     const data = await response.json()
     if (!response.ok) setError(data.error ?? 'Submission failed')

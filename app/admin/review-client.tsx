@@ -8,7 +8,7 @@ type Campaign = { id: string; name: string; customer_name: string; status: strin
 type LeadStatus = 'new' | 'qualified' | 'scope_sent' | 'payment_pending' | 'paid' | 'declined'
 type Lead = { id: string; source?: string; campaign?: string; prospect?: string; company_name?: string; contact_name?: string; work_email?: string; use_case?: string; launch_city?: string; estimated_locations?: number; timeline?: string; reply_url?: string; lead_status?: LeadStatus; created_at: string }
 type OperatorStatus = 'new' | 'shortlisted' | 'calibration_scheduled' | 'active' | 'paused' | 'rejected'
-type OperatorApplication = { id: string; full_name: string; email: string; phone: string; city: string; locality: string; languages: string; transport: string; availability: string; experience?: string; status?: OperatorStatus; created_at: string }
+type OperatorApplication = { id: string; full_name: string; email: string; phone: string; city: string; locality: string; languages: string; transport: string; availability: string; experience?: string; source?: string; campaign?: string; prospect?: string; status?: OperatorStatus; created_at: string }
 type OperatorReadiness = { new: number; shortlisted: number; calibration_scheduled: number; active: number; paused: number; rejected: number; launch_threshold: number; launch_ready: boolean }
 type Worker = { wallet: string; tasks_completed: number; tasks_failed: number; total_earned_units: string; last_seen: string; success_rate_pct: number | null }
 type SettlementException = { id: string; intent: string; worker_wallet: string | null; budget_usdt: string; resolved_at: string | null }
@@ -116,7 +116,7 @@ export default function AdminReviewClient() {
 
   function exportOperatorApplications() {
     if (!overview?.operator_applications.length) return
-    const fields: Array<keyof OperatorApplication> = ['created_at', 'full_name', 'email', 'phone', 'city', 'locality', 'languages', 'transport', 'availability', 'experience']
+    const fields: Array<keyof OperatorApplication> = ['created_at', 'status', 'source', 'campaign', 'prospect', 'full_name', 'email', 'phone', 'city', 'locality', 'languages', 'transport', 'availability', 'experience']
     const escape = (value: unknown) => `"${String(value ?? '').replaceAll('"', '""')}"`
     const csv = [fields.join(','), ...overview.operator_applications.map(application => fields.map(field => escape(application[field])).join(','))].join('\n')
     const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); link.download = 'groundtruth-operator-applications.csv'; link.click(); URL.revokeObjectURL(link.href)
@@ -166,6 +166,7 @@ function OperatorApplicationCard({ application, busy, onTransition }: { applicat
   return <article className="card p-5">
     <div className="flex flex-col sm:flex-row justify-between gap-3"><div className="flex items-center gap-2"><h2 className="font-display text-lg font-bold">{application.full_name}</h2><span className="chip text-[9px]">{status.replaceAll('_', ' ')}</span></div><span className="text-sm">{application.locality} · {application.city}</span></div>
     <p className="text-sm" style={{ color: 'var(--text-muted)' }}><a className="underline" href={`mailto:${application.email}`}>{application.email}</a> · <a className="underline" href={`tel:${application.phone}`}>{application.phone}</a></p>
+    {(application.source || application.campaign || application.prospect) && <p className="font-mono text-[11px] mt-1" style={{ color: 'var(--text-faint)' }}>{application.source || 'unknown source'}{application.campaign ? ` · ${application.campaign}` : ''}{application.prospect ? ` · ${application.prospect}` : ''}</p>}
     <p className="mt-3 text-sm">{application.languages} · {application.transport.replaceAll('_', ' ')} · {application.availability}</p>
     {application.experience && <p className="mt-2 text-sm whitespace-pre-wrap" style={{ color: 'var(--text-muted)' }}>{application.experience}</p>}
     <div className="flex flex-wrap gap-2 mt-4">{actions.map(([next, label]) => <button key={next} disabled={busy} onClick={() => onTransition(application.id, next)} className="btn btn-ghost px-4 py-2 text-sm disabled:opacity-40">{label}</button>)}</div>

@@ -205,6 +205,9 @@ export async function insertOperatorApplication(application: {
   transport: string
   availability: string
   experience: string
+  source?: string
+  campaign?: string
+  prospect?: string
 }): Promise<{ id: string }> {
   const db = getServiceClient()
   const id = crypto.randomUUID()

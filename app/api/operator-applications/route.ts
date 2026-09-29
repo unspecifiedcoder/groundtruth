@@ -13,6 +13,9 @@ const ApplicationSchema = z.object({
   transport: z.enum(['walk_transit', 'bicycle', 'two_wheeler', 'car', 'other']),
   availability: z.enum(['weekdays', 'evenings', 'weekends', 'flexible']),
   experience: z.string().trim().max(1000),
+  source: z.string().trim().max(120).optional().default('organic'),
+  campaign: z.string().trim().max(120).optional().default(''),
+  prospect: z.string().trim().max(160).optional().default(''),
   website: z.string().max(0).optional().default(''),
 })
 
