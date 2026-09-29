@@ -1,6 +1,6 @@
 # Founder-led buyer outreach
 
-Status: four messages sent on 2026-09-28; no reply, trial, payment, or customer commitment has been recorded yet.
+Status: four messages sent on 2026-09-28. A focused Gmail check on 2026-09-29 found only the four outbound messages—no reply or bounce. No trial, payment, or customer commitment has been recorded yet.
 
 Sent recipients:
 
@@ -157,6 +157,90 @@ Body:
 ## Follow-up rule
 
 Send one follow-up after five business days only when the first message was delivered and no explicit refusal was received. The follow-up must add a useful artifact—the sample campaign or a one-page example discrepancy report—not restate the pitch. Stop after that.
+
+Use the clearly labeled illustrative campaign as the artifact: `https://groundtruth-oracle.vercel.app/campaigns/demo`. It explicitly states that the dataset is not customer work, paid traction, or evidence of current coverage.
+
+## Next qualified tranche — prepared, not sent
+
+These drafts are ready for operator approval. They have not been emailed and do not count as outreach, leads, or customers.
+
+### Yoga Bar — `hello@yogabars.in`
+
+Why it fits: Yoga Bar's official site publishes this contact, and public reporting describes an offline-first distribution history with roughly half of revenue from offline channels. A store-level availability and display audit is therefore directly connected to its retail execution.
+
+Evidence:
+
+- https://www.yogabars.in/
+- https://thehardcopy.co/brand-case-studies-yoga-bar/
+
+Subject: `Which Yoga Bar placements are actually live this week?`
+
+Body:
+
+> Hi Yoga Bar team,
+>
+> Yoga Bar built much of its reach through offline retail, but distributor and retailer reports cannot show whether a priority SKU is actually available, visible and correctly priced today. GroundTruth independently checks agreed stores and returns fresh photo evidence plus structured availability, price, facings and promotion observations.
+>
+> I propose a fixed 25-store audit in one coverage-confirmed city zone for $199. You choose one campaign or up to three SKUs; we agree the stores and checklist before payment.
+>
+> Could you route this to the person responsible for offline sales or retail execution?
+>
+> Ravi
+>
+> GroundTruth
+> https://groundtruth-oracle.vercel.app/pilot?utm_source=founder_email&utm_campaign=retail_launch_2026q3&utm_content=yoga_bar
+
+### The Whole Truth — `partnerships@thewholetruthfoods.com`
+
+Why it fits: its official contact page invites partnerships, and its investor describes the company as an omnichannel food brand. The pitch focuses narrowly on validating select premium-retail placements—not the brand's predominantly marketplace-led reach.
+
+Evidence:
+
+- https://thewholetruthfoods.com/pages/contact-us
+- https://www.sofinagroup.com/en/portfolio/sofina-direct/the-whole-truth
+
+Subject: `A truth check for 25 physical retail placements`
+
+Body:
+
+> Hi The Whole Truth team,
+>
+> Ingredient transparency is your promise; GroundTruth applies the same principle to physical retail execution. For an agreed set of stores, local operators verify whether a priority product is actually present, where it sits, its displayed price and any visible promotion, with fresh evidence and a discrepancy-first export.
+>
+> We offer a fixed 25-store launch audit in one coverage-confirmed city zone for $199. This is intended for a specific offline placement or promotion—not your marketplace channel.
+>
+> Is there an offline sales or retail partnerships owner who would evaluate one tightly scoped audit?
+>
+> Ravi
+>
+> GroundTruth
+> https://groundtruth-oracle.vercel.app/pilot?utm_source=founder_email&utm_campaign=retail_launch_2026q3&utm_content=the_whole_truth
+
+### Happilo — `care@happilo.com`
+
+Why it fits: Happilo's official contact page says its form reaches the sales team, while public retail material places its products across major chains. The published inbox is a routing path rather than a confirmed buyer, so the message asks for the retail-execution owner instead of pretending customer support owns the problem.
+
+Evidence:
+
+- https://happilo.com/pages/contact
+- https://shop.indiaretailing.com/wp-content/uploads/2023/01/PG-Jan-23_Preview_12-pgs.pdf
+
+Subject: `Independent verification for 25 Happilo retail placements`
+
+Body:
+
+> Hi Happilo team,
+>
+> A broad retail footprint creates a recurring execution gap: a listed placement does not prove the product is on shelf today, correctly priced, visible or carrying the intended promotion. GroundTruth checks agreed stores and returns fresh photo evidence plus structured discrepancies your sales team can act on.
+>
+> I propose a fixed 25-store audit in one coverage-confirmed city zone for $199, focused on up to three SKUs or one promotion. We confirm the locations and evidence checklist before payment.
+>
+> Could you route this to the person responsible for modern trade or retail execution?
+>
+> Ravi
+>
+> GroundTruth
+> https://groundtruth-oracle.vercel.app/pilot?utm_source=founder_email&utm_campaign=retail_launch_2026q3&utm_content=happilo
 
 ## Qualification after reply
 
