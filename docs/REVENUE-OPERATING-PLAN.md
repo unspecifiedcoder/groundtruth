@@ -58,6 +58,8 @@ Planning assumptions only; replace with observed pilot data.
 - Standard price: approximately ₹704 / $8
 - Estimated contribution: approximately ₹369 / 52%
 
+Production enforcement: the standard retail-campaign creator now defaults to a **$3.00 USDT worker reward** and accepts only **$2.00–$5.00** per accepted check. At the default, 25 checks reserve $75 for worker rewards against the $199 buyer price; the remaining amount must cover QA, retries, payment/infrastructure, support, and contribution margin. A scope that needs a higher worker reward is a separately priced detailed or rush engagement—it must not be forced into the $199 offer.
+
 Never lower worker pay to preserve an advertised price. Change scope, cluster density, or buyer price instead.
 
 ## Thirty-day execution
