@@ -1,6 +1,6 @@
 # Founder-led buyer outreach
 
-Status: four messages sent on 2026-09-28. A focused Gmail check on 2026-09-29 found only the four outbound messages—no reply or bounce. No trial, payment, or customer commitment has been recorded yet.
+Status: seven messages sent. Four were sent on 2026-09-28; Yoga Bar, The Whole Truth, and Happilo were sent on 2026-09-29 after explicit operator approval. Gmail showed “Message sent” for each new message. No reply, bounce, trial, payment, or customer commitment has been recorded yet.
 
 Sent recipients:
 
@@ -8,6 +8,9 @@ Sent recipients:
 - Open Secret — `partnerships@opensecret.in`
 - Beyond Snack — `crc@drjackfruit.com`
 - MasterChow — `hello@masterchow.in`
+- Yoga Bar — `hello@yogabars.in`
+- The Whole Truth — `partnerships@thewholetruthfoods.com`
+- Happilo — `care@happilo.com`
 
 Beco was not contacted because a current official recipient address has not been verified. If no recipient replies or refuses, the earliest follow-up date is 2026-10-06. Send only one follow-up and include a useful artifact rather than repeating the pitch.
 
@@ -160,9 +163,9 @@ Send one follow-up after five business days only when the first message was deli
 
 Use the clearly labeled illustrative campaign as the artifact: `https://groundtruth-oracle.vercel.app/campaigns/demo`. It explicitly states that the dataset is not customer work, paid traction, or evidence of current coverage.
 
-## Next qualified tranche — prepared, not sent
+## Second qualified tranche — sent 2026-09-29
 
-These drafts are ready for operator approval. They have not been emailed and do not count as outreach, leads, or customers.
+These messages were sent after explicit operator approval. They count as outreach attempts only—not leads, replies, customers, or revenue. Earliest one-time artifact-led follow-up is 2026-10-07 unless a recipient replies, refuses, or bounces first.
 
 ### Yoga Bar — `hello@yogabars.in`
 
