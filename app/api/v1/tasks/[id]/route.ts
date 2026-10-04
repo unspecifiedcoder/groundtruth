@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getTask, getPaymentByTaskId, transition, createProofUrls } from '@/lib/db'
-import { getTxConfirmation, explorerTx } from '@/lib/chain'
+import { getPaymentTxConfirmation, explorerTxForNetwork } from '@/lib/chain'
 import { canTransition, type TaskStatus } from '@/lib/types'
 import { authorizedForCampaign } from '@/lib/campaign-auth'
 import { rateLimit } from '@/lib/security'
@@ -81,7 +81,10 @@ export async function GET(
     // Settlement finality is checked live rather than trusted from the x402
     // receipt, which is written before the transfer is mined.
     const record = await getPaymentByTaskId(task.id).catch(() => null)
-    const confirmation = record?.tx_hash ? await getTxConfirmation(record.tx_hash) : null
+    const paymentNetwork = task.payment_ref?.startsWith('x402:eip155:')
+      ? task.payment_ref.split(':').slice(1, 3).join(':')
+      : null
+    const confirmation = record?.tx_hash ? await getPaymentTxConfirmation(record.tx_hash, paymentNetwork) : null
 
     const operatorEscrowFunded =
       process.env.ALLOW_OPERATOR_FUNDED_CAMPAIGNS === 'true' &&
@@ -123,7 +126,8 @@ export async function GET(
             payer: record!.payer_address ?? null,
             block: confirmation?.blockNumber ?? null,
             reverted: confirmation?.reverted ?? false,
-            explorer: explorerTx(record!.tx_hash!),
+            network: paymentNetwork,
+            explorer: explorerTxForNetwork(record!.tx_hash!, paymentNetwork),
           }
 
     const funded = paymentState === 'confirmed' || paymentState === 'recorded' || paymentState === 'operator_escrow'

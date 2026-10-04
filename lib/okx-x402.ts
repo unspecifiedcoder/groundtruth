@@ -13,15 +13,19 @@ import { resolveTaskPricing, TASK_PRICE_TIERS, toUnits } from './money'
 // module does: we build the 402 challenge, verify the buyer's credential, and
 // settle — all through OKXFacilitatorClient, never ourselves.
 //
-// Two production rails are advertised for the same product:
+// Three production rails are advertised for the same product:
 // - Base mainnet USDC through a public x402 v2 facilitator, for broad agent-wallet compatibility.
+// - Arbitrum One USDC through a public x402 v2 facilitator, for agentic finance and RWA workflows.
 // - X Layer USD₮0 through the authenticated OKX facilitator.
-// Both use exact EIP-3009 authorization and settle directly to PAY_TO.
+// All use exact authorization and settle directly to PAY_TO.
 
 export const X_LAYER_NETWORK = (process.env.X402_NETWORK ?? 'eip155:196') as `eip155:${string}`
 export const BASE_NETWORK = 'eip155:8453' as const
 export const BASE_USDC = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as const
 export const BASE_FACILITATOR_URL = process.env.BASE_X402_FACILITATOR_URL ?? 'https://facilitator.openx402.ai'
+export const ARBITRUM_NETWORK = 'eip155:42161' as const
+export const ARBITRUM_USDC = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831' as const
+export const ARBITRUM_FACILITATOR_URL = process.env.ARBITRUM_X402_FACILITATOR_URL ?? 'https://x402.sperax.io'
 const PAY_TO = (process.env.X402_VERIFY_RECIPIENT ??
   '0x72db032c0dFB6E7502e16A73fabdab31712dc706') as string
 const ROUTE_PATTERN = 'POST /api/v1/human-do'
@@ -119,15 +123,26 @@ export function getHttpResourceServer(): Promise<x402HTTPResourceServer> {
     } as ConstructorParameters<typeof OKXFacilitatorClient>[0])
 
     const baseFacilitator = new HTTPFacilitatorClient({ url: BASE_FACILITATOR_URL })
+    const arbitrumFacilitator = new HTTPFacilitatorClient({ url: ARBITRUM_FACILITATOR_URL })
 
     // Earlier clients win only when two facilitators advertise the same rail.
-    // OKX remains authoritative for X Layer; OpenX402 handles Base mainnet.
-    const resourceServer = new x402ResourceServer([facilitator, baseFacilitator])
+    // OKX remains authoritative for X Layer; OpenX402 handles Base mainnet;
+    // Sperax handles canonical USDC on Arbitrum One.
+    const resourceServer = new x402ResourceServer([facilitator, baseFacilitator, arbitrumFacilitator])
     resourceServer.register('eip155:*', new ExactEvmScheme())
 
     const price = (context: HTTPRequestContext) => `$${resolveTaskPricing(context.adapter.getBody?.()).priceUsdt}`
     const basePrice = (context: HTTPRequestContext) => ({
       asset: BASE_USDC,
+      amount: toUnits(resolveTaskPricing(context.adapter.getBody?.()).priceUsdt).toString(),
+      extra: {
+        name: 'USD Coin',
+        version: '2',
+        assetTransferMethod: 'eip3009',
+      },
+    })
+    const arbitrumPrice = (context: HTTPRequestContext) => ({
+      asset: ARBITRUM_USDC,
       amount: toUnits(resolveTaskPricing(context.adapter.getBody?.()).priceUsdt).toString(),
       extra: {
         name: 'USD Coin',
@@ -155,6 +170,13 @@ export function getHttpResourceServer(): Promise<x402HTTPResourceServer> {
         network: BASE_NETWORK,
         payTo: PAY_TO,
         price: basePrice,
+        maxTimeoutSeconds: 300,
+      },
+      {
+        scheme: 'exact' as const,
+        network: ARBITRUM_NETWORK,
+        payTo: PAY_TO,
+        price: arbitrumPrice,
         maxTimeoutSeconds: 300,
       },
     ].filter(option => resourceServer.getSupportedKind(2, option.network, option.scheme))

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { rateLimit } from '@/lib/security'
 import { HumanDoInputSchema } from '@/lib/types'
-import { recordPaymentRef, insertTask, deleteTask, setTaskBudget } from '@/lib/db'
+import { recordPaymentRef, insertTask, deleteTask, setTaskBudget, setTaskPaymentRef } from '@/lib/db'
 import { planTask } from '@/lib/planner'
 import { generateChallenge } from '@/lib/challenge'
 import { getHttpResourceServer, makeContext } from '@/lib/okx-x402'
@@ -364,18 +364,18 @@ export async function POST(req: NextRequest) {
 
     // OKX settles some payment-exempt and marketplace review probes without a
     // broadcastable transaction, so X Layer preserves the verified-probe
-    // compatibility behavior. Base is a normal public-money rail and fails
-    // closed: no successful settlement means no task and no service delivery.
+    // compatibility behavior. Base and Arbitrum are normal public-money rails
+    // and fail closed: no successful settlement means no task and no service.
     //
     // Replay and forged credentials are already rejected upstream at
     // verification, so serving a verified-but-unsettled request risks at most
     // one call's fee, against failing every official test.
     if (!settle.success) {
-      if (verified.paymentRequirements.network === 'eip155:8453') {
+      if (['eip155:8453', 'eip155:42161'].includes(verified.paymentRequirements.network)) {
         await deleteTask(task.id).catch(() => {})
         return NextResponse.json(
           {
-            error: 'Base USDC settlement failed',
+            error: 'USDC settlement failed',
             reason: settle.errorReason ?? 'settlement_failed',
             detail: settle.errorMessage ?? undefined,
           },
@@ -419,8 +419,14 @@ export async function POST(req: NextRequest) {
       const { splitBudget } = await import('@/lib/money')
       const settledUsdt = (await import('@/lib/money')).fromUnits(BigInt(settle.amount))
       try {
+        // Bind the task to the chain that actually settled it without requiring
+        // a database migration. New task-status reads use this prefix to query
+        // the correct RPC and explorer; historical refs retain X Layer fallback.
+        const chainBoundPaymentRef = `x402:${settlementNetwork ?? verified.paymentRequirements.network}:${crypto.randomUUID()}`
+        await setTaskPaymentRef(task.id, chainBoundPaymentRef)
+        task = { ...task, payment_ref: chainBoundPaymentRef }
         paymentRecorded = await recordPaymentRef({
-          payment_ref: task.payment_ref ?? `x402-${task.id}`,
+          payment_ref: chainBoundPaymentRef,
           task_id: task.id,
           amount_units: BigInt(settle.amount),
           fee_units: splitBudget(settledUsdt, Number(process.env.ASP_FEE_BPS ?? '1200')).feeUnits,
@@ -468,7 +474,9 @@ export async function POST(req: NextRequest) {
             network: settlementNetwork,
             verify: settlementNetwork === 'eip155:8453'
               ? `https://basescan.org/tx/${settlementTx}`
-              : explorerTx(settlementTx),
+              : settlementNetwork === 'eip155:42161'
+                ? `https://arbiscan.io/tx/${settlementTx}`
+                : explorerTx(settlementTx),
           }
         : null,
       funded: paymentRecorded,

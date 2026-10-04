@@ -38,7 +38,7 @@ const handler = createMcpHandler(
               default_field_tier: 'integration_test',
               integration_note: 'evaluation_test is the public $0.10 paid-review tier; integration_test remains the $0.01 compatibility floor',
               currency: 'USDC or USDT0',
-              networks: ['eip155:8453', `eip155:${process.env.SETTLEMENT_CHAIN_ID ?? '196'}`],
+              networks: ['eip155:42161', 'eip155:8453', `eip155:${process.env.SETTLEMENT_CHAIN_ID ?? '196'}`],
               platform_fee_bps: process.env.ASP_FEE_BPS ?? '1200',
             },
             proof_types: {

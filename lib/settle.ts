@@ -4,6 +4,7 @@ import { transition, bumpWorker, getTask } from './db'
 import { settlePayment } from './payment'
 import { splitBudget } from './money'
 import type { TaskResult } from './types'
+import { anchorEvidenceReceipt } from './evidence-receipt'
 
 const CONTRACT_ADDRESS = (process.env.PAYROLL_CONTRACT_ADDRESS ?? '0x0000000000000000000000000000000000000000') as `0x${string}`
 // Token the worker is actually paid in — mUSDT on X Layer testnet by default
@@ -18,6 +19,7 @@ export interface SettleResult {
   explorer?: string
   payout_usdt?: string
   error?: string
+  evidenceReceipt?: { txHash: string; explorer: string } | null
 }
 
 export async function settleTask(
@@ -110,10 +112,28 @@ export async function settleTask(
     } as unknown as TaskResult,
   }).catch(() => {})
 
+  // Evidence anchoring is intentionally separate from payout settlement. A
+  // temporary Arbitrum RPC failure must not reverse a worker payment. The
+  // registry stores hashes only; evidence and precise location remain private.
+  let evidenceReceipt: { txHash: string; explorer: string } | null = null
+  try {
+    const updatedTask = await getTask(taskId)
+    if (updatedTask) evidenceReceipt = await anchorEvidenceReceipt(updatedTask)
+    if (evidenceReceipt && updatedTask) {
+      const current = (updatedTask.result as unknown as Record<string, unknown>) ?? {}
+      await transition(taskId, 'verified', 'verified', {
+        result: { ...current, evidence_receipt: evidenceReceipt } as unknown as TaskResult,
+      }).catch(() => {})
+    }
+  } catch (error) {
+    console.error('[evidence-receipt] anchor failed:', error instanceof Error ? error.message : String(error))
+  }
+
   return {
     success: true,
     txHash,
     explorer: txHash ? explorerTx(txHash) : undefined,
     payout_usdt: payoutUsdt,
+    evidenceReceipt,
   }
 }

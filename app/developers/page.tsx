@@ -21,7 +21,7 @@ export default function DevelopersPage() {
       <div className="max-w-5xl mx-auto">
         <p className="chip text-[10px] mb-3" style={{ color: 'var(--info)' }}>Developer platform</p>
         <h1 className="font-display text-4xl sm:text-5xl font-extrabold mb-5">Call the physical world like software.</h1>
-        <p className="text-lg max-w-3xl leading-relaxed mb-9" style={{ color: 'var(--text-muted)' }}>GroundTruth exposes an asynchronous API, MCP server, A2A interface, and machine-readable service catalog for creating funded field missions, tracking human execution, and retrieving verified evidence.</p>
+        <p className="text-lg max-w-3xl leading-relaxed mb-9" style={{ color: 'var(--text-muted)' }}>GroundTruth exposes an asynchronous API, MCP server, A2A interface, and machine-readable service catalog for creating funded field missions, tracking human execution, and retrieving verified evidence. Agents can settle calls in USDC on Arbitrum One or Base, or USD₮0 on X Layer.</p>
 
         <div className="grid md:grid-cols-3 gap-5 mb-12">
           <a className="card card-hover p-6" href="/api/mcp"><div className="chip text-[9px] mb-3" style={{ color: 'var(--good)' }}>MCP</div><h2 className="font-display text-xl font-extrabold">Streamable HTTP endpoint</h2><code className="block text-sm mt-3 break-all" style={{ color: 'var(--text-muted)' }}>{base}/api/mcp</code></a>
@@ -38,6 +38,14 @@ export default function DevelopersPage() {
         </section>
 
         <section className="mb-12">
+          <h2 className="font-display text-3xl font-extrabold mb-3">Live payment rails</h2>
+          <p className="mb-5" style={{ color: 'var(--text-muted)' }}>The unpaid endpoint returns only facilitator-supported options. Every public USDC rail fails closed if settlement is not confirmed.</p>
+          <div className="grid sm:grid-cols-3 gap-3 mb-10">
+            <div className="card p-4"><code>eip155:42161</code><strong className="block mt-2">Arbitrum One · USDC</strong><span className="block text-xs mt-2" style={{ color: 'var(--text-faint)' }}>Canonical USDC · exact authorization</span></div>
+            <div className="card p-4"><code>eip155:8453</code><strong className="block mt-2">Base · USDC</strong><span className="block text-xs mt-2" style={{ color: 'var(--text-faint)' }}>Canonical USDC · exact authorization</span></div>
+            <div className="card p-4"><code>eip155:196</code><strong className="block mt-2">X Layer · USD₮0</strong><span className="block text-xs mt-2" style={{ color: 'var(--text-faint)' }}>OKX marketplace rail</span></div>
+          </div>
+
           <h2 className="font-display text-3xl font-extrabold mb-3">Predictable task pricing</h2>
           <p className="mb-5" style={{ color: 'var(--text-muted)' }}>The server maps each named tier to an exact x402 amount. Agents cannot advertise one reward and pay another.</p>
           <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-3">

@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { resolveTaskPricing } from '../lib/money'
 import { isTaskFundedForDispatch } from '../lib/funding'
-import { BASE_FACILITATOR_URL, BASE_NETWORK, BASE_USDC, BAZAAR_EXTENSION } from '../lib/okx-x402'
+import {
+  ARBITRUM_FACILITATOR_URL,
+  ARBITRUM_NETWORK,
+  ARBITRUM_USDC,
+  BASE_FACILITATOR_URL,
+  BASE_NETWORK,
+  BASE_USDC,
+  BAZAAR_EXTENSION,
+} from '../lib/okx-x402'
 
 describe('server-owned task pricing', () => {
   it('maps named tiers to useful exact rewards', () => {
@@ -94,5 +102,11 @@ describe('paid endpoint discovery metadata', () => {
     expect(BASE_NETWORK).toBe('eip155:8453')
     expect(BASE_USDC).toBe('0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913')
     expect(BASE_FACILITATOR_URL).toMatch(/^https:\/\//)
+  })
+
+  it('advertises canonical Arbitrum One USDC through a configured facilitator', () => {
+    expect(ARBITRUM_NETWORK).toBe('eip155:42161')
+    expect(ARBITRUM_USDC).toBe('0xaf88d065e77c8cC2239327C5EDb3A432268e5831')
+    expect(ARBITRUM_FACILITATOR_URL).toMatch(/^https:\/\//)
   })
 })

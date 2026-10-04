@@ -45,6 +45,13 @@ export async function GET() {
       facilitator: process.env.BASE_X402_FACILITATOR_URL ?? 'https://facilitator.openx402.ai',
       rails: [
         {
+          chain: 'eip155:42161',
+          network: 'Arbitrum One',
+          currency: 'USDC',
+          asset: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+          facilitator: process.env.ARBITRUM_X402_FACILITATOR_URL ?? 'https://x402.sperax.io',
+        },
+        {
           chain: 'eip155:8453',
           network: 'Base',
           currency: 'USDC',
@@ -66,6 +73,12 @@ export async function GET() {
     agentCard: `${base}/.well-known/agent-card.json`,
     evaluation: `${base}/try`,
     settlement: 'A paid call returns a task_id immediately. Physical fulfillment is asynchronous and must be polled.',
+    evidenceReceipts: {
+      network: 'eip155:421614',
+      contract: process.env.EVIDENCE_RECEIPT_CONTRACT ?? '0xaf712732bd2c8ef589bb9fff5421ed428e4207e1',
+      verifier: `${base}/receipts`,
+      privacy: 'Only hashes of the evidence manifest, proof specification, and verdict are recorded. Raw evidence and precise location remain offchain.',
+    },
     limitations: 'Coverage and turnaround are confirmed before real field dispatch. The 0.01 tier tests the payment and task contract; it does not claim a completed field visit.',
   }, {
     headers: { 'Cache-Control': 'public, max-age=300, s-maxage=300' },

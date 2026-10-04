@@ -27,6 +27,42 @@ export function explorerTx(hash: string): string {
   return `${EXPLORER}/tx/${hash}`
 }
 
+const PAYMENT_NETWORKS: Record<string, { id: number; name: string; rpc: string; explorer: string }> = {
+  'eip155:8453': {
+    id: 8453,
+    name: 'Base',
+    rpc: process.env.BASE_RPC ?? 'https://mainnet.base.org',
+    explorer: 'https://basescan.org',
+  },
+  'eip155:42161': {
+    id: 42161,
+    name: 'Arbitrum One',
+    rpc: process.env.ARBITRUM_RPC ?? 'https://arb1.arbitrum.io/rpc',
+    explorer: 'https://arbiscan.io',
+  },
+}
+
+function paymentChain(network: string) {
+  const configured = PAYMENT_NETWORKS[network]
+  if (!configured) return { chain: xlayer, rpc: RPC, explorer: EXPLORER }
+  return {
+    chain: {
+      id: configured.id,
+      name: configured.name,
+      nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+      rpcUrls: { default: { http: [configured.rpc] }, public: { http: [configured.rpc] } },
+      blockExplorers: { default: { name: `${configured.name} Explorer`, url: configured.explorer } },
+    } as const,
+    rpc: configured.rpc,
+    explorer: configured.explorer,
+  }
+}
+
+export function explorerTxForNetwork(hash: string, network?: string | null): string {
+  const config = paymentChain(network ?? '')
+  return `${config.explorer}/tx/${hash}`
+}
+
 const PAYROLL_ABI = parseAbi([
   'function settle(bytes32 taskKey, address worker, address token, uint256 payoutAmount, uint256 feeAmount) external',
   'function settled(bytes32) view returns (bool)',
@@ -143,6 +179,25 @@ export async function getTxConfirmation(
     }
   } catch {
     // Not mined yet (or RPC hiccup) — not an error, just not final.
+    return { confirmed: false }
+  }
+}
+
+export async function getPaymentTxConfirmation(
+  hash: string,
+  network?: string | null
+): Promise<{ confirmed: boolean; blockNumber?: string; reverted?: boolean }> {
+  try {
+    const config = paymentChain(network ?? '')
+    const client = createPublicClient({ chain: config.chain, transport: http(config.rpc, { timeout: 15_000 }) })
+    const receipt = await client.getTransactionReceipt({ hash: hash as Hash })
+    if (!receipt) return { confirmed: false }
+    return {
+      confirmed: receipt.status === 'success',
+      blockNumber: receipt.blockNumber.toString(),
+      ...(receipt.status === 'reverted' ? { reverted: true } : {}),
+    }
+  } catch {
     return { confirmed: false }
   }
 }

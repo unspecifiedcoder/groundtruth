@@ -579,6 +579,12 @@ export async function setTaskBudget(id: string, budgetUsdt: string): Promise<voi
   if (error) throw error
 }
 
+export async function setTaskPaymentRef(id: string, paymentRef: string): Promise<void> {
+  const db = getServiceClient()
+  const { error } = await db.from('tasks').update({ payment_ref: paymentRef }).eq('id', id)
+  if (error) throw error
+}
+
 export interface PaymentRecord {
   tx_hash: string | null
   payer_address: string | null

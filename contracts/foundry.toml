@@ -9,3 +9,5 @@ optimizer_runs = 200
 [rpc_endpoints]
 xlayer = "https://rpc.xlayer.tech"
 xlayer_testnet = "https://testrpc.xlayer.tech"
+arbitrum = "https://arb1.arbitrum.io/rpc"
+arbitrum_sepolia = "https://sepolia-rollup.arbitrum.io/rpc"
