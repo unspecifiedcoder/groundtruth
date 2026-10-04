@@ -16,6 +16,8 @@ Last verified: 2026-10-04
 - Receipt verifier: https://groundtruth-oracle.vercel.app/receipts
 - Arbitrum Sepolia registry: `0xaf712732bd2c8ef589bb9fff5421ed428e4207e1`
 - Deployment transaction: https://sepolia.arbiscan.io/tx/0xaa1f82b0839f4242c49d14d12ed0c896d5250d89db2e59a57e41f80bb1ed5083
+- Verifiable protocol-demo task: `00000000-0000-4000-8000-000000042161`
+- Demo receipt transaction: https://sepolia.arbiscan.io/tx/0xfed109f5d010f88205e9f2def4ae7bce6a779953eb4c5a73f52dc4ff6c4fd4d8
 
 ## One-line pitch
 
@@ -68,6 +70,7 @@ GroundTruth does not claim that a hash proves a photograph is truthful. The rece
 - Canonical Arbitrum One USDC rail configured through a facilitator that advertises x402 v2 exact support for `eip155:42161`.
 - Network-aware payment finality and explorer resolution for Arbitrum, Base, and X Layer on newly settled tasks.
 - Hash-only receipt registry deployed successfully to Arbitrum Sepolia at block `315645259`.
+- A clearly labeled protocol-demo receipt was recorded successfully at block `315647455`; it demonstrates contract read/write and is not represented as customer activity.
 - Deterministic evidence receipt hashing tests.
 - Contract compiler verification with Solidity `0.8.24`.
 - No verified revenue, paid pilot, recurring customer, or active calibrated operator is claimed.

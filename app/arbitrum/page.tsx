@@ -133,6 +133,12 @@ Content-Type: application/json
               <div className="flex flex-wrap gap-2"><a className="btn btn-ghost px-5 py-2.5" href="https://sepolia.arbiscan.io/address/0xaf712732bd2c8ef589bb9fff5421ed428e4207e1" target="_blank" rel="noreferrer">Open explorer →</a><Link className="btn btn-ghost px-5 py-2.5" href="/receipts">Verify receipt</Link></div>
             </div>
           </div>
+          <div className="card p-5 mt-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div><code className="text-xs">Protocol demo · not customer activity</code><strong className="block mt-2">Verifiable receipt recorded on Arbitrum Sepolia</strong><span className="block text-xs font-mono mt-2 break-all" style={{ color: 'var(--text-faint)' }}>Task 00000000-0000-4000-8000-000000042161</span></div>
+              <div className="flex flex-wrap gap-2"><Link className="btn btn-primary px-5 py-2.5" href="/receipts">Verify demo receipt</Link><a className="btn btn-ghost px-5 py-2.5" href="https://sepolia.arbiscan.io/tx/0xfed109f5d010f88205e9f2def4ae7bce6a779953eb4c5a73f52dc4ff6c4fd4d8" target="_blank" rel="noreferrer">Inspect transaction →</a></div>
+            </div>
+          </div>
           <div className="rounded-xl p-5 mt-7 text-sm leading-relaxed" style={{ background: 'var(--warn-weak)' }}>
             <strong>Current boundary:</strong> the software and payment rails are live, while physical fulfillment remains coverage-gated and launches city by city. GroundTruth does not claim global operator coverage or recurring revenue. The initial operating wedge is compact Hyderabad retail verification.
           </div>
@@ -143,7 +149,7 @@ Content-Type: application/json
         <div className="max-w-4xl mx-auto card p-8 sm:p-11">
           <p className="chip text-[10px] mb-3" style={{ color: 'var(--accent)' }}>Open House build objective</p>
           <h2 className="font-display text-3xl sm:text-4xl font-extrabold mb-4">Make physical evidence composable on Arbitrum.</h2>
-          <p className="leading-relaxed mb-6" style={{ color: 'var(--text-muted)' }}>The next milestone is an Arbitrum-anchored evidence receipt: task specification hash, evidence digest, verification verdict, timestamp, and issuer—without putting private photos or personal data onchain.</p>
+          <p className="leading-relaxed mb-6" style={{ color: 'var(--text-muted)' }}>The receipt primitive is live on Arbitrum Sepolia: task specification hash, evidence digest, verification verdict, timestamp, and issuer—without putting private photos or personal data onchain. The next milestone is a security-reviewed Arbitrum One deployment backed by an external paid pilot.</p>
           <div className="flex flex-col sm:flex-row gap-3">
             <a href={`${base}/developers`} className="btn btn-primary px-7 py-3.5">Review the integration <span className="btn-arrow">→</span></a>
             <a href={`${base}/diligence`} className="btn btn-ghost px-7 py-3.5">Inspect diligence</a>

@@ -2,6 +2,8 @@
 
 import { FormEvent, useState } from 'react'
 
+const DEMO_TASK_ID = '00000000-0000-4000-8000-000000042161'
+
 type Receipt = {
   exists: boolean
   taskKey: string
@@ -17,7 +19,7 @@ type Receipt = {
 }
 
 export default function ReceiptVerifier() {
-  const [taskId, setTaskId] = useState('')
+  const [taskId, setTaskId] = useState(DEMO_TASK_ID)
   const [receipt, setReceipt] = useState<Receipt | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -43,6 +45,7 @@ export default function ReceiptVerifier() {
     <div>
       <form onSubmit={verify} className="card p-5 sm:p-6">
         <label className="block font-display font-bold mb-2" htmlFor="task-id">GroundTruth task ID</label>
+        <p className="text-xs mb-3" style={{ color: 'var(--text-faint)' }}>A protocol-demo receipt is prefilled so you can verify the deployed registry without creating a paid task. It is testnet evidence, not customer traction.</p>
         <div className="flex flex-col sm:flex-row gap-3">
           <input id="task-id" required value={taskId} onChange={event => setTaskId(event.target.value)} placeholder="00000000-0000-0000-0000-000000000000" className="flex-1 rounded-xl border px-4 py-3 font-mono text-sm" style={{ background: 'var(--bg)', borderColor: 'var(--border-strong)', color: 'var(--text)' }} />
           <button disabled={loading} className="btn btn-primary px-6 py-3 disabled:opacity-50">{loading ? 'Checking…' : 'Verify receipt'}</button>
