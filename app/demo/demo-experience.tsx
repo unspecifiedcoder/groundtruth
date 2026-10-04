@@ -34,8 +34,8 @@ const scenarios = {
     title: 'Is the product really on the shelf?',
     detail: 'Verify availability and the displayed price before an agent recommends a purchase.',
     location: 'Jubilee Hills · Hyderabad',
-    object: 'Oat milk · 1L',
-    question: 'Visible, in stock, price legible?',
+    object: 'Grapefruit sparkling water · 355 ml',
+    question: 'Visible, in stock, displayed at $1.29?',
     accent: '#ff6b3d',
   },
   rwa: {
@@ -149,11 +149,6 @@ export default function DemoExperience() {
   }
 
   async function runDemo() {
-    if (mode === 'sponsored' && !walletVerified) {
-      setWalletMessage('Connect and sign with a browser wallet to unlock the one-use sponsored sandbox credit.')
-      setScreen('authorize')
-      return
-    }
     setScreen('processing')
     setActiveStage(0)
     setResult(null)
@@ -165,7 +160,7 @@ export default function DemoExperience() {
     }
 
     try {
-      if (mode === 'sponsored') {
+      if (mode === 'sponsored' && walletVerified) {
         const response = await fetch('/api/demo/tasks', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ scenario: sponsoredScenario[scenarioId] }),
@@ -173,6 +168,9 @@ export default function DemoExperience() {
         const body = await response.json() as { task?: { taskId?: string }; disclosure?: string; error?: string }
         if (!response.ok || !body.task?.taskId) throw new Error(body.error ?? 'Sponsored task creation failed')
         setResult({ task_id: body.task.taskId, network: 'Sponsored sandbox · receipt preview' })
+        setIsSimulation(true)
+      } else if (mode === 'sponsored') {
+        setResult({ network: 'Judge preview · no task created' })
         setIsSimulation(true)
       }
     } catch (error) {
