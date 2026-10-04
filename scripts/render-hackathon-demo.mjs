@@ -22,7 +22,7 @@ const scenes = [
   ['06-receipt.png', 19],
   ['07-judge.png', 18],
   ['08-robinhood.png', 20],
-  ['09-pilot.png', 16],
+  ['09-pilot.png', 16.5],
 ]
 
 for (const [file] of scenes) {
@@ -40,6 +40,7 @@ function run(args, label) {
 run(['-y', '-i', captionsVtt, captionsSrt], 'caption conversion')
 
 const transition = 0.5
+const totalDuration = scenes.reduce((sum, [, duration]) => sum + duration, 0) - transition * (scenes.length - 1)
 const inputArgs = []
 const filters = []
 scenes.forEach(([file, duration], index) => {
@@ -48,7 +49,7 @@ scenes.forEach(([file, duration], index) => {
   const drift = index % 2 === 0
     ? `zoompan=z='min(zoom+0.00016,1.026)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${frames}:s=1920x1080:fps=24`
     : `zoompan=z='min(zoom+0.00014,1.024)':x='iw/2-(iw/zoom/2)+(on/${frames}-0.5)*18':y='ih/2-(ih/zoom/2)':d=${frames}:s=1920x1080:fps=24`
-  filters.push(`[${index}:v]scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=0x05070b,${drift},format=yuv420p,setpts=PTS-STARTPTS[v${index}]`)
+  filters.push(`[${index}:v]scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=0x05070b,${drift},trim=duration=${duration},format=yuv420p,setpts=PTS-STARTPTS[v${index}]`)
 })
 
 let previous = 'v0'
@@ -60,12 +61,12 @@ for (let index = 1; index < scenes.length; index += 1) {
   previous = output
   elapsed += scenes[index][1]
 }
-filters.push(`[sequence]subtitles='${captionsSrt.replaceAll('\\', '/').replace(':', '\\:')}':force_style='FontName=Arial,FontSize=21,PrimaryColour=&H00FFFFFF,OutlineColour=&H00101010,BorderStyle=1,Outline=2,Shadow=0,MarginV=44,Alignment=2',fade=t=in:st=0:d=0.8,fade=t=out:st=165:d=1[video]`)
+filters.push(`[sequence]subtitles='${captionsSrt.replaceAll('\\', '/').replace(':', '\\:')}':force_style='FontName=Arial,FontSize=14,PrimaryColour=&H00FFFFFF,BackColour=&H78000000,OutlineColour=&H00101010,BorderStyle=3,Outline=1,Shadow=0,MarginV=28,MarginL=20,MarginR=20,Alignment=2',fade=t=in:st=0:d=0.8,fade=t=out:st=${(totalDuration - 1).toFixed(3)}:d=1,format=yuv420p,setsar=1[video]`)
 
 run([
   '-y', ...inputArgs,
   '-filter_complex', filters.join(';'),
-  '-map', '[video]', '-an', '-r', '24', '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-movflags', '+faststart', silentVideo,
+  '-map', '[video]', '-an', '-t', String(totalDuration), '-r', '24', '-c:v', 'libx264', '-preset', 'fast', '-crf', '18', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', silentVideo,
 ], 'silent video render')
 
 run([
