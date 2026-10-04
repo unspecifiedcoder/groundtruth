@@ -6,9 +6,9 @@ export const metadata: Metadata = { title: 'Scope a retail verification pilot or
 export default function PilotPage() {
   return <main className="min-h-screen px-5 py-14"><div className="max-w-5xl mx-auto grid lg:grid-cols-[0.85fr_1.15fr] gap-12">
     <div>
-      <p className="chip text-[10px] mb-3" style={{ color: 'var(--accent)' }}>10 stores · one decision · auditable evidence</p>
+      <p className="chip text-[10px] mb-3" style={{ color: 'var(--accent)' }}>25 stores · one decision · auditable evidence</p>
       <h1 className="font-display text-4xl sm:text-5xl font-extrabold mb-5">Know what is on the shelf before the next decision leaves your system.</h1>
-      <p className="leading-relaxed" style={{ color: 'var(--text-muted)' }}>Start with a fixed $199 launch validation across up to 10 covered Hyderabad stores. Pick one question—stock, displayed price, promotion, placement, or store status—and receive decision-ready evidence. We confirm coverage before you approve scope or payment.</p>
+      <p className="leading-relaxed" style={{ color: 'var(--text-muted)' }}>Start with a fixed $199 launch validation across up to 25 covered Hyderabad stores. Pick one question—stock, displayed price, promotion, placement, or store status—and receive decision-ready evidence. We confirm coverage before you approve scope or payment.</p>
       <div className="card p-5 mt-7 text-sm space-y-3" style={{ color: 'var(--text-muted)' }}>
         <h2 className="font-display text-lg font-bold" style={{ color: 'var(--text)' }}>The pilot has an objective finish line:</h2>
         <p>✓ Original submitted evidence and capture time</p><p>✓ Freshness and location-radius verdicts</p><p>✓ Structured answer for stock, price, promotion, or store status</p><p>✓ Pass, review, or reject reason</p><p>✓ Dashboard plus CSV/API-ready row</p>
