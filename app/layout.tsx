@@ -81,7 +81,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             operatingSystem: 'Web',
             url: process.env.NEXT_PUBLIC_APP_URL ?? 'https://groundtruth-oracle.vercel.app',
             description: 'An API and MCP service for dispatching verified retail field evidence missions.',
-            offers: { '@type': 'Offer', priceCurrency: 'USDT', availability: 'https://schema.org/LimitedAvailability' },
+            offers: { '@type': 'Offer', price: '0.01', priceCurrency: 'USDC', availability: 'https://schema.org/InStock', url: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://groundtruth-oracle.vercel.app'}/demo` },
           }).replace(/</g, '\\u003c') }}
         />
         <nav
@@ -99,8 +99,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <div className="hidden md:flex items-center gap-1">
                 {[
                   { href: '/#how-it-works', label: 'How it works' },
-                  { href: '/campaigns/demo', label: 'Illustrative output' },
-                  { href: '/#pricing', label: 'Pricing' },
+                  { href: '/arbitrum', label: 'Arbitrum' },
+                  { href: '/judge', label: 'Technical proof' },
                   { href: '/developers', label: 'Developers' },
                 ].map(l => (
                   <Link
@@ -117,10 +117,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <ThemeToggle />
 
               <a
-                href="/pilot"
+                href="/demo"
                 className="btn btn-primary ml-1.5 px-4 py-1.5 text-sm"
               >
-                <span className="sm:hidden">Coverage</span><span className="hidden sm:inline">Check pilot coverage</span> <span className="btn-arrow">→</span>
+                <span className="sm:hidden">Demo</span><span className="hidden sm:inline">Run live demo</span> <span className="btn-arrow">→</span>
               </a>
             </div>
           </div>

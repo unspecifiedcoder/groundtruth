@@ -1,231 +1,70 @@
 import Link from 'next/link'
 import { LogoMark } from './logo'
-import LiveNetwork from './live-network'
+import { RealityEngine } from './components/visual/reality-engine'
 
-const OUTPUTS = [
-  { title: 'Shelf availability', description: 'Confirm whether a SKU is in stock and capture the exact shelf context.', icon: '▣' },
-  { title: 'Price intelligence', description: 'Collect current prices, promotions, and competitor comparisons from the store.', icon: '$' },
-  { title: 'Display compliance', description: 'Verify placement, signage, and campaign execution with required photo angles.', icon: '✓' },
+const USE_CASES = [
+  { index: '01', eyebrow: 'AGENTIC COMMERCE', title: 'Verify before an agent buys.', description: 'Check present shelf availability, displayed price, or venue state before an autonomous workflow commits capital.' },
+  { index: '02', eyebrow: 'RWA + DePIN', title: 'Make physical claims inspectable.', description: 'Turn a field observation into structured evidence and a privacy-preserving, independently verifiable receipt.' },
+  { index: '03', eyebrow: 'RETAIL OPERATIONS', title: 'Query a store like an API.', description: 'Dispatch a precise brief for stock, price, promotion, or display compliance and receive an auditable result.' },
 ]
 
-const CHECKS = [
-  'One-time freshness challenge',
-  'Timestamped capture session',
-  'Duplicate and integrity screening',
-  'AI semantic match against the brief',
-  'Explainable pass, fail, or review verdict',
-]
-
-const PLANS = [
-  {
-    name: 'Launch pilot',
-    price: '$199 once',
-    detail: '25 verified locations in one agreed city zone',
-    fit: 'Prove the workflow and evidence standard before committing monthly.',
-  },
-  {
-    name: 'Monitor',
-    price: '$249 / month',
-    detail: '25 recurring checks with dashboard and CSV/API export',
-    fit: 'For one market, campaign, or recurring store question.',
-  },
-  {
-    name: 'Operations',
-    price: '$599 / month',
-    detail: '75 recurring checks with scheduled batches and priority QA',
-    fit: 'For teams that need physical-state data every week.',
-  },
-]
+const PROTOCOLS = ['HTTP 402', 'ARBITRUM USDC', 'MCP', 'A2A', 'OPENAPI 3.1']
 
 export default function Home() {
-  const contactUrl = '/pilot'
-
   return (
-    <main className="overflow-hidden" style={{ color: 'var(--text)' }}>
-      <section className="relative px-5 py-16 sm:py-24">
-        <div className="absolute inset-0 pointer-events-none" style={{
-          backgroundImage: 'radial-gradient(circle, var(--grid-dot) 1px, transparent 1px)',
-          backgroundSize: '34px 34px',
-          maskImage: 'radial-gradient(ellipse 75% 70% at 50% 30%, black 30%, transparent 100%)',
-          WebkitMaskImage: 'radial-gradient(ellipse 75% 70% at 50% 30%, black 30%, transparent 100%)',
-        }} />
-
-        <div className="relative max-w-6xl mx-auto grid lg:grid-cols-[1.05fr_0.95fr] gap-12 items-center">
-          <div className="text-center lg:text-left">
-            <div className="fade-up fade-up-1 chip inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-6" style={{ background: 'var(--good-weak)', color: 'var(--good)' }}>
-              <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--good)' }} />
-              <span className="text-[10px]">25-store launch pilot · one city zone · $199</span>
+    <main className="cinematic-shell">
+      <section className="hero-stage" aria-labelledby="hero-title">
+        <div className="hero-aurora" aria-hidden="true" />
+        <div className="hero-grid" aria-hidden="true" />
+        <div className="hero-wrap">
+          <div className="hero-copy">
+            <div className="protocol-kicker reveal reveal-1"><span className="signal-dot" aria-hidden="true" />PHYSICAL ORACLE NETWORK · ARBITRUM</div>
+            <h1 id="hero-title" className="hero-title reveal reveal-2">Agents can move money.<span>GroundTruth lets them check reality first.</span></h1>
+            <p className="hero-lede reveal reveal-3">Request fresh physical-world evidence, pay through an agent-native rail, and receive a tamper-evident receipt before your software takes an irreversible action.</p>
+            <div className="hero-actions reveal reveal-4">
+              <Link href="/demo" className="cinematic-button cinematic-button-primary"><span>Run the 90-second demo</span><span className="button-icon" aria-hidden="true">↗</span></Link>
+              <Link href="/judge" className="cinematic-button cinematic-button-secondary">Inspect the protocol <span aria-hidden="true">→</span></Link>
             </div>
-
-            <h1 className="fade-up fade-up-2 font-display font-extrabold tracking-tight leading-[1.01] text-[2.8rem] sm:text-6xl mb-6" style={{ color: 'var(--text)', textWrap: 'balance' }}>
-              Verify what is actually<br />
-              <span className="underline-stroke">on shelf across 25 stores.</span>
-            </h1>
-
-            <p className="fade-up fade-up-3 text-lg leading-relaxed max-w-xl mx-auto lg:mx-0 mb-8" style={{ color: 'var(--text-muted)' }}>
-              Choose one repeatable question—stock, shelf price, promotion, or display compliance.
-              We dispatch field operators and return accepted photo evidence, structured results,
-              and a CSV-ready audit trail. Coverage is confirmed before payment.
-            </p>
-
-            <div className="fade-up fade-up-4 flex flex-col sm:flex-row gap-3 justify-center lg:justify-start mb-7">
-              <Link href="/pilot?package=launch" className="btn btn-primary px-7 py-3.5 text-[15px]">
-                Check coverage for 25 stores <span className="btn-arrow">→</span>
-              </Link>
-              <Link href="/campaigns/demo" className="btn btn-ghost px-7 py-3.5 text-[15px]">Inspect illustrative output</Link>
-            </div>
-
-            <p className="font-mono text-xs" style={{ color: 'var(--text-faint)' }}>
-              No payment today · 25 accepted checks · Standard 24-hour target after release
-            </p>
+            <div className="hero-footnote reveal reveal-5"><span>Sponsored sandbox available</span><span className="hero-footnote-separator" aria-hidden="true" /><span>Optional $0.01 USDC integration path</span></div>
           </div>
+          <div className="hero-engine reveal reveal-4"><RealityEngine /></div>
+        </div>
+        <div className="protocol-strip" aria-label="Supported protocols"><span className="protocol-strip-label">ONE REQUEST · DIGITAL TO PHYSICAL</span><div className="protocol-list">{PROTOCOLS.map(protocol => <span key={protocol}>{protocol}</span>)}</div></div>
+      </section>
 
-          <div className="fade-up fade-up-4 flex justify-center lg:justify-end"><LiveNetwork /></div>
+      <section id="how-it-works" className="truth-gap-section scroll-mt-20" aria-labelledby="truth-gap-title">
+        <div className="section-frame truth-gap-grid">
+          <div><p className="section-index">THE MISSING PRIMITIVE</p><h2 id="truth-gap-title" className="section-title">The internet can tell an agent what was published.<span>The world can tell it what is true now.</span></h2></div>
+          <div className="truth-gap-copy"><p>Search, RAG, and APIs observe digital records. GroundTruth is for the moment a workflow depends on a present physical fact: a product is on a shelf, a display exists, or an asset is in the expected condition.</p><Link href="/arbitrum" className="text-link">Why this belongs on Arbitrum <span aria-hidden="true">↗</span></Link></div>
         </div>
       </section>
 
-      <section id="pricing" className="px-5 py-20 border-t scroll-mt-20" style={{ borderColor: 'var(--border)' }}>
-        <div className="max-w-5xl mx-auto">
-          <div className="max-w-2xl mb-10">
-            <p className="chip text-[10px] mb-3" style={{ color: 'var(--accent)' }}>Commercial launch offer</p>
-            <h2 className="font-display text-3xl sm:text-4xl font-extrabold mb-4">Buy verified coverage, not a vague consulting project.</h2>
-            <p className="leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-              Start with one repeatable question, one compact geography, and objective acceptance criteria. Each accepted check includes fresh evidence and a structured result. Coverage is reviewed before payment.
-            </p>
-          </div>
-          <div className="grid md:grid-cols-3 gap-5">
-            {PLANS.map((plan, index) => (
-              <article key={plan.name} className="card p-6" style={index === 0 ? { borderColor: 'var(--accent)' } : undefined}>
-                <p className="font-mono text-[10px] uppercase" style={{ color: index === 0 ? 'var(--accent)' : 'var(--text-faint)' }}>{plan.name}</p>
-                <h3 className="font-display text-2xl font-extrabold mt-3">{plan.price}</h3>
-                <p className="font-semibold text-sm mt-3">{plan.detail}</p>
-                <p className="text-sm leading-relaxed mt-3" style={{ color: 'var(--text-muted)' }}>{plan.fit}</p>
-              </article>
-            ))}
-          </div>
-          <div className="mt-7 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <Link href="/pilot?package=launch" className="btn btn-primary px-7 py-3.5">Request the launch pilot →</Link>
-            <p className="text-xs max-w-xl" style={{ color: 'var(--text-faint)' }}>Prices are initial pilot terms. Travel outside the agreed zone, purchases, venue fees, rush work, and specialized inspections are quoted separately.</p>
-          </div>
+      <section className="use-case-section" aria-labelledby="use-case-title">
+        <div className="section-frame">
+          <div className="section-heading-row"><div><p className="section-index">THREE PLACES REALITY BREAKS THE LOOP</p><h2 id="use-case-title" className="section-title section-title-compact">Give software a checkpoint in the physical world.</h2></div><p className="section-side-note">GroundTruth does not claim a photograph is truth. It produces scoped evidence, an explicit verdict, and a hash-linked audit trail.</p></div>
+          <div className="use-case-grid">{USE_CASES.map(useCase => <article className="use-case-card" key={useCase.index}><div className="use-case-topline"><span>{useCase.index}</span><span>{useCase.eyebrow}</span></div><h3>{useCase.title}</h3><p>{useCase.description}</p><div className="use-case-signal" aria-hidden="true"><i /><i /><i /></div></article>)}</div>
         </div>
       </section>
 
-      <section id="how-it-works" className="px-5 py-20 border-t scroll-mt-20" style={{ borderColor: 'var(--border)' }}>
-        <div className="max-w-5xl mx-auto">
-          <div className="max-w-2xl mb-11">
-            <p className="chip text-[10px] mb-3" style={{ color: 'var(--accent)' }}>The first workflow</p>
-            <h2 className="font-display text-3xl sm:text-4xl font-extrabold mb-4" style={{ textWrap: 'balance' }}>
-              Retail questions that cannot be answered from a database.
-            </h2>
-            <p className="leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-              Use GroundTruth when the answer depends on what is physically on a shelf right now.
-              One visit can return several structured observations, reducing travel cost while producing evidence your team can audit.
-            </p>
-          </div>
-
-          <div className="grid sm:grid-cols-3 gap-5">
-            {OUTPUTS.map(output => (
-              <div key={output.title} className="card card-hover p-6">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center font-display font-extrabold text-lg mb-5" style={{ background: 'var(--accent-weak)', color: 'var(--accent)' }}>{output.icon}</div>
-                <h3 className="font-display font-bold text-lg mb-2">{output.title}</h3>
-                <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>{output.description}</p>
-              </div>
-            ))}
-          </div>
+      <section className="flow-section" aria-labelledby="flow-title">
+        <div className="section-frame">
+          <p className="section-index section-index-center">FROM INTENT TO RECEIPT</p><h2 id="flow-title" className="section-title section-title-center">One physical question. One inspectable chain of evidence.</h2>
+          <div className="flow-rail">{[
+            ['01', 'Request', 'An agent submits a precise physical assumption and proof specification.'],
+            ['02', 'Settle', 'A sponsored sandbox or declared USDC rail authorizes the task.'],
+            ['03', 'Observe', 'A field submission is checked against the original brief.'],
+            ['04', 'Prove', 'Hashes and verdict metadata form a public Arbitrum receipt.'],
+          ].map(([number, title, body]) => <article className="flow-step" key={number}><span className="flow-number">{number}</span><h3>{title}</h3><p>{body}</p></article>)}</div>
+          <p className="flow-disclaimer">Demo receipts use Arbitrum Sepolia. The optional payment path uses Arbitrum One USDC. Fulfilment remains asynchronous and subject to confirmed coverage.</p>
         </div>
       </section>
 
-      <section className="px-5 py-20 border-t" style={{ borderColor: 'var(--border)', background: 'var(--bg-subtle)' }}>
-        <div className="max-w-5xl mx-auto grid lg:grid-cols-2 gap-12 items-center">
-          <div>
-            <p className="chip text-[10px] mb-3" style={{ color: 'var(--good)' }}>Verification is the product</p>
-            <h2 className="font-display text-3xl sm:text-4xl font-extrabold mb-5" style={{ textWrap: 'balance' }}>A photo is not proof by itself.</h2>
-            <p className="leading-relaxed mb-7" style={{ color: 'var(--text-muted)' }}>
-              GroundTruth checks the submission against the original brief and records why it passed. Confident mismatches are rejected; ambiguous evidence is routed for review.
-            </p>
-            <div className="space-y-3">
-              {CHECKS.map(check => (
-                <div key={check} className="flex items-center gap-3">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full text-xs flex-shrink-0" style={{ background: 'var(--good-weak)', color: 'var(--good)' }}>✓</span>
-                  <span className="text-sm font-medium">{check}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="ticket">
-            <div className="ticket-head"><span>Field campaign</span><span>API · dashboard · MCP</span></div>
-            <div className="ticket-body space-y-5">
-              {[
-                ['01', 'Define', 'Upload locations and a structured evidence checklist.'],
-                ['02', 'Dispatch', 'Eligible field operators receive a funded mission.'],
-                ['03', 'Verify', 'Freshness, integrity, and semantic checks evaluate the evidence.'],
-                ['04', 'Use', 'Receive structured results, proof, and an audit trail.'],
-              ].map(([step, title, description]) => (
-                <div key={step} className="flex gap-4">
-                  <span className="font-mono text-xs pt-1" style={{ color: 'var(--accent)' }}>{step}</span>
-                  <div><div className="font-display font-bold">{title}</div><p className="text-sm mt-1 leading-relaxed" style={{ color: 'var(--text-muted)' }}>{description}</p></div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+      <section id="pricing" className="final-cta-section scroll-mt-20">
+        <div className="final-orbit" aria-hidden="true"><LogoMark size={72} ground={false} /></div>
+        <div className="section-frame final-cta-inner"><p className="section-index section-index-center">CROSS THE DIGITAL / PHYSICAL DIVIDE</p><h2>Before your agent acts,<br /><span>let it look.</span></h2><p>Experience the full request-to-receipt loop without needing real funds.</p><div className="hero-actions final-actions"><Link href="/demo" className="cinematic-button cinematic-button-primary">Launch live demo <span aria-hidden="true">↗</span></Link><Link href="/developers" className="cinematic-button cinematic-button-secondary">Read developer docs <span aria-hidden="true">→</span></Link></div></div>
       </section>
 
-      <section id="developers" className="px-5 py-20 border-t scroll-mt-20" style={{ borderColor: 'var(--border)' }}>
-        <div className="max-w-5xl mx-auto grid lg:grid-cols-2 gap-12 items-center">
-          <div>
-            <p className="chip text-[10px] mb-3" style={{ color: 'var(--info)' }}>For developers and agents</p>
-            <h2 className="font-display text-3xl sm:text-4xl font-extrabold mb-4">Physical evidence, called like software.</h2>
-            <p className="leading-relaxed mb-6" style={{ color: 'var(--text-muted)' }}>
-              Create a funded task, receive its ID immediately, and poll for the verified result. The current prototype supports photo and structured-form evidence, x402 payment, and on-chain settlement.
-            </p>
-          <div className="flex flex-wrap gap-3">
-              <a href="/api/mcp" className="btn btn-primary px-6 py-3">Inspect MCP endpoint</a>
-              <Link href="/tasks" className="btn btn-ghost px-6 py-3">Open mission board</Link>
-            </div>
-          </div>
-
-          <div className="card overflow-hidden font-mono">
-            <div className="flex items-center justify-between px-5 py-3 border-b" style={{ borderColor: 'var(--border)', background: 'var(--bg-subtle)' }}>
-              <span className="text-xs" style={{ color: 'var(--text-faint)' }}>human_do</span>
-              <span className="chip text-[9px]" style={{ color: 'var(--good)' }}>asynchronous</span>
-            </div>
-            <pre className="p-5 text-[12px] sm:text-[13px] leading-relaxed overflow-x-auto" style={{ color: 'var(--text)' }}>{`{
-  "intent": "Check Brand A at Store 42",
-  "service_tier": "photo_visit",
-  "proof_spec": {
-    "type": "photo",
-    "instructions": "Capture shelf, price and stock",
-    "minPhotos": 2
-  }
-}
-
-→ { "task_id": "...", "status": "pending" }
-→ screened evidence + settlement receipt`}</pre>
-          </div>
-        </div>
-      </section>
-
-      <section className="px-5 py-20 border-t" style={{ borderColor: 'var(--border)' }}>
-        <div className="max-w-4xl mx-auto card p-8 sm:p-12 text-center">
-          <p className="chip text-[10px] mb-3" style={{ color: 'var(--accent)' }}>Design partners</p>
-          <h2 className="font-display text-3xl sm:text-4xl font-extrabold mb-4" style={{ textWrap: 'balance' }}>Turn your next field audit into an API call.</h2>
-          <p className="max-w-2xl mx-auto leading-relaxed mb-8" style={{ color: 'var(--text-muted)' }}>
-            We are opening focused pilots for brands and commerce teams with recurring store-level questions. Coverage, pricing, and acceptance criteria are agreed before launch.
-          </p>
-          <a href={contactUrl} className="btn btn-primary px-8 py-3.5">
-            Discuss a pilot <span className="btn-arrow">→</span>
-          </a>
-        </div>
-      </section>
-
-      <footer className="border-t px-5 py-8" style={{ borderColor: 'var(--border)' }}>
-        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs" style={{ color: 'var(--text-faint)' }}>
-          <div className="flex items-center gap-2.5"><LogoMark size={22} ground={false} /><span>GroundTruth · Verified field evidence</span></div>
-          <div className="flex flex-wrap items-center justify-center gap-4 font-mono"><Link href="/campaigns/demo">Illustrative output</Link><Link href="/developers">Developers</Link><Link href="/try">$0.10 integration test</Link><Link href="/operators">Field work</Link><Link href="/trust">Trust</Link><Link href="/diligence">Diligence</Link><Link href="/tasks">Missions</Link><Link href="/pulse">Activity</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/acceptable-use">Acceptable use</Link></div>
-        </div>
-      </footer>
+      <footer className="cinematic-footer"><div className="section-frame footer-inner"><div className="footer-brand"><LogoMark size={25} ground={false} /><span>GroundTruth</span><small>THE PHYSICAL TRUTH LAYER</small></div><nav aria-label="Footer"><Link href="/demo">Demo</Link><Link href="/judge">Proof</Link><Link href="/developers">Developers</Link><Link href="/receipts">Receipts</Link><Link href="/trust">Trust</Link><Link href="/pilot">Pilot</Link></nav></div></footer>
     </main>
   )
 }
