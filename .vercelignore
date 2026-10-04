@@ -1,0 +1,10 @@
+output/
+tmp/
+.next/
+.next-*/
+contracts/out/
+contracts/cache/
+.agents/
+.claude/
+.codex-finalizer/
+.playwright-mcp/
