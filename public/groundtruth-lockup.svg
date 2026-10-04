@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 144" role="img" aria-labelledby="title desc">
+  <title id="title">GroundTruth</title>
+  <desc id="desc">GroundTruth physical evidence infrastructure.</desc>
+  <defs>
+    <linearGradient id="pin" x1="24" y1="18" x2="100" y2="122" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FF7A57"/>
+      <stop offset="1" stop-color="#FF4D32"/>
+    </linearGradient>
+  </defs>
+  <path d="M15 126h31m38 0h31" fill="none" stroke="#FF5A3C" stroke-width="7" stroke-linecap="round"/>
+  <path d="M65 10C42.4 10 24 28 24 50.2c0 28.1 31.7 54.3 38.7 63.4 1.2 1.6 3.3 1.6 4.6 0 7-9.1 38.7-35.3 38.7-63.4C106 28 87.6 10 65 10Z" fill="url(#pin)"/>
+  <path d="m46.5 51.3 12.8 12.8 24.2-24.5" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="138" y="80" fill="#FFFFFF" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="62" font-weight="800" letter-spacing="-3">Ground<tspan fill="#FF6846">Truth</tspan></text>
+  <text x="141" y="112" fill="#B8C0C8" font-family="JetBrains Mono,Consolas,monospace" font-size="15" font-weight="600" letter-spacing="4">PHYSICAL EVIDENCE INFRASTRUCTURE</text>
+</svg>
