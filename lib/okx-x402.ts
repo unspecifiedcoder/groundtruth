@@ -46,7 +46,7 @@ export const BAZAAR_EXTENSION = {
         bodyType: 'json',
         body: {
           intent: 'GroundTruth external integration test',
-          service_tier: 'evaluation_test',
+          service_tier: 'integration_test',
           proof_spec: {
             type: 'form',
             instructions: 'Return a short integration receipt',
@@ -59,8 +59,8 @@ export const BAZAAR_EXTENSION = {
         example: {
           task_id: '00000000-0000-0000-0000-000000000000',
           status: 'pending',
-          service_tier: 'evaluation_test',
-          budget_usdt: '0.10',
+          service_tier: 'integration_test',
+          budget_usdt: '0.01',
           poll_url: 'https://groundtruth-oracle.vercel.app/api/v1/tasks/00000000-0000-0000-0000-000000000000',
           async: true,
         },
@@ -196,7 +196,7 @@ export function getHttpResourceServer(): Promise<x402HTTPResourceServer> {
         'POST JSON body: {"intent": string (1-500 chars, what a human oracle must verify), ' +
         '"proof_spec"?: {"type": "photo"|"form", "instructions": string, "minPhotos"?: 1-5, "formFields"?: string[]}, ' +
         `"service_tier"?: ${Object.keys(TASK_PRICE_TIERS).join('|')}, "timeout_seconds"?: 60-86400}. ` +
-        'The $0.10 evaluation_test tier is the public paid-review option; integration_test remains a $0.01 compatibility probe. ' +
+        'The $0.01 integration_test tier is the hackathon and machine-compatibility path; it tests payment and orchestration, not physical field fulfillment. ' +
         'Body is optional: omitted fields create a paid test task and return a task_id to poll.',
       mimeType: 'application/json',
       resource: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}${RESOURCE_PATH}`,

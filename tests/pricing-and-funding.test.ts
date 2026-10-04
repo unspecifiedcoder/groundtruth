@@ -89,11 +89,11 @@ describe('paid endpoint discovery metadata', () => {
       type: 'http',
       method: 'POST',
       bodyType: 'json',
-      body: { service_tier: 'evaluation_test' },
+      body: { service_tier: 'integration_test' },
     })
     expect(info.output).toMatchObject({
       type: 'json',
-      example: { status: 'pending', budget_usdt: '0.10', async: true },
+      example: { status: 'pending', budget_usdt: '0.01', async: true },
     })
     expect(BAZAAR_EXTENSION.bazaar.schema.required).toEqual(['input', 'output'])
   })

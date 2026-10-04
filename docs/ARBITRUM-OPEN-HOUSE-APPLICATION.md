@@ -13,6 +13,7 @@ Last verified: 2026-10-04
 - Product: https://groundtruth-oracle.vercel.app
 - Repository: https://github.com/unspecifiedcoder/groundtruth
 - Arbitrum build page: https://groundtruth-oracle.vercel.app/arbitrum
+- Judge console: https://groundtruth-oracle.vercel.app/judge
 - Receipt verifier: https://groundtruth-oracle.vercel.app/receipts
 - Arbitrum Sepolia registry: `0xaf712732bd2c8ef589bb9fff5421ed428e4207e1`
 - Deployment transaction: https://sepolia.arbiscan.io/tx/0xaa1f82b0839f4242c49d14d12ed0c896d5250d89db2e59a57e41f80bb1ed5083
@@ -68,6 +69,8 @@ GroundTruth does not claim that a hash proves a photograph is truthful. The rece
 
 - Production application with health, API, MCP, A2A, and machine-readable x402 surfaces.
 - Canonical Arbitrum One USDC rail configured through a facilitator that advertises x402 v2 exact support for `eip155:42161`.
+- A server-priced `integration_test` gives judges a capped `$0.01` USDC payment-and-orchestration path; it is explicitly not sold as physical field fulfillment.
+- A public judge console verifies production health, OpenAPI, MCP, A2A, the live HTTP 402 offer, and the Sepolia receipt without requiring an account or payment.
 - Network-aware payment finality and explorer resolution for Arbitrum, Base, and X Layer on newly settled tasks.
 - Hash-only receipt registry deployed successfully to Arbitrum Sepolia at block `315645259`.
 - A clearly labeled protocol-demo receipt was recorded successfully at block `315647455`; it demonstrates contract read/write and is not represented as customer activity.

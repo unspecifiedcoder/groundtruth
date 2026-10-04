@@ -56,7 +56,8 @@ export default function ArbitrumPage() {
             GroundTruth converts an agent request into a funded physical-world mission, screens the returned evidence, and produces a pollable receipt. Calls can be paid with canonical USDC on Arbitrum One through HTTP 402.
           </p>
           <div className="flex flex-col sm:flex-row gap-3">
-            <Link href="/try" className="btn btn-primary px-7 py-3.5">Inspect the paid flow <span className="btn-arrow">→</span></Link>
+            <Link href="/judge" className="btn btn-primary px-7 py-3.5">Run judge checks <span className="btn-arrow">→</span></Link>
+            <Link href="/try" className="btn btn-ghost px-7 py-3.5">Try the $0.01 flow</Link>
             <a href="/api/openapi" className="btn btn-ghost px-7 py-3.5">Read the OpenAPI contract</a>
           </div>
           <p className="font-mono text-xs mt-5" style={{ color: 'var(--text-faint)' }}>Live MVP · Arbitrum One payment option · Arbitrum Sepolia receipt registry · asynchronous fulfillment</p>
