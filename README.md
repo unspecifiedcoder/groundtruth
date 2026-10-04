@@ -6,6 +6,7 @@
 [![ASP](https://img.shields.io/badge/OKX%20AI%20Marketplace-ASP%20%236282-F5A623?style=flat-square)](https://www.okx.com/web3/build/ai)
 [![X Layer](https://img.shields.io/badge/X%20Layer-chainId%20196-A78BFA?style=flat-square)](https://www.okx.com/xlayer)
 [![Arbitrum](https://img.shields.io/badge/Arbitrum-One%20%2B%20Sepolia-28A0F0?style=flat-square)](https://groundtruth-oracle.vercel.app/arbitrum)
+[![Robinhood](https://img.shields.io/badge/Robinhood%20Chain-Testnet%20USDG-00C805?style=flat-square)](https://groundtruth-oracle.vercel.app/robinhood)
 [![x402](https://img.shields.io/badge/Protocol-x402-00E87A?style=flat-square)](https://x402.org)
 
 ---
@@ -17,6 +18,8 @@ GroundTruth is a field-evidence API. Its first commercial workflow is retail ver
 An operations team or AI agent creates a funded task, a field operator completes it, and GroundTruth returns structured results with an evidence trail. The existing prototype supports MCP and A2A, photo and form proof, AI-assisted verification, freshness challenges, and x402 payment in USDC on Arbitrum One and Base or USD₮0 on X Layer. Privacy-preserving evidence receipt hashes can be anchored to the deployed Arbitrum Sepolia registry.
 
 The product is currently in focused-pilot mode. Coverage and turnaround are confirmed before a field campaign begins; the project does not claim universal geographic coverage.
+
+For the Arbitrum Open House build, GroundTruth also demonstrates an end-to-end USDG escrow and evidence-receipt flow on Robinhood Chain Testnet: fund a verification, anchor its private evidence digest, and release USDG only after a verdict. This is a protocol demonstration, not customer revenue.
 
 ## Public-beta readiness
 
@@ -47,6 +50,8 @@ AI Agent  ←  [MCP: task_status]  ←  Verified Proof  ←  Human Oracle
 **Interactive retail campaign:** `/campaigns/demo` (local or deployed)
 
 **Campaign builder:** `/campaigns/new` (requires the configured pilot access key)
+
+**Robinhood + USDG proof:** `/robinhood` (public, account-free, live onchain reads)
 
 **Video demo:** https://x.com/0xBejini/status/2078065892659958215
 
@@ -103,6 +108,8 @@ The unpaid call returns a machine-readable HTTP 402 challenge. A compatible wall
 Evidence receipt hashes are recorded separately in `EvidenceReceiptRegistry`
 on Arbitrum Sepolia (`0xaf712732bd2c8ef589bb9fff5421ed428e4207e1`).
 ```
+
+The hackathon demonstration also runs a USDG escrow plus receipt registry on Robinhood Chain Testnet (`46630`).
 
 ### Key flows
 
@@ -204,6 +211,16 @@ Deployment: 0xaa1f82b0839f4242c49d14d12ed0c896d5250d89db2e59a57e41f80bb1ed5083
 ```
 
 Stores only the immutable hashes of the task key, evidence manifest, proof specification, and verdict plus capture/record timestamps. Raw photos, precise coordinates, and personal data remain offchain.
+
+**GroundTruthUSDGTaskEscrow.sol** — deployed on Robinhood Chain Testnet
+```
+Escrow:   0x725cce0916d2e8682438732fd9e79803b4fab2bd
+Registry: 0x430172985b21458d73576435d4ad4beea85f376c
+USDG:     0x7E955252E15c84f5768B83c41a71F9eba181802F
+Network:  Robinhood Chain Testnet (chainId 46630)
+```
+
+The public demonstration funded and settled exactly `1.000000` test USDG. The app reads both contracts live and links the funding, receipt, and settlement transactions. It does not claim that test USDG is revenue or that a test transaction is customer adoption.
 
 ---
 
@@ -307,7 +324,9 @@ Base64-encode and send as `X-PAYMENT` header.
 │   └── planner.ts          # Task planning
 ├── contracts/
 │   └── src/
-│       └── GroundTruthPayroll.sol
+│       ├── GroundTruthPayroll.sol
+│       ├── EvidenceReceiptRegistry.sol
+│       └── GroundTruthUSDGTaskEscrow.sol
 └── supabase/
     └── migrations/
 ```

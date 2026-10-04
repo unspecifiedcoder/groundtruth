@@ -21,13 +21,14 @@ export default function JudgeConsole() {
     setRunning(true)
     const next: Check[] = []
     try {
-      const [healthResponse, manifestResponse, openapiResponse, mcpResponse, a2aResponse, receiptResponse, paymentResponse] = await Promise.all([
+      const [healthResponse, manifestResponse, openapiResponse, mcpResponse, a2aResponse, receiptResponse, robinhoodResponse, paymentResponse] = await Promise.all([
         fetch('/api/health', { cache: 'no-store' }),
         fetch('/.well-known/x402-service.json', { cache: 'no-store' }),
         fetch('/api/openapi', { cache: 'no-store' }),
         fetch('/api/mcp', { cache: 'no-store' }),
         fetch('/api/a2a', { cache: 'no-store' }),
         fetch(`/api/v1/receipts/${DEMO_TASK_ID}`, { cache: 'no-store' }),
+        fetch('/api/v1/robinhood-demo', { cache: 'no-store' }),
         fetch('/api/v1/human-do', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -54,6 +55,9 @@ export default function JudgeConsole() {
 
       const receipt = await receiptResponse.json()
       next.push({ name: 'Arbitrum receipt', ok: receiptResponse.ok && receipt.exists === true && receipt.chainId === 421614, detail: 'The labeled protocol-demo receipt resolves from the Arbitrum Sepolia registry.' })
+
+      const robinhood = await robinhoodResponse.json()
+      next.push({ name: 'Robinhood + USDG settlement', ok: robinhoodResponse.ok && robinhood.exists === true && robinhood.chainId === 46630 && robinhood.currency === 'USDG' && robinhood.status === 'settled', detail: robinhoodResponse.ok ? `${robinhood.amount} task funded, receipted, and settled on Robinhood Chain testnet.` : 'Robinhood proof endpoint did not resolve.' })
 
       const paymentHeader = paymentResponse.headers.get('PAYMENT-REQUIRED')
       const challenge = paymentHeader ? decodeChallenge(paymentHeader) : null

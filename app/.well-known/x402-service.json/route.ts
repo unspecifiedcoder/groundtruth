@@ -79,6 +79,17 @@ export async function GET() {
       verifier: `${base}/receipts`,
       privacy: 'Only hashes of the evidence manifest, proof specification, and verdict are recorded. Raw evidence and precise location remain offchain.',
     },
+    integrations: {
+      robinhoodUsdGDemo: {
+        network: 'eip155:46630',
+        currency: 'USDG',
+        asset: '0x7E955252E15c84f5768B83c41a71F9eba181802F',
+        escrow: '0x725cce0916d2e8682438732fd9e79803b4fab2bd',
+        receiptRegistry: '0x430172985b21458d73576435d4ad4beea85f376c',
+        proof: `${base}/api/v1/robinhood-demo`,
+        status: 'settled protocol demonstration on testnet; not an advertised x402 production rail',
+      },
+    },
     limitations: 'Coverage and turnaround are confirmed before real field dispatch. The 0.01 tier tests the payment and task contract; it does not claim a completed field visit.',
   }, {
     headers: { 'Cache-Control': 'public, max-age=300, s-maxage=300' },

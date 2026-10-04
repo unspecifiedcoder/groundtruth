@@ -14,11 +14,15 @@ Last verified: 2026-10-04
 - Repository: https://github.com/unspecifiedcoder/groundtruth
 - Arbitrum build page: https://groundtruth-oracle.vercel.app/arbitrum
 - Judge console: https://groundtruth-oracle.vercel.app/judge
+- Robinhood + USDG proof: https://groundtruth-oracle.vercel.app/robinhood
 - Receipt verifier: https://groundtruth-oracle.vercel.app/receipts
 - Arbitrum Sepolia registry: `0xaf712732bd2c8ef589bb9fff5421ed428e4207e1`
 - Deployment transaction: https://sepolia.arbiscan.io/tx/0xaa1f82b0839f4242c49d14d12ed0c896d5250d89db2e59a57e41f80bb1ed5083
 - Verifiable protocol-demo task: `00000000-0000-4000-8000-000000042161`
 - Demo receipt transaction: https://sepolia.arbiscan.io/tx/0xfed109f5d010f88205e9f2def4ae7bce6a779953eb4c5a73f52dc4ff6c4fd4d8
+- Robinhood Testnet USDG escrow: `0x725cce0916d2e8682438732fd9e79803b4fab2bd`
+- Robinhood Testnet receipt registry: `0x430172985b21458d73576435d4ad4beea85f376c`
+- USDG settlement transaction: https://explorer.testnet.chain.robinhood.com/tx/0x0f055da7c51d942f14dfcb3b224b3f598d7a6ba8a7dd479f77bb49346f00e772
 
 ## One-line pitch
 
@@ -28,7 +32,7 @@ GroundTruth gives onchain agents proof of what is physically true before they pa
 
 GroundTruth is a physical-state verification layer for software and autonomous agents. Digital APIs can report that inventory, a delivery, a storefront, or an asset should exist; they cannot prove its present condition. A buyer defines an objective proof specification, GroundTruth dispatches a local operator, collects fresh photo or form evidence, reviews it against the checklist, and returns a structured result and auditable receipt.
 
-The first commercial wedge is retail execution—on-shelf availability, displayed price, promotion, and placement—sold as tightly scoped, coverage-confirmed campaigns. The live MVP exposes HTTP, MCP, and A2A interfaces and accepts x402 payments. For Arbitrum, GroundTruth adds canonical USDC payment on Arbitrum One and a privacy-preserving evidence receipt registry on Arbitrum Sepolia. The registry stores only hashes of the evidence manifest, proof specification, and verdict; it never stores photos, precise coordinates, or personal data.
+The first commercial wedge is retail execution—on-shelf availability, displayed price, promotion, and placement—sold as a fixed 10-store launch validation and converted into recurring monitoring. The live MVP exposes HTTP, MCP, and A2A interfaces and accepts x402 payments. For Arbitrum, GroundTruth adds canonical USDC payment on Arbitrum One, a privacy-preserving evidence receipt registry on Arbitrum Sepolia, and a USDG task escrow plus receipt flow on Robinhood Chain Testnet. The registries store only hashes of the evidence manifest, proof specification, and verdict; they never store photos, precise coordinates, or personal data.
 
 At Founder House I would productionize the Arbitrum path: validate the paid flow with external agent wallets, move the registry from Sepolia to Arbitrum One after review, add retry and monitoring around receipt publication, and validate one design-partner workflow in retail, RWA, or DePIN operations.
 
@@ -76,6 +80,8 @@ GroundTruth does not claim that a hash proves a photograph is truthful. The rece
 - A clearly labeled protocol-demo receipt was recorded successfully at block `315647455`; it demonstrates contract read/write and is not represented as customer activity.
 - Deterministic evidence receipt hashing tests.
 - Contract compiler verification with Solidity `0.8.24`.
+- Robinhood Chain Testnet escrow and registry deployed against Paxos test USDG; a `1.000000` USDG task was funded, receipted, and settled end to end.
+- The public `/robinhood` page and `/api/v1/robinhood-demo` endpoint independently read the deployed contracts and expose the exact transactions.
 - No verified revenue, paid pilot, recurring customer, or active calibrated operator is claimed.
 
 ## Three-day Founder House milestone

@@ -100,6 +100,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 {[
                   { href: '/#how-it-works', label: 'How it works' },
                   { href: '/arbitrum', label: 'Arbitrum' },
+                  { href: '/robinhood', label: 'Robinhood' },
                   { href: '/judge', label: 'Technical proof' },
                   { href: '/developers', label: 'Developers' },
                 ].map(l => (
