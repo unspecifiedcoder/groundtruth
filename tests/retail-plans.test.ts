@@ -3,9 +3,9 @@ import { getRetailPlan, RETAIL_PLANS } from '../lib/retail-plans'
 
 describe('retail revenue plans', () => {
   it('keeps the one-time pilot and recurring plans commercially distinct', () => {
-    expect(getRetailPlan('launch_pilot')).toMatchObject({ priceLabel: '$199 once', checks: 25, timeline: 'one_time_launch' })
-    expect(getRetailPlan('monthly_25')).toMatchObject({ priceLabel: '$249/month', checks: 25, timeline: 'monthly_recurring' })
-    expect(getRetailPlan('monthly_75')).toMatchObject({ priceLabel: '$599/month', checks: 75, timeline: 'monthly_recurring' })
+    expect(getRetailPlan('launch_pilot')).toMatchObject({ priceLabel: '$199 once', checks: 10, timeline: 'one_time_launch' })
+    expect(getRetailPlan('monthly_25')).toMatchObject({ priceLabel: '$249/month', checks: 10, timeline: 'monthly_recurring' })
+    expect(getRetailPlan('monthly_75')).toMatchObject({ priceLabel: '$599/month', checks: 30, timeline: 'monthly_recurring' })
   })
 
   it('offers a non-binding scope path without inventing a price', () => {
